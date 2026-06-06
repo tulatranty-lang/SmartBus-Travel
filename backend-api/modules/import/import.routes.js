@@ -1,0 +1,10 @@
+const router = require('express').Router();
+const c = require('./import.controller');
+const { requireAuth } = require('../../common/middleware/auth.middleware');
+const { requireRole } = require('../../common/middleware/role.middleware');
+const asyncHandler = require('../../common/utils/async-handler');
+router.use(requireAuth, requireRole('admin','moderator'));
+router.get('/history', asyncHandler(c.history));
+router.post('/bus-data', requireRole('admin'), asyncHandler(c.busData));
+router.post('/tourism-data', requireRole('admin'), asyncHandler(c.tourismData));
+module.exports = router;

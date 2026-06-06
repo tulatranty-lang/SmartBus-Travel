@@ -1,0 +1,86 @@
+version: "3.1"
+
+intents:
+  - greet
+  - goodbye
+  - ask_route
+  - ask_nearest_stop
+  - ask_bus_eta
+  - ask_fare
+  - ask_schedule
+  - ask_route_detail
+  - report_problem
+  - ask_tourist_place
+  - ask_place_near_me
+  - ask_place_by_category
+  - ask_place_by_route
+  - ask_place_review
+  - ask_trip_plan
+  - ask_best_time_to_visit
+  - ask_food_near_place
+  - ask_place_detail
+  - inform
+  - ask_gps_location
+  - save_favorite
+  - fallback
+  - cancel
+
+entities:
+  - from_location
+  - to_location
+  - route_id
+  - bus_stop
+  - problem_type
+  - place_name
+  - place_category
+  - mood
+  - time_available
+  - budget
+  - near_location
+  - travel_style
+  - duration
+  - province
+
+slots:
+  from_location: { type: text, mappings: [{ type: from_entity, entity: from_location }] }
+  to_location: { type: text, mappings: [{ type: from_entity, entity: to_location }] }
+  route_id: { type: text, mappings: [{ type: from_entity, entity: route_id }] }
+  bus_stop: { type: text, mappings: [{ type: from_entity, entity: bus_stop }] }
+  problem_type: { type: text, mappings: [{ type: from_entity, entity: problem_type }] }
+  place_name: { type: text, mappings: [{ type: from_entity, entity: place_name }] }
+  place_category: { type: text, mappings: [{ type: from_entity, entity: place_category }] }
+  mood: { type: text, mappings: [{ type: from_entity, entity: mood }] }
+  time_available: { type: text, mappings: [{ type: from_entity, entity: time_available }] }
+  budget: { type: text, mappings: [{ type: from_entity, entity: budget }] }
+
+  province: { type: text, mappings: [{ type: from_entity, entity: province }] }
+  duration: { type: text, mappings: [{ type: from_entity, entity: duration }] }
+  travel_style: { type: text, mappings: [{ type: from_entity, entity: travel_style }] }
+
+responses:
+  utter_greet:
+    - text: "Xin chào! Tôi là SmartBus Travel Assistant. Tôi có thể tư vấn tuyến xe, bến gần nhất, ETA, giá vé, địa điểm du lịch, review và lịch trình."
+  utter_goodbye:
+    - text: "Tạm biệt, chúc bạn đi xe an toàn và có chuyến du lịch vui vẻ!"
+  utter_ask_more:
+    - text: "Bạn cho tôi biết điểm đến, mã tuyến hoặc loại địa điểm muốn đi nhé. Ví dụ: Tôi muốn đi biển bằng xe buýt."
+  utter_fallback:
+    - text: "Mình chưa hiểu rõ ý bạn. Bạn có thể hỏi: Tôi muốn đến Hội An, Bến gần tôi ở đâu, hoặc Gợi ý lịch trình Đà Nẵng 1 ngày."
+
+actions:
+  - action_find_best_route
+  - action_find_nearest_stop
+  - action_estimate_bus_eta
+  - action_show_fare
+  - action_show_schedule
+  - action_create_report
+  - action_find_tourist_places
+  - action_recommend_trip_plan
+  - action_show_place_reviews
+  - action_explain_gps
+  - action_save_favorite
+  - action_find_reviews
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true

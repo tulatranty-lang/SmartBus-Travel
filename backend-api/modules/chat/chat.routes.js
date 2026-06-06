@@ -1,0 +1,12 @@
+const router = require('express').Router();
+const c = require('./chat.controller');
+const v = require('./chat.validator');
+const validate = require('../../common/middleware/validate.middleware');
+const { optionalAuth, requireAuth } = require('../../common/middleware/auth.middleware');
+const { chatLimiter } = require('../../common/middleware/rate-limit.middleware');
+const asyncHandler = require('../../common/utils/async-handler');
+router.post('/', optionalAuth, chatLimiter, v.ask, validate, asyncHandler(c.ask));
+router.post('/ask', optionalAuth, chatLimiter, v.ask, validate, asyncHandler(c.ask));
+router.get('/suggestions', optionalAuth, asyncHandler(c.suggestions));
+router.get('/history', requireAuth, asyncHandler(c.history));
+module.exports = router;

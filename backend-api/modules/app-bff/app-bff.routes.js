@@ -1,0 +1,10 @@
+const router = require('express').Router();
+const c = require('./app-bff.controller');
+const asyncHandler = require('../../common/utils/async-handler');
+router.get('/dashboard', asyncHandler(c.dashboard));
+router.get('/place-discovery', asyncHandler(c.placeDiscovery));
+router.get('/place-detail/:id', asyncHandler(c.placeDetail));
+router.get('/trip-planner/options', asyncHandler(c.tripOptions));
+router.post('/trip-planner/generate', asyncHandler(c.tripGenerate));
+router.get('/chat-context', asyncHandler(c.chatContext));
+module.exports = router;

@@ -1,0 +1,16 @@
+version: "3.1"
+stories:
+- story: bus route then tourism
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: ask_route
+    - action: action_find_best_route
+    - intent: ask_tourist_place
+    - action: action_find_tourist_places
+- story: review then trip
+  steps:
+    - intent: ask_place_review
+    - action: action_show_place_reviews
+    - intent: ask_trip_plan
+    - action: action_recommend_trip_plan

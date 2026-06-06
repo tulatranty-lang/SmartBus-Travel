@@ -1,0 +1,2 @@
+/* Tourism cards are easier to scan. */
+.landing-place-card img,.travel-card img{object-fit:cover}.travel-card p,.landing-place-card p{line-height:1.55}.travel-meta{display:flex;flex-wrap:wrap;gap:8px}

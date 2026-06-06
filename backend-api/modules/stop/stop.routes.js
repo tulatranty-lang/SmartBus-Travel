@@ -1,0 +1,8 @@
+const router = require('express').Router();
+const c = require('./stop.controller');
+const v = require('./stop.validator');
+const validate = require('../../common/middleware/validate.middleware');
+const asyncHandler = require('../../common/utils/async-handler');
+router.get('/', asyncHandler(c.list));
+router.get('/nearest', v.nearest, validate, asyncHandler(c.nearest));
+module.exports = router;
