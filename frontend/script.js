@@ -472,7 +472,26 @@ function normalizeLatLng(item, options = {}) {
 }
 
 function normalizePathPoints(points, options = {}) {
+  // Accept Leaflet [lat,lng] arrays, GeoJSON LineString/MultiLineString/Feature,
+  // and SQL/API objects that expose geometry/coordinates. This prevents mobile map
+  // from losing route polylines when the backend returns GeoJSON instead of path[].
+  if (!points) return [];
+
+  if (points.type === "Feature") return normalizePathPoints(points.geometry, options);
+  if (points.geometry) return normalizePathPoints(points.geometry, options);
+
+  if (points.type === "LineString" && Array.isArray(points.coordinates)) {
+    return normalizePathPoints(points.coordinates, options);
+  }
+  if (points.type === "MultiLineString" && Array.isArray(points.coordinates)) {
+    return points.coordinates.flatMap((line) => normalizePathPoints(line, options));
+  }
+  if (Array.isArray(points.coordinates)) return normalizePathPoints(points.coordinates, options);
+
   if (!Array.isArray(points)) return [];
+  if (Array.isArray(points[0]) && Array.isArray(points[0][0])) {
+    return points.flatMap((line) => normalizePathPoints(line, options));
+  }
   return points.map((p) => normalizeLatLng(p, options)).filter(Boolean);
 }
 
@@ -681,11 +700,24 @@ const DynamicData = {
     document.body.classList.add('map-loading');
     try {
       const qs = mapDataQuery();
-      const [routesRaw, stopsRaw, busesRaw] = await Promise.all([
+      const [routesRaw, stopsRaw, busesRaw, mapRoutesRaw] = await Promise.all([
         API.get(`/bus/routes?${qs}`, { skipAuth: true }),
         API.get(`/bus/stops?${qs}`, { skipAuth: true }),
         API.get(`/bus/vehicle-locations?${qs}`, { skipAuth: true }),
+        API.get(`/map/routes?${qs}`, { skipAuth: true }).catch(() => null),
       ]);
+
+      const geoJsonPathByKey = new Map();
+      const geoFeatures = Array.isArray(mapRoutesRaw?.features) ? mapRoutesRaw.features : [];
+      geoFeatures.forEach((feature) => {
+        const props = feature.properties || {};
+        const pts = normalizePathPoints(feature, { source: `map-route-geojson:${props.id || props.routeCode || "?"}` });
+        if (pts.length < 2) return;
+        [props.id, props.routeCode, props.displayCode, props.routeDisplayCode].forEach((key) => {
+          const k = String(key || "").trim();
+          if (k) geoJsonPathByKey.set(k, pts);
+        });
+      });
 
       const stops = Array.isArray(stopsRaw) ? stopsRaw : [];
       const stopGroups = stops.reduce((acc, stop) => {
@@ -700,9 +732,12 @@ const DynamicData = {
         const grouped = routeKeys.flatMap((key) => stopGroups[key] || []);
         const uniqueGrouped = Array.from(new Map(grouped.map((stop, idx) => [String(stop.id || stop.externalStopCode || `${routeKeys[0] || 'route'}-${idx}`), stop])).values());
 
-        let points = normalizePathPoints(r.path || r.geometry || [], { source: `route-api:${r.id || r.routeCode || '?'}` });
-        if (points.length < 2 && Array.isArray(r.coordinates)) {
-          points = normalizePathPoints(r.coordinates.map(([lng, lat]) => ({ coordinates: [lng, lat] })), { source: `route-coordinates:${r.id || r.routeCode || '?'}` });
+        let points = normalizePathPoints(r.path || r.geometry || r.coordinates || [], { source: `route-api:${r.id || r.routeCode || '?'}` });
+        if (points.length < 2) {
+          for (const key of routeKeys) {
+            const geoPts = geoJsonPathByKey.get(key);
+            if (geoPts?.length >= 2) { points = geoPts; break; }
+          }
         }
         if (points.length < 2) {
           points = uniqueGrouped
@@ -889,12 +924,30 @@ const MapModule = (() => {
   let userLocationMarker = null;
   let userLocationCircle = null;
   let nearestStopMarker = null;
+  let routeRenderer = null;
+
+  function ensureMapPanes() {
+    if (!map || !window.L) return;
+    const panes = [
+      ["routePane", 430],
+      ["stopPane", 610],
+      ["vehiclePane", 650],
+      ["focusPane", 700],
+    ];
+    panes.forEach(([name, z]) => {
+      const pane = map.getPane(name) || map.createPane(name);
+      pane.style.zIndex = String(z);
+      pane.style.pointerEvents = name === "routePane" ? "auto" : "auto";
+    });
+    if (!routeRenderer) routeRenderer = L.svg({ pane: "routePane" });
+  }
 
   function init() {
     const mapEl = $("#map");
 
     if (map) {
       State.mapReady = true;
+      ensureMapPanes();
       window.safeInvalidateSmartBusMap?.(150);
       drawRoutes();
       drawStops();
@@ -911,7 +964,7 @@ const MapModule = (() => {
     }
 
     const meta = provinceMeta(State.mapFilters.province || CONFIG.DEFAULT_PROVINCE);
-    map = L.map("map", { zoomControl: false, scrollWheelZoom: true, preferCanvas: true }).setView(meta.center || CONFIG.MAP_CENTER, meta.zoom || CONFIG.MAP_ZOOM);
+    map = L.map("map", { zoomControl: false, scrollWheelZoom: true, preferCanvas: false }).setView(meta.center || CONFIG.MAP_CENTER, meta.zoom || CONFIG.MAP_ZOOM);
     window.smartBusMap = map;
     window.map = map;
 
@@ -921,6 +974,7 @@ const MapModule = (() => {
       maxZoom: 20,
     }).addTo(map);
 
+    ensureMapPanes();
     L.control.zoom({ position: "bottomright" }).addTo(map);
     map.on("zoomend", debounce(updateStopLabelVisibility, 120));
     map.on("moveend", debounce(() => { updateMarkers(State.buses); }, 180));
@@ -949,6 +1003,7 @@ const MapModule = (() => {
 
   function drawRoutes() {
     if (!map || !window.L) return;
+    ensureMapPanes();
     routeLines.forEach((l) => l.remove());
     routeLines.length = 0;
     ROUTES.forEach((route) => {
@@ -956,13 +1011,17 @@ const MapModule = (() => {
       if (!pts || pts.length < 2 || !routeVisible(route)) return;
       const isRoadSnapped = State.geometryStatus[route.id] === "ok";
       const line = L.polyline(pts, {
-        color: route.color,
-        weight: highlightedRouteId === route.id ? 8 : 4,
-        opacity: highlightedRouteId && highlightedRouteId !== route.id ? 0.18 : 0.82,
+        pane: "routePane",
+        renderer: routeRenderer || undefined,
+        className: "smartbus-route-line",
+        color: route.color || "#22d3ee",
+        weight: highlightedRouteId === route.id ? 8 : 5,
+        opacity: highlightedRouteId && highlightedRouteId !== route.id ? 0.24 : 0.95,
         lineCap: "round",
         lineJoin: "round",
         dashArray: isRoadSnapped ? null : "9 7",
       }).addTo(map);
+      if (line.bringToFront) line.bringToFront();
       line._smartBusRouteId = route.id;
       line.bindPopup(buildRoutePopup(route));
       routeLines.push(line);
@@ -1047,7 +1106,7 @@ const MapModule = (() => {
         if (m.isPopupOpen()) m.getPopup().setContent(buildBusPopup(bus, pos));
         if (visible.has(bus.uid)) { if (!map.hasLayer(m)) m.addTo(map); } else if (map.hasLayer(m)) m.remove();
       } else {
-        const m = L.marker(latlng, { icon: makeIcon(bus), zIndexOffset: 100 }).addTo(map);
+        const m = L.marker(latlng, { icon: makeIcon(bus), pane: "vehiclePane", zIndexOffset: 100 }).addTo(map);
         m.bindPopup(buildBusPopup(bus, pos), { maxWidth: 320, minWidth: 230 });
         m.on("click", () => Events.emit("bus:select", bus.uid));
         markers.set(bus.uid, m);
@@ -1120,7 +1179,7 @@ const MapModule = (() => {
         if (m.isPopupOpen()) m.getPopup().setContent(buildStopPopup(stop));
         if (!map.hasLayer(m)) m.addTo(map);
       } else {
-        const m = L.marker(ll, { icon: makeStopIcon(stop), zIndexOffset: 70 }).addTo(map);
+        const m = L.marker(ll, { icon: makeStopIcon(stop), pane: "stopPane", zIndexOffset: 70 }).addTo(map);
         m.bindPopup(buildStopPopup(stop), { maxWidth: 320, minWidth: 230 });
         stopMarkers.set(id, m);
       }
@@ -1181,7 +1240,7 @@ const MapModule = (() => {
     State.userLocation = { lat: ll[0], lng: ll[1] };
     const icon = L.divIcon({ className: "user-location-icon", html: `<div class="user-location-dot"></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
     if (userLocationMarker) userLocationMarker.setLatLng(ll);
-    else userLocationMarker = L.marker(ll, { icon, zIndexOffset: 500 }).addTo(map);
+    else userLocationMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 500 }).addTo(map);
     if (userLocationCircle) userLocationCircle.setLatLng(ll);
     else userLocationCircle = L.circle(ll, { radius: 650, weight: 1, opacity: 0.7, fillOpacity: 0.08 }).addTo(map);
     userLocationMarker.bindPopup("Vị trí hiện tại của bạn");
@@ -1197,7 +1256,7 @@ const MapModule = (() => {
     map.flyTo(ll, 15, { duration: 1.1 });
     const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>📍</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
     if (nearestStopMarker) nearestStopMarker.setLatLng(ll);
-    else nearestStopMarker = L.marker(ll, { icon, zIndexOffset: 460 }).addTo(map);
+    else nearestStopMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 460 }).addTo(map);
     nearestStopMarker.bindPopup(`<b>${escapeHtml(place.name || "Địa điểm")}</b><br/>${escapeHtml(place.provinceName || place.province || "")}`);
     window.safeInvalidateSmartBusMap?.(300);
     setTimeout(() => nearestStopMarker?.openPopup(), 400);
@@ -1209,7 +1268,7 @@ const MapModule = (() => {
     if (!ll) return;
     const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>🚏</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
     if (nearestStopMarker) nearestStopMarker.setLatLng(ll);
-    else nearestStopMarker = L.marker(ll, { icon, zIndexOffset: 450 }).addTo(map);
+    else nearestStopMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 450 }).addTo(map);
     nearestStopMarker.bindPopup(`<b>${escapeHtml(stop.name || "Bến gần nhất")}</b><br/>${escapeHtml(stop.address || "Điểm đón gợi ý")}`);
     map.flyTo(ll, 15, { duration: 1.1 });
     window.safeInvalidateSmartBusMap?.(300);
