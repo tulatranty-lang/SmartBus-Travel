@@ -52,18 +52,30 @@ async function destinationRouteReply(message, entities, lat, lng) {
     return { reply: `Mình tìm thấy ${place.name}, nhưng dữ liệu hiện chưa có tuyến bus phù hợp đến địa điểm này. Bạn có thể chọn bến hoặc địa điểm gần hơn trên bản đồ.`, intent: 'route_to_place', suggestedPlaces: [place], cta: { label: 'Mở địa điểm du lịch', view: 'tourism', placeId: place.id }, relatedPlaceId: place.id };
   }
   const origin = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) ? await stopService.findNearest({ lat, lng, routeId: route.id }).catch(() => null) : null;
-  const walkStart = origin?.walkingMinutes ? `Bến lên gần bạn: ${origin.stop.name}, đi bộ khoảng ${origin.walkingMinutes} phút.` : 'Bật GPS để mình chọn bến lên gần nhất.';
-  const walkEnd = destStop?.walkingMinutes ? `Xuống tại ${destStop.stopName || destStop.stopId}, đi bộ khoảng ${destStop.walkingMinutes} phút đến ${place.name}.` : `Xuống tại bến gần ${place.name}.`;
+  const pickupStop = origin?.stop || null;
+  const destinationStop = destStop ? { id: destStop.stopId, name: destStop.stopName || destStop.name || destStop.stopId, lat: destStop.lat, lng: destStop.lng, walkingMinutes: destStop.walkingMinutes || null } : null;
+  const walkStart = pickupStop ? `Bến lên gần bạn: ${pickupStop.name}, đi bộ khoảng ${origin.walkingMinutes || '?'} phút.` : 'Bật GPS để mình chọn bến lên gần nhất.';
+  const walkEnd = destinationStop ? `Xuống tại ${destinationStop.name}, đi bộ khoảng ${destinationStop.walkingMinutes || '?'} phút đến ${place.name}.` : `Xuống tại bến gần ${place.name}.`;
+  const legs = [
+    pickupStop ? `Đi bộ đến ${pickupStop.name}` : 'Bật GPS để xác định bến đón gần bạn',
+    `Đi tuyến ${routeLabel(route)} – ${route.name}`,
+    destinationStop ? `Xuống tại ${destinationStop.name} rồi đi bộ tới ${place.name}` : `Xuống tại bến gần ${place.name}`,
+  ];
   return {
     reply: `Có phương án đi bằng tuyến ${routeLabel(route)} – ${route.name}. ${walkStart} ${walkEnd} Giờ chạy: ${route.time || 'đang cập nhật'}, tần suất: ${route.interval || 'đang cập nhật'}, giá vé ${route.fare || 'đang cập nhật'}.`,
     intent: 'route_to_place',
     route,
-    nearestStop: origin?.stop || (destStop ? { id: destStop.stopId, name: destStop.stopName, lat: destStop.lat, lng: destStop.lng } : null),
+    nearestStop: pickupStop,
+    pickupStop,
+    originStop: pickupStop,
+    destinationStop,
     destinationPlace: place,
     suggestedPlaces: [place],
-    walkingMinutes: origin?.walkingMinutes || destStop?.walkingMinutes || null,
+    routePlan: { summary: legs.join(' → '), legs },
+    walkingMinutes: origin?.walkingMinutes || null,
+    destinationWalkingMinutes: destinationStop?.walkingMinutes || null,
     fare: route.fare,
-    cta: { label: 'Hiện tuyến đường trên bản đồ', view: 'dashboard', routeId: route.id, placeId: place.id },
+    cta: { label: 'Hiện lộ trình trên bản đồ', view: 'dashboard', routeId: route.id, placeId: place.id },
     relatedPlaceId: place.id,
     relatedRouteId: route.id,
   };

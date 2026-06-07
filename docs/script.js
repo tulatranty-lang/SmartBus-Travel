@@ -975,6 +975,7 @@ const MapModule = (() => {
   let userLocationMarker = null;
   let userLocationCircle = null;
   let nearestStopMarker = null;
+  let planMarkers = [];
   let routeRenderer = null;
 
   function ensureMapPanes() {
@@ -1306,6 +1307,68 @@ const MapModule = (() => {
     window.safeInvalidateSmartBusMap?.(200);
   }
 
+  function clearTravelPlan() {
+    planMarkers.forEach((marker) => {
+      try { if (marker && map?.hasLayer(marker)) marker.remove(); } catch {}
+    });
+    planMarkers = [];
+  }
+
+  function planIcon(emoji, cls = "plan") {
+    return L.divIcon({
+      className: `smartbus-plan-div-icon smartbus-plan-${cls}`,
+      html: `<div class="smartbus-plan-marker"><span>${emoji}</span></div>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 34],
+      popupAnchor: [0, -32],
+    });
+  }
+
+  function addPlanMarker(point, label, emoji, cls) {
+    const ll = normalizeLatLng(point, { allowOutsideCentral: true, source: `travel-plan:${label}` });
+    if (!ll) return null;
+    const marker = L.marker(ll, { icon: planIcon(emoji, cls), pane: "focusPane", zIndexOffset: 900 }).addTo(map);
+    marker.bindPopup(`<b>${escapeHtml(label)}</b><br/>${Number(ll[0]).toFixed(5)}, ${Number(ll[1]).toFixed(5)}`);
+    planMarkers.push(marker);
+    return marker;
+  }
+
+  function showTravelPlan(data = {}, payload = {}) {
+    if (!map || !window.L) return;
+    clearTravelPlan();
+    const routeId = data?.route?.id || data?.route?.route_id || data?.routeId || data?.relatedRouteId;
+    if (routeId) highlightRoute(routeId);
+    if (payload?.lat && payload?.lng) markUserLocation(payload.lat, payload.lng);
+
+    const pickup = data.pickupStop || data.originStop || data.boardingStop || data.nearestStop;
+    const destinationStop = data.destinationStop || data.dropoffStop || data.alightingStop;
+    const place = data.destinationPlace || data.place || data.targetPlace || data.suggestedPlaces?.[0];
+
+    const added = [];
+    if (pickup && normalizeLatLng(pickup, { allowOutsideCentral: true, source: "plan-pickup-test" })) {
+      added.push(addPlanMarker(pickup, `Điểm đón: ${pickup.name || pickup.stopName || "bến gần bạn"}`, "🚏", "pickup"));
+    }
+    if (destinationStop && normalizeLatLng(destinationStop, { allowOutsideCentral: true, source: "plan-destination-stop-test" })) {
+      added.push(addPlanMarker(destinationStop, `Điểm xuống: ${destinationStop.name || destinationStop.stopName || "bến gần điểm đến"}`, "🏁", "dropoff"));
+    }
+    if (place && normalizeLatLng(place, { allowOutsideCentral: true, source: "plan-place-test" })) {
+      added.push(addPlanMarker(place, `Điểm đến: ${place.name || "địa điểm"}`, "📍", "destination"));
+    }
+
+    const validMarkers = added.filter(Boolean);
+    if (validMarkers.length) {
+      try {
+        const group = L.featureGroup(validMarkers.concat(routeLines.filter((line) => !routeId || line._smartBusRouteId === routeId)));
+        map.fitBounds(group.getBounds(), { padding: [34, 34], maxZoom: 15 });
+      } catch {}
+      setTimeout(() => validMarkers[validMarkers.length - 1]?.openPopup?.(), 350);
+    } else if (routeId) {
+      const line = routeLines.find((item) => item._smartBusRouteId === routeId);
+      if (line) try { map.fitBounds(line.getBounds(), { padding: [34, 34], maxZoom: 14 }); } catch {}
+    }
+    window.safeInvalidateSmartBusMap?.(250);
+  }
+
   function focusPlace(place) {
     if (!map || !place) return;
     const ll = normalizeLatLng(place, { source: `focus-place:${place?.id || place?.name || "?"}` });
@@ -1341,7 +1404,7 @@ const MapModule = (() => {
   }
   function invalidate() { map && setTimeout(() => map.invalidateSize(true), 150); }
 
-  return { init, updateMarkers, drawStops, focusBus, redrawRoutes, invalidate, highlightRoute, clearRouteHighlight, markUserLocation, focusStop, focusPlace };
+  return { init, updateMarkers, drawStops, focusBus, redrawRoutes, invalidate, highlightRoute, clearRouteHighlight, clearTravelPlan, showTravelPlan, markUserLocation, focusStop, focusPlace };
 })();
 
 /* ----------------------------------------------------------
@@ -3536,21 +3599,43 @@ const SmartBusAssistant = (() => {
     return msg;
   }
 
+  function normalizeViewName(view) {
+    return view === "map" ? "dashboard" : (view || "dashboard");
+  }
+
+  function stopName(stop) {
+    return stop?.name || stop?.stopName || stop?.stop_name || "Đang cập nhật";
+  }
+
   function buildCard(data) {
     const route = data.route || null;
-    const stop = data.nearestStop || null;
-    if (!route && !stop && !data.fare && !data.cta && !data.suggestedPlaces?.length) return "";
+    const hasDestination = Boolean(data.destinationPlace || data.destinationStop || data.dropoffStop || data.alightingStop);
+    const pickup = data.pickupStop || data.originStop || data.boardingStop || (hasDestination ? null : data.nearestStop);
+    const dropoff = data.destinationStop || data.dropoffStop || data.alightingStop || (hasDestination && !pickup ? data.nearestStop : null);
+    const place = data.destinationPlace || data.targetPlace || data.place || null;
+    const plan = data.routePlan || null;
+    if (!route && !pickup && !dropoff && !place && !data.fare && !data.cta && !data.suggestedPlaces?.length && !plan) return "";
     const rows = [];
-    if (route) rows.push(["Tuyến", `T.${route.id || route.route_id} – ${route.name || route.route_name || ""}`]);
-    if (stop) rows.push(["Bến gần nhất", stop.name || stop.stop_name || "Điểm đón gợi ý"]);
+    if (route) rows.push(["Tuyến", `T.${route.displayCode || route.id || route.route_id || route.routeCode} – ${route.name || route.route_name || ""}`]);
+    if (pickup) rows.push(["Điểm đón", stopName(pickup)]);
+    if (dropoff) rows.push(["Điểm xuống", stopName(dropoff)]);
+    if (place) rows.push(["Điểm đến", place.name || place.placeName || "Địa điểm"]);
     if (Number.isFinite(Number(data.walkingMinutes))) rows.push(["Đi bộ", `${data.walkingMinutes} phút`]);
     if (Number.isFinite(Number(data.etaMinutes))) rows.push(["Xe đến", `${data.etaMinutes} phút`]);
     if (data.fare || route?.fare) rows.push(["Giá vé", data.fare || route.fare]);
+    if (plan?.summary) rows.push(["Lộ trình", plan.summary]);
     let extra = "";
-    if (Array.isArray(data.suggestedPlaces) && data.suggestedPlaces.length) {
+    if (Array.isArray(plan?.legs) && plan.legs.length) {
+      extra += `<div class="chat-route-legs">${plan.legs.map((leg, idx) => `<div><b>${idx + 1}.</b> ${sanitize(leg)}</div>`).join("")}</div>`;
+    }
+    if (Array.isArray(data.suggestedPlaces) && data.suggestedPlaces.length && !place) {
       extra += `<div class="chat-card-row"><span>Gợi ý</span><b>${data.suggestedPlaces.slice(0,3).map((p) => sanitize(p.name)).join(", ")}</b></div>`;
     }
-    if (data.cta?.view) extra += `<button type="button" class="chat-cta" onclick="Nav.go('${sanitize(data.cta.view)}'); ${data.cta.routeId ? `setTimeout(function(){ MapModule.highlightRoute('${sanitize(data.cta.routeId)}'); }, 250);` : ''}">${sanitize(data.cta.label || "Mở trang")}</button>`;
+    if (data.cta?.view) {
+      const view = sanitize(normalizeViewName(data.cta.view));
+      const routeId = sanitize(data.cta.routeId || data.relatedRouteId || route?.id || "");
+      extra += `<button type="button" class="chat-cta" onclick="Nav.go('${view}'); ${routeId ? `setTimeout(function(){ MapModule.highlightRoute('${routeId}'); }, 250);` : ''}">${sanitize(data.cta.label || "Mở trang")}</button>`;
+    }
     return `<div class="chat-card">${rows.map(([k,v]) => `<div class="chat-card-row"><span>${sanitize(k)}</span><b>${sanitize(v)}</b></div>`).join("")}${extra}</div>`;
   }
 
@@ -3656,12 +3741,24 @@ const SmartBusAssistant = (() => {
     if (route) {
       const stop = payload.lat && payload.lng ? nearestLocalStop(payload.lat, payload.lng, route.id) : null;
       const routePlaces = places.length ? places : LOCAL_TOURISM_PLACES.filter((p) => String(p.nearestRouteCode || "").includes(route.id)).slice(0, 3);
-      return { reply: `Bạn có thể đi tuyến ${route.id} – ${route.name}. Giờ chạy: ${route.time || "đang cập nhật"}, tần suất: ${route.interval || "đang cập nhật"}, cự ly khoảng ${route.distanceKm || "?"} km, tốc độ TB ${route.avgSpeedKmh || "?"} km/h. ${stop ? `Bến gần bạn: ${stop.name}, cách ${stop.distanceMeters}m.` : "Bật GPS để mình tìm bến gần bạn."} ${routePlaces.length ? `Điểm du lịch gần/gợi ý: ${routePlaces.map((p) => p.name).join(", ")}.` : ""}`, intent: "local_route", route, nearestStop: stop, suggestedPlaces: routePlaces, walkingMinutes: stop ? Math.max(1, Math.round(stop.distanceMeters / 80)) : null, etaMinutes: 8 + Math.floor(Math.random() * 12), fare: route.fare || "Đang cập nhật", cta: { label: "Xem tuyến trên bản đồ", view: "map" } };
+      const destinationPlace = routePlaces[0] || null;
+      const destinationStop = destinationPlace?.nearestStopName ? { name: destinationPlace.nearestStopName, lat: destinationPlace.lat, lng: destinationPlace.lng } : null;
+      const legs = [];
+      legs.push(stop ? `Đi bộ đến ${stop.name}` : "Bật GPS để xác định bến đón gần bạn");
+      legs.push(`Đi tuyến ${route.id} – ${route.name}`);
+      if (destinationPlace) legs.push(`Xuống gần ${destinationPlace.nearestStopName || destinationPlace.name}, sau đó đi bộ tới ${destinationPlace.name}`);
+      return { reply: `Bạn có thể đi tuyến ${route.id} – ${route.name}. Giờ chạy: ${route.time || "đang cập nhật"}, tần suất: ${route.interval || "đang cập nhật"}, cự ly khoảng ${route.distanceKm || "?"} km, tốc độ TB ${route.avgSpeedKmh || "?"} km/h. ${stop ? `Điểm đón gần bạn: ${stop.name}, cách ${stop.distanceMeters}m.` : "Bật GPS để mình tìm điểm đón gần bạn."} ${destinationPlace ? `Điểm đến gợi ý: ${destinationPlace.name}.` : ""}`, intent: "local_route", route, pickupStop: stop, nearestStop: stop, destinationStop, destinationPlace, suggestedPlaces: routePlaces, routePlan: { summary: legs.join(" → "), legs }, walkingMinutes: stop ? Math.max(1, Math.round(stop.distanceMeters / 80)) : null, etaMinutes: 8 + Math.floor(Math.random() * 12), fare: route.fare || "Đang cập nhật", cta: { label: "Hiện lộ trình trên bản đồ", view: "dashboard", routeId: route.id } };
     }
     if (places.length) {
       const first = places[0];
       const firstRoute = routeById(first.nearestRouteCode);
-      return { reply: `Mình tìm thấy ${places.length} địa điểm phù hợp: ${places.map((p) => p.name).join(", ")}. Với ${first.name}, tuyến gợi ý là ${first.nearestRouteCode || "đang cập nhật"}, bến/hub gần: ${first.nearestStopName || "đang cập nhật"}, khoảng cách ${first.nearestDistanceKm || "?"} km. Thời điểm đẹp: ${first.bestTime || "theo mùa khô"}. Ẩm thực gợi ý: ${first.foodSuggestions || "đặc sản địa phương"}.`, intent: "local_tourism", route: firstRoute, suggestedPlaces: places, cta: { label: "Mở địa điểm du lịch", view: "tourism" } };
+      const pickup = payload.lat && payload.lng && firstRoute ? nearestLocalStop(payload.lat, payload.lng, firstRoute.id) : null;
+      const destinationStop = first.nearestStopName ? { name: first.nearestStopName, lat: first.lat, lng: first.lng } : null;
+      const legs = [];
+      legs.push(pickup ? `Đi bộ đến ${pickup.name}` : "Bật GPS để xác định bến đón gần bạn");
+      if (firstRoute) legs.push(`Đi tuyến ${firstRoute.id} – ${firstRoute.name || "tuyến gợi ý"}`);
+      legs.push(`Xuống gần ${first.nearestStopName || first.name} và đi bộ tới ${first.name}`);
+      return { reply: `Mình tìm thấy ${places.length} địa điểm phù hợp: ${places.map((p) => p.name).join(", ")}. Với ${first.name}, tuyến gợi ý là ${first.nearestRouteCode || "đang cập nhật"}, bến/hub gần: ${first.nearestStopName || "đang cập nhật"}, khoảng cách ${first.nearestDistanceKm || "?"} km. Thời điểm đẹp: ${first.bestTime || "theo mùa khô"}. Ẩm thực gợi ý: ${first.foodSuggestions || "đặc sản địa phương"}.`, intent: "local_tourism", route: firstRoute, pickupStop: pickup, nearestStop: pickup, destinationStop, destinationPlace: first, suggestedPlaces: places, routePlan: { summary: legs.join(" → "), legs }, cta: { label: "Hiện lộ trình trên bản đồ", view: "dashboard", routeId: firstRoute?.id } };
     }
     if (/an gi|mon ngon|dac san|am thuc|food/.test(text)) {
       const foodPlaces = searchLocalPlaces(question).filter((p) => p.foodSuggestions || /food|cho|am thuc|đặc sản|ẩm thực/i.test(`${p.categoryCode} ${p.categoryName} ${p.name}`));
@@ -3719,10 +3816,13 @@ const SmartBusAssistant = (() => {
   }
 
   function applyMapResult(data, payload) {
-    const routeId = data?.route?.id || data?.route?.route_id || data?.routeId;
+    const routeId = data?.route?.id || data?.route?.route_id || data?.routeId || data?.relatedRouteId;
+    if (data?.destinationPlace || data?.destinationStop || data?.pickupStop || data?.nearestStop || routeId) {
+      MapModule.showTravelPlan?.(data, payload);
+      return;
+    }
     if (routeId) MapModule.highlightRoute?.(routeId);
     if (payload?.lat && payload?.lng) MapModule.markUserLocation?.(payload.lat, payload.lng);
-    if (data?.nearestStop) MapModule.focusStop?.(data.nearestStop);
   }
 
   async function requestGPS(showToast = false, timeoutMs = 15000) {
@@ -3833,4 +3933,88 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
   else bind();
+})();
+
+
+/* ==========================================================
+   SmartBus FINAL TOUCH MENU + CHATBOT ROUTE RESET PATCH
+   - Sidebar closes when touching/clicking outside.
+   - Whole sidebar scrolls with wheel/touch, not the map.
+   - Map controls clear chatbot travel-plan mode before applying user filters.
+========================================================== */
+(function smartBusFinalTouchMenuAndRouteReset() {
+  if (window.__SMARTBUS_FINAL_TOUCH_MENU_ROUTE_RESET__) return;
+  window.__SMARTBUS_FINAL_TOUCH_MENU_ROUTE_RESET__ = true;
+
+  function sidebarOpen() {
+    return document.body.classList.contains("sidebar-open") || document.getElementById("sidebar")?.classList.contains("open");
+  }
+
+  function bindSidebar() {
+    const sidebar = document.getElementById("sidebar");
+    const menuBtn = document.getElementById("menu-btn");
+    if (!sidebar || sidebar.dataset.finalTouchScrollBound === "1") return;
+    sidebar.dataset.finalTouchScrollBound = "1";
+
+    const canScroll = () => sidebar.scrollHeight > sidebar.clientHeight + 2;
+
+    sidebar.addEventListener("wheel", (event) => {
+      if (!sidebarOpen() || !canScroll()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      sidebar.scrollTop += event.deltaY;
+    }, { passive: false, capture: true });
+
+    let startY = 0;
+    let startScrollTop = 0;
+    sidebar.addEventListener("touchstart", (event) => {
+      if (!event.touches?.length) return;
+      startY = event.touches[0].clientY;
+      startScrollTop = sidebar.scrollTop;
+    }, { passive: true, capture: true });
+
+    sidebar.addEventListener("touchmove", (event) => {
+      if (!sidebarOpen() || !event.touches?.length || !canScroll()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      sidebar.scrollTop = startScrollTop + (startY - event.touches[0].clientY);
+    }, { passive: false, capture: true });
+
+    document.addEventListener("pointerdown", (event) => {
+      if (!sidebarOpen()) return;
+      const target = event.target;
+      if (sidebar.contains(target) || menuBtn?.contains(target)) return;
+      Nav._closeSidebar?.();
+    }, true);
+
+    document.addEventListener("touchstart", (event) => {
+      if (!sidebarOpen()) return;
+      const target = event.target;
+      if (sidebar.contains(target) || menuBtn?.contains(target)) return;
+      Nav._closeSidebar?.();
+    }, { passive: true, capture: true });
+  }
+
+  function bindMapControls() {
+    ["gis-province-filter", "gis-route-filter", "gis-route-mode", "gis-show-stops", "gis-show-labels", "gis-bus-filter"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el || el.dataset.routeResetBound === "1") return;
+      el.dataset.routeResetBound = "1";
+      el.addEventListener("change", () => {
+        MapModule.clearTravelPlan?.();
+        if (id === "gis-province-filter" || (id === "gis-route-mode" && el.value !== "selected")) {
+          MapModule.clearRouteHighlight?.();
+        }
+      }, true);
+    });
+  }
+
+  function bind() {
+    bindSidebar();
+    bindMapControls();
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
+  else bind();
+  window.addEventListener("load", bind);
 })();
