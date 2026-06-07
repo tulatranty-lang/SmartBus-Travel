@@ -2,7 +2,7 @@ window.SmartBusApi = window.SmartBusApi || {};
 window.SmartBusApi.baseUrl = (
   window.SmartBusConfig?.API_BASE_URL ||
   window.SMARTBUS_API_BASE ||
-  "http://192.168.1.34/api/v1"
+  "https://smartbus-backend-xr34.onrender.com/api/v1"
 ).replace(/\/$/, "");
 window.SmartBusApi.request = async function (path, options = {}) {
   const ctrl = new AbortController();

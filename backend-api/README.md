@@ -9,7 +9,7 @@ npm run check
 npm start
 ```
 
-Base URL: `http://localhost:5000/api/v1`.
+Base URL: `https://smartbus-backend-xr34.onrender.com/api/v1`.
 
 ## Test
 

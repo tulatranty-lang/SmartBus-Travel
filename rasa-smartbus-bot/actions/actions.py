@@ -6,9 +6,9 @@ from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data_bus"
-BACKEND_CHAT_URL = "http://localhost:5000/api/v1/chatbot/ask"
-BACKEND_PLACES_URL = "http://localhost:5000/api/v1/tourism/places/search"
-BACKEND_TRIP_URL = "http://localhost:5000/api/v1/trip-plans/generate"
+BACKEND_CHAT_URL = "https://smartbus-backend-xr34.onrender.com/api/v1/chatbot/ask"
+BACKEND_PLACES_URL = "https://smartbus-backend-xr34.onrender.com/api/v1/tourism/places/search"
+BACKEND_TRIP_URL = "https://smartbus-backend-xr34.onrender.com/api/v1/trip-plans/generate"
 
 
 def norm(text: str) -> str:

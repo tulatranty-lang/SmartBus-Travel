@@ -17,16 +17,21 @@ function debounce(fn, delay = 300) {
    0. CONSTANTS & CONFIG
 ---------------------------------------------------------- */
 const CONFIG = {
-  DEFAULT_PROVINCE: 'DN',
+  DEFAULT_PROVINCE: "DN",
   MAP_CENTER: [16.0544, 108.2022],
   MAP_ZOOM: 11,
   BUS_LIMIT_PER_PROVINCE: 20,
   PROVINCES: [
-    { code: 'DN', name: 'Đà Nẵng', center: [16.0544, 108.2022], zoom: 11 },
-    { code: 'QN_CU', name: 'Quảng Nam cũ / Hội An', center: [15.8801, 108.3380], zoom: 10 },
-    { code: 'HUE', name: 'Huế', center: [16.4637, 107.5909], zoom: 10 },
-    { code: 'QT', name: 'Quảng Trị', center: [16.7505, 107.1893], zoom: 9 },
-    { code: 'QNG', name: 'Quảng Ngãi', center: [15.1214, 108.8044], zoom: 9 },
+    { code: "DN", name: "Đà Nẵng", center: [16.0544, 108.2022], zoom: 11 },
+    {
+      code: "QN_CU",
+      name: "Quảng Nam cũ / Hội An",
+      center: [15.8801, 108.338],
+      zoom: 10,
+    },
+    { code: "HUE", name: "Huế", center: [16.4637, 107.5909], zoom: 10 },
+    { code: "QT", name: "Quảng Trị", center: [16.7505, 107.1893], zoom: 9 },
+    { code: "QNG", name: "Quảng Ngãi", center: [15.1214, 108.8044], zoom: 9 },
   ],
   TICK_MS: 2500, // Cập nhật vị trí xe mỗi 2.5s
   SCHEDULE: {
@@ -51,23 +56,41 @@ const TokenStore = {
   },
 
   _storageWith(key) {
-    return this._safeStores().find((store) => {
-      try { return Boolean(store.getItem(key)); } catch { return false; }
-    }) || null;
+    return (
+      this._safeStores().find((store) => {
+        try {
+          return Boolean(store.getItem(key));
+        } catch {
+          return false;
+        }
+      }) || null
+    );
   },
 
   _get(key) {
     const store = this._storageWith(key);
-    try { return store ? store.getItem(key) : null; } catch { return null; }
+    try {
+      return store ? store.getItem(key) : null;
+    } catch {
+      return null;
+    }
   },
 
-  getAccessToken() { return this._get(AUTH_KEYS.accessToken); },
-  getRefreshToken() { return this._get(AUTH_KEYS.refreshToken); },
+  getAccessToken() {
+    return this._get(AUTH_KEYS.accessToken);
+  },
+  getRefreshToken() {
+    return this._get(AUTH_KEYS.refreshToken);
+  },
 
   getUser() {
     const raw = this._get(AUTH_KEYS.user);
     if (!raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
   },
 
   save(authData, remember = true) {
@@ -96,7 +119,10 @@ const TokenStore = {
 
   updateTokens(authData) {
     const data = authData || {};
-    const store = this._storageWith(AUTH_KEYS.refreshToken) || this._storageWith(AUTH_KEYS.user) || window.localStorage;
+    const store =
+      this._storageWith(AUTH_KEYS.refreshToken) ||
+      this._storageWith(AUTH_KEYS.user) ||
+      window.localStorage;
     const accessToken = data.accessToken || data.token || "";
     const refreshToken = data.refreshToken || "";
     const user = data.user || null;
@@ -120,13 +146,19 @@ const TokenStore = {
 };
 
 const API = {
-  BASE: window.SMARTBUS_API_BASE || "http://localhost:5000/api/v1",
+  BASE:
+    window.SMARTBUS_API_BASE ||
+    "https://smartbus-backend-xr34.onrender.com/api/v1",
 
   async request(path, options = {}) {
     const { skipAuth = false, skipRefresh = false, ...fetchOptions } = options;
     const headers = new Headers(fetchOptions.headers || {});
 
-    if (fetchOptions.body && !(fetchOptions.body instanceof FormData) && !headers.has("Content-Type")) {
+    if (
+      fetchOptions.body &&
+      !(fetchOptions.body instanceof FormData) &&
+      !headers.has("Content-Type")
+    ) {
       headers.set("Content-Type", "application/json");
     }
 
@@ -139,18 +171,33 @@ const API = {
     try {
       res = await fetch(`${this.BASE}${path}`, { ...fetchOptions, headers });
     } catch (_err) {
-      const err = new Error("Không kết nối được backend. Kiểm tra backend đã chạy tại http://localhost:5000 chưa.");
+      const err = new Error(
+        "Không kết nối được backend. Kiểm tra backend đã chạy tại http://localhost:5000 chưa.",
+      );
       err.code = "NETWORK";
       throw err;
     }
 
     const payload = await res.json().catch(() => ({}));
 
-    if (res.status === 401 && !skipRefresh && !path.includes("/auth/login") && !path.includes("/auth/refresh-token")) {
+    if (
+      res.status === 401 &&
+      !skipRefresh &&
+      !path.includes("/auth/login") &&
+      !path.includes("/auth/refresh-token")
+    ) {
       const refreshed = await this.refreshAccessToken();
-      if (refreshed) return this.request(path, { ...fetchOptions, skipAuth, skipRefresh: true });
+      if (refreshed)
+        return this.request(path, {
+          ...fetchOptions,
+          skipAuth,
+          skipRefresh: true,
+        });
       if (typeof Auth !== "undefined" && Auth.forceLogout) {
-        Auth.forceLogout("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", "warning");
+        Auth.forceLogout(
+          "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+          "warning",
+        );
       } else {
         TokenStore.clear();
       }
@@ -186,8 +233,16 @@ const API = {
     }
   },
 
-  get(path, options = {}) { return this.request(path, options); },
-  post(path, body, options = {}) { return this.request(path, { ...options, method: "POST", body: JSON.stringify(body || {}) }); },
+  get(path, options = {}) {
+    return this.request(path, options);
+  },
+  post(path, body, options = {}) {
+    return this.request(path, {
+      ...options,
+      method: "POST",
+      body: JSON.stringify(body || {}),
+    });
+  },
 };
 
 /* ----------------------------------------------------------
@@ -311,12 +366,9 @@ const Schedule = {
 ---------------------------------------------------------- */
 let ROUTES = [];
 
-
 const LOCAL_STOPS = [];
 
-
 const LOCAL_TOURISM_PLACES = [];
-
 
 /* ----------------------------------------------------------
    5. CROWDING CONFIG
@@ -359,21 +411,26 @@ const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const routeById = (id) => {
   const value = String(id || "");
-  return ROUTES.find((r) => [r.id, r.routeCode, r.displayCode].some((x) => String(x || "") === value));
+  return ROUTES.find((r) =>
+    [r.id, r.routeCode, r.displayCode].some((x) => String(x || "") === value),
+  );
 };
 const routeLabel = (routeOrId) => {
   const r = typeof routeOrId === "object" ? routeOrId : routeById(routeOrId);
   if (!r) return String(routeOrId || "?");
-  return r.displayCode && r.displayCode !== r.id ? `${r.displayCode}` : `${r.id}`;
+  return r.displayCode && r.displayCode !== r.id
+    ? `${r.displayCode}`
+    : `${r.id}`;
 };
 
-const provinceMeta = (code) => CONFIG.PROVINCES.find((p) => p.code === code) || CONFIG.PROVINCES[0];
-const provinceOptionsHtml = (includeAll = false) => `${includeAll ? '<option value="">Tất cả tỉnh/thành</option>' : ''}${CONFIG.PROVINCES.map((p) => `<option value="${p.code}">${p.name}</option>`).join('')}`;
+const provinceMeta = (code) =>
+  CONFIG.PROVINCES.find((p) => p.code === code) || CONFIG.PROVINCES[0];
+const provinceOptionsHtml = (includeAll = false) =>
+  `${includeAll ? '<option value="">Tất cả tỉnh/thành</option>' : ""}${CONFIG.PROVINCES.map((p) => `<option value="${p.code}">${p.name}</option>`).join("")}`;
 const mapDataQuery = () => {
   const province = State.mapFilters.province || CONFIG.DEFAULT_PROVINCE;
   return `province=${encodeURIComponent(province)}&provinceCode=${encodeURIComponent(province)}&limitPerProvince=${CONFIG.BUS_LIMIT_PER_PROVINCE}`;
 };
-
 
 function getDistanceMeters(a, b) {
   const R = 6371000;
@@ -419,13 +476,16 @@ const geometryLoading = new Set();
 let geometryQueueRunning = false;
 
 function pathSignature(route) {
-  return (route.path || []).map((p) => `${Number(p[0]).toFixed(5)},${Number(p[1]).toFixed(5)}`).join("|");
+  return (route.path || [])
+    .map((p) => `${Number(p[0]).toFixed(5)},${Number(p[1]).toFixed(5)}`)
+    .join("|");
 }
 
 function geometryCacheKey(route) {
   let hash = 0;
   const text = `${route.id}:${pathSignature(route)}`;
-  for (let i = 0; i < text.length; i += 1) hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  for (let i = 0; i < text.length; i += 1)
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
   return `${OSRM_CACHE_PREFIX}${route.id}_${Math.abs(hash)}`;
 }
 
@@ -435,7 +495,9 @@ function readCachedGeometry(route) {
     if (!raw) return null;
     const pts = JSON.parse(raw);
     if (!Array.isArray(pts) || pts.length < 2) return null;
-    return pts.map((p) => [Number(p[0]), Number(p[1])]).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    return pts
+      .map((p) => [Number(p[0]), Number(p[1])])
+      .filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
   } catch {
     return null;
   }
@@ -443,14 +505,21 @@ function readCachedGeometry(route) {
 
 function saveCachedGeometry(route, pts) {
   try {
-    if (Array.isArray(pts) && pts.length >= 2) localStorage.setItem(geometryCacheKey(route), JSON.stringify(pts));
+    if (Array.isArray(pts) && pts.length >= 2)
+      localStorage.setItem(geometryCacheKey(route), JSON.stringify(pts));
   } catch {}
 }
 
 async function fetchSegment(from, to) {
   const start = [Number(from[0]), Number(from[1])];
   const end = [Number(to[0]), Number(to[1])];
-  if (!Number.isFinite(start[0]) || !Number.isFinite(start[1]) || !Number.isFinite(end[0]) || !Number.isFinite(end[1])) return [from, to];
+  if (
+    !Number.isFinite(start[0]) ||
+    !Number.isFinite(start[1]) ||
+    !Number.isFinite(end[0]) ||
+    !Number.isFinite(end[1])
+  )
+    return [from, to];
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6500);
@@ -461,7 +530,9 @@ async function fetchSegment(from, to) {
     const data = await res.json();
     const coords = data?.routes?.[0]?.geometry?.coordinates;
     if (!coords?.length) throw new Error("OSRM empty geometry");
-    const mapped = coords.map(([lng, lat]) => [lat, lng]).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    const mapped = coords
+      .map(([lng, lat]) => [lat, lng])
+      .filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
     return mapped.length >= 2 ? mapped : [from, to];
   } catch (_err) {
     return [from, to];
@@ -488,25 +559,40 @@ async function buildRouteGeometry(route) {
 async function loadAllGeometries(onRouteReady = null) {
   if (geometryQueueRunning) return;
   geometryQueueRunning = true;
-  const queue = ROUTES.filter((r) => r?.id && r.path?.length >= 2 && !State.routeGeometries[r.id] && !geometryLoading.has(r.id));
-  const workers = Array.from({ length: Math.min(3, queue.length || 0) }, async () => {
-    while (queue.length) {
-      const route = queue.shift();
-      if (!route || geometryLoading.has(route.id) || State.routeGeometries[route.id]) continue;
-      geometryLoading.add(route.id);
-      State.geometryStatus[route.id] = "pending";
-      try {
-        const pts = await buildRouteGeometry(route);
-        State.routeGeometries[route.id] = pts;
-        State.geometryStatus[route.id] = pts?.length > route.path.length ? "ok" : "fallback";
-        if (typeof onRouteReady === "function") onRouteReady(route);
-      } catch (_err) {
-        State.geometryStatus[route.id] = "fallback";
-      } finally {
-        geometryLoading.delete(route.id);
+  const queue = ROUTES.filter(
+    (r) =>
+      r?.id &&
+      r.path?.length >= 2 &&
+      !State.routeGeometries[r.id] &&
+      !geometryLoading.has(r.id),
+  );
+  const workers = Array.from(
+    { length: Math.min(3, queue.length || 0) },
+    async () => {
+      while (queue.length) {
+        const route = queue.shift();
+        if (
+          !route ||
+          geometryLoading.has(route.id) ||
+          State.routeGeometries[route.id]
+        )
+          continue;
+        geometryLoading.add(route.id);
+        State.geometryStatus[route.id] = "pending";
+        try {
+          const pts = await buildRouteGeometry(route);
+          State.routeGeometries[route.id] = pts;
+          State.geometryStatus[route.id] =
+            pts?.length > route.path.length ? "ok" : "fallback";
+          if (typeof onRouteReady === "function") onRouteReady(route);
+        } catch (_err) {
+          State.geometryStatus[route.id] = "fallback";
+        } finally {
+          geometryLoading.delete(route.id);
+        }
       }
-    }
-  });
+    },
+  );
   await Promise.all(workers);
   geometryQueueRunning = false;
 }
@@ -524,10 +610,12 @@ function getPath(routeId) {
 }
 
 const DynamicData = {
-  async load(provinceCode = State.mapFilters.province || CONFIG.DEFAULT_PROVINCE) {
+  async load(
+    provinceCode = State.mapFilters.province || CONFIG.DEFAULT_PROVINCE,
+  ) {
     const province = provinceCode || CONFIG.DEFAULT_PROVINCE;
     State.mapFilters.province = province;
-    document.body.classList.add('map-loading');
+    document.body.classList.add("map-loading");
     try {
       const qs = mapDataQuery();
       const [routesRaw, stopsRaw, busesRaw] = await Promise.all([
@@ -542,57 +630,84 @@ const DynamicData = {
         (acc[rid] = acc[rid] || []).push(stop);
         return acc;
       }, {});
-      const routes = (Array.isArray(routesRaw) ? routesRaw : []).map((r) => {
-        const points = Array.isArray(r.path) && r.path.length
-          ? r.path
-          : (groupedStops[r.id] || []).sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0)).map((s) => [Number(s.lat), Number(s.lng)]).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
-        return {
-          ...r,
-          id: String(r.id || r.routeCode || r.displayCode),
-          routeCode: String(r.routeCode || r.id || r.displayCode),
-          displayCode: r.displayCode || r.routeDisplayCode || r.id,
-          path: points,
-          color: r.color || "#2563eb",
-          time: r.time || r.operatingTime || "Đang cập nhật",
-          interval: r.interval || r.intervalText || "Đang cập nhật",
-        };
-      }).filter((r) => r.id && r.path?.length >= 2);
+      const routes = (Array.isArray(routesRaw) ? routesRaw : [])
+        .map((r) => {
+          const points =
+            Array.isArray(r.path) && r.path.length
+              ? r.path
+              : (groupedStops[r.id] || [])
+                  .sort(
+                    (a, b) => Number(a.sequence || 0) - Number(b.sequence || 0),
+                  )
+                  .map((s) => [Number(s.lat), Number(s.lng)])
+                  .filter(
+                    (p) => Number.isFinite(p[0]) && Number.isFinite(p[1]),
+                  );
+          return {
+            ...r,
+            id: String(r.id || r.routeCode || r.displayCode),
+            routeCode: String(r.routeCode || r.id || r.displayCode),
+            displayCode: r.displayCode || r.routeDisplayCode || r.id,
+            path: points,
+            color: r.color || "#2563eb",
+            time: r.time || r.operatingTime || "Đang cập nhật",
+            interval: r.interval || r.intervalText || "Đang cập nhật",
+          };
+        })
+        .filter((r) => r.id && r.path?.length >= 2);
       ROUTES.splice(0, ROUTES.length, ...routes);
       State.routeGeometries = {};
-      const sqlStops = stops.map((s) => ({ ...s, lat: Number(s.lat), lng: Number(s.lng) })).filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+      const sqlStops = stops
+        .map((s) => ({ ...s, lat: Number(s.lat), lng: Number(s.lng) }))
+        .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng));
       State.stops = sqlStops;
-      const apiBuses = (Array.isArray(busesRaw) ? busesRaw : []).map((b, idx) => {
-        const ck = CROWDING[b.crowding] ? b.crowding : pick(Object.keys(CROWDING));
-        const c = CROWDING[ck];
-        return {
-          ...b,
-          uid: String(b.uid || b.vehicleCode || b.id || `${b.routeId}-${idx + 1}`),
-          routeId: String(b.routeId || b.routeCode || ""),
-          plate: b.plate || b.licensePlate || b.vehicleCode || `BUS-${idx + 1}`,
-          crowding: ck,
-          passengers: Number(b.passengers || rnd(c.min, c.max)),
-          speed: Number(b.speed || b.speedKmh || CONFIG.SPEEDS.min),
-          progress: Number.isFinite(Number(b.progress)) ? Number(b.progress) : Math.random(),
-          status: b.status || "active",
-          lat: Number(b.lat),
-          lng: Number(b.lng),
-        };
-      }).filter((b) => b.routeId);
+      const apiBuses = (Array.isArray(busesRaw) ? busesRaw : [])
+        .map((b, idx) => {
+          const ck = CROWDING[b.crowding]
+            ? b.crowding
+            : pick(Object.keys(CROWDING));
+          const c = CROWDING[ck];
+          return {
+            ...b,
+            uid: String(
+              b.uid || b.vehicleCode || b.id || `${b.routeId}-${idx + 1}`,
+            ),
+            routeId: String(b.routeId || b.routeCode || ""),
+            plate:
+              b.plate || b.licensePlate || b.vehicleCode || `BUS-${idx + 1}`,
+            crowding: ck,
+            passengers: Number(b.passengers || rnd(c.min, c.max)),
+            speed: Number(b.speed || b.speedKmh || CONFIG.SPEEDS.min),
+            progress: Number.isFinite(Number(b.progress))
+              ? Number(b.progress)
+              : Math.random(),
+            status: b.status || "active",
+            lat: Number(b.lat),
+            lng: Number(b.lng),
+          };
+        })
+        .filter((b) => b.routeId);
       State.buses = apiBuses;
       State.dataSource = "sql";
       this.populateFilters();
       return true;
     } catch (err) {
-      console.error("Không tải được dữ liệu SQL Server. Frontend không dùng dữ liệu cứng; hãy chạy backend và import SQL Server:", err);
+      console.error(
+        "Không tải được dữ liệu SQL Server. Frontend không dùng dữ liệu cứng; hãy chạy backend và import SQL Server:",
+        err,
+      );
       State.dataSource = "sql_error";
       ROUTES.splice(0, ROUTES.length);
       State.stops = [];
       State.buses = [];
       this.populateFilters();
-      Toast?.show?.("Không kết nối được SQL Server/API. Hãy chạy backend và import database.", "error");
+      Toast?.show?.(
+        "Không kết nối được SQL Server/API. Hãy chạy backend và import database.",
+        "error",
+      );
       return false;
     } finally {
-      document.body.classList.remove('map-loading');
+      document.body.classList.remove("map-loading");
     }
   },
   populateFilters() {
@@ -711,22 +826,41 @@ const MapModule = (() => {
       if (mapEl) {
         mapEl.innerHTML = `<div class="map-missing">Không tải được thư viện bản đồ Leaflet. Kiểm tra internet hoặc dùng bản local.</div>`;
       }
-      Toast.show("Không tải được thư viện bản đồ Leaflet. Kiểm tra internet hoặc dùng bản local.", "warning", 6000);
+      Toast.show(
+        "Không tải được thư viện bản đồ Leaflet. Kiểm tra internet hoặc dùng bản local.",
+        "warning",
+        6000,
+      );
       return;
     }
 
-    const meta = provinceMeta(State.mapFilters.province || CONFIG.DEFAULT_PROVINCE);
-    map = L.map("map", { zoomControl: false, scrollWheelZoom: true, preferCanvas: true }).setView(meta.center || CONFIG.MAP_CENTER, meta.zoom || CONFIG.MAP_ZOOM);
+    const meta = provinceMeta(
+      State.mapFilters.province || CONFIG.DEFAULT_PROVINCE,
+    );
+    map = L.map("map", {
+      zoomControl: false,
+      scrollWheelZoom: true,
+      preferCanvas: true,
+    }).setView(meta.center || CONFIG.MAP_CENTER, meta.zoom || CONFIG.MAP_ZOOM);
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: "abcd",
-      maxZoom: 20,
-    }).addTo(map);
+    L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 20,
+      },
+    ).addTo(map);
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
     map.on("zoomend", debounce(updateStopLabelVisibility, 120));
-    map.on("moveend", debounce(() => { updateMarkers(State.buses); }, 180));
+    map.on(
+      "moveend",
+      debounce(() => {
+        updateMarkers(State.buses);
+      }, 180),
+    );
     drawRoutes();
     drawStops();
     State.mapReady = true;
@@ -735,17 +869,28 @@ const MapModule = (() => {
   }
 
   function averageCenter(points) {
-    const clean = (points || []).filter((p) => Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])));
+    const clean = (points || []).filter(
+      (p) => Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])),
+    );
     if (!clean.length) return null;
-    return [clean.reduce((sum, p) => sum + Number(p[0]), 0) / clean.length, clean.reduce((sum, p) => sum + Number(p[1]), 0) / clean.length];
+    return [
+      clean.reduce((sum, p) => sum + Number(p[0]), 0) / clean.length,
+      clean.reduce((sum, p) => sum + Number(p[1]), 0) / clean.length,
+    ];
   }
 
   function routeVisible(route) {
     const f = State.mapFilters;
     if (f.routes === "none") return false;
-    if (f.routes === "selected") return Boolean(f.routeId) && route.id === f.routeId;
+    if (f.routes === "selected")
+      return Boolean(f.routeId) && route.id === f.routeId;
     if (f.province && route.provinceCode !== f.province) return false;
-    if (f.routes === "province" && f.province && route.provinceCode !== f.province) return false;
+    if (
+      f.routes === "province" &&
+      f.province &&
+      route.provinceCode !== f.province
+    )
+      return false;
     return true;
   }
 
@@ -760,7 +905,8 @@ const MapModule = (() => {
       const line = L.polyline(pts, {
         color: route.color,
         weight: highlightedRouteId === route.id ? 8 : 4,
-        opacity: highlightedRouteId && highlightedRouteId !== route.id ? 0.18 : 0.82,
+        opacity:
+          highlightedRouteId && highlightedRouteId !== route.id ? 0.18 : 0.82,
         lineCap: "round",
         lineJoin: "round",
         dashArray: isRoadSnapped ? null : "9 7",
@@ -774,7 +920,9 @@ const MapModule = (() => {
   function fitVisibleRoutes() {
     if (!map || !window.L || !routeLines.length) return;
     const group = L.featureGroup(routeLines);
-    try { map.fitBounds(group.getBounds(), { padding: [28, 28], maxZoom: 10 }); } catch {}
+    try {
+      map.fitBounds(group.getBounds(), { padding: [28, 28], maxZoom: 10 });
+    } catch {}
   }
 
   function buildRoutePopup(r) {
@@ -794,7 +942,10 @@ const MapModule = (() => {
     const c = CROWDING[bus.crowding] || CROWDING.quiet;
     const pct = Math.round(((bus.passengers || 0) / 75) * 100);
     const isResting = bus.status === "resting";
-    const restMins = isResting && bus.restUntil ? Math.max(0, Math.ceil((bus.restUntil - Date.now()) / 60000)) : 0;
+    const restMins =
+      isResting && bus.restUntil
+        ? Math.max(0, Math.ceil((bus.restUntil - Date.now()) / 60000))
+        : 0;
     return `<div class="popup-inner">
       <div class="popup-route" style="color:${route?.color || "var(--teal)"}">Tuyến ${routeLabel(route || bus.routeId)} – ${route?.name || ""}</div>
       ${isResting ? `<div class="popup-rest-badge">⏸ Nghỉ đầu/cuối tuyến · còn ${restMins} phút</div>` : ""}
@@ -810,8 +961,12 @@ const MapModule = (() => {
     const c = CROWDING[bus.crowding] || CROWDING.quiet;
     const route = routeById(bus.routeId);
     const isResting = bus.status === "resting";
-    const body = isResting ? `lf-marker-body ${bus.crowding} resting-marker` : `lf-marker-body ${bus.crowding}`;
-    const pulse = isResting ? "" : `<div class="lf-marker-pulse ${bus.crowding}"></div>`;
+    const body = isResting
+      ? `lf-marker-body ${bus.crowding} resting-marker`
+      : `lf-marker-body ${bus.crowding}`;
+    const pulse = isResting
+      ? ""
+      : `<div class="lf-marker-pulse ${bus.crowding}"></div>`;
     return L.divIcon({
       className: "bus-div-icon",
       html: `<div class="lf-marker">
@@ -828,11 +983,21 @@ const MapModule = (() => {
   function updateMarkers(buses) {
     if (!map || !window.L) return;
     const currentIds = new Set(buses.map((b) => String(b.uid)));
-    markers.forEach((m, id) => { if (!currentIds.has(String(id))) { if (map.hasLayer(m)) m.remove(); markers.delete(id); } });
-    const visible = new Set(buses.filter((b) => filterBus(b)).map((b) => b.uid));
+    markers.forEach((m, id) => {
+      if (!currentIds.has(String(id))) {
+        if (map.hasLayer(m)) m.remove();
+        markers.delete(id);
+      }
+    });
+    const visible = new Set(
+      buses.filter((b) => filterBus(b)).map((b) => b.uid),
+    );
     buses.forEach((bus) => {
       const path = getPath(bus.routeId);
-      const fromApi = Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng)) ? [Number(bus.lat), Number(bus.lng)] : null;
+      const fromApi =
+        Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng))
+          ? [Number(bus.lat), Number(bus.lng)]
+          : null;
       const pos = fromApi || getPositionOnPath(path, bus.progress);
       if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) return;
       const latlng = [pos[0], pos[1]];
@@ -841,9 +1006,14 @@ const MapModule = (() => {
         m.setLatLng(latlng);
         m.setIcon(makeIcon(bus));
         if (m.isPopupOpen()) m.getPopup().setContent(buildBusPopup(bus, pos));
-        if (visible.has(bus.uid)) { if (!map.hasLayer(m)) m.addTo(map); } else if (map.hasLayer(m)) m.remove();
+        if (visible.has(bus.uid)) {
+          if (!map.hasLayer(m)) m.addTo(map);
+        } else if (map.hasLayer(m)) m.remove();
       } else {
-        const m = L.marker(latlng, { icon: makeIcon(bus), zIndexOffset: 100 }).addTo(map);
+        const m = L.marker(latlng, {
+          icon: makeIcon(bus),
+          zIndexOffset: 100,
+        }).addTo(map);
         m.bindPopup(buildBusPopup(bus, pos), { maxWidth: 320, minWidth: 230 });
         m.on("click", () => Events.emit("bus:select", bus.uid));
         markers.set(bus.uid, m);
@@ -856,16 +1026,23 @@ const MapModule = (() => {
     const text = `${stop.stopType || ""} ${stop.name || ""}`.toLowerCase();
     if (/sân bay|airport/.test(text)) return { emoji: "✈️", cls: "airport" };
     if (/nhà ga|ga /.test(text)) return { emoji: "🚉", cls: "rail" };
-    if (/du lịch|tour|điểm tham quan/.test(text)) return { emoji: "🏖️", cls: "tour" };
-    if (/trung chuyển|transfer/.test(text)) return { emoji: "🔁", cls: "transfer" };
-    if (stop.isMajor || /bến|đầu|cuối/.test(text)) return { emoji: "🚌", cls: "terminal" };
+    if (/du lịch|tour|điểm tham quan/.test(text))
+      return { emoji: "🏖️", cls: "tour" };
+    if (/trung chuyển|transfer/.test(text))
+      return { emoji: "🔁", cls: "transfer" };
+    if (stop.isMajor || /bến|đầu|cuối/.test(text))
+      return { emoji: "🚌", cls: "terminal" };
     return { emoji: "🚏", cls: "normal" };
   }
 
   function makeStopIcon(stop) {
     const type = stopIconType(stop);
-    const canShowLabel = Boolean(State.mapFilters.labels && map && map.getZoom() >= 14);
-    const label = canShowLabel ? `<span class="stop-label">${escapeHtml(stop.name)}${Number(stop.routeCount) ? ` · ${stop.routeCount} tuyến` : ""}</span>` : "";
+    const canShowLabel = Boolean(
+      State.mapFilters.labels && map && map.getZoom() >= 14,
+    );
+    const label = canShowLabel
+      ? `<span class="stop-label">${escapeHtml(stop.name)}${Number(stop.routeCount) ? ` · ${stop.routeCount} tuyến` : ""}</span>`
+      : "";
     return L.divIcon({
       className: `stop-div-icon stop-${type.cls}`,
       html: `<div class="stop-marker"><span class="stop-emoji">${type.emoji}</span>${label}</div>`,
@@ -877,7 +1054,11 @@ const MapModule = (() => {
 
   function buildStopPopup(stop) {
     const routes = Array.isArray(stop.routes) ? stop.routes : [];
-    const routeText = routes.length ? routes.map((r) => `T.${escapeHtml(r.displayCode || r.id)}`).join(", ") : (stop.routeDisplayCode ? `T.${escapeHtml(stop.routeDisplayCode)}` : "Đang cập nhật");
+    const routeText = routes.length
+      ? routes.map((r) => `T.${escapeHtml(r.displayCode || r.id)}`).join(", ")
+      : stop.routeDisplayCode
+        ? `T.${escapeHtml(stop.routeDisplayCode)}`
+        : "Đang cập nhật";
     return `<div class="popup-inner">
       <div class="popup-route">${escapeHtml(stop.name || "Điểm dừng")}</div>
       <div class="popup-row"><span class="popup-key">Loại</span><span class="popup-val">${escapeHtml(stop.stopType || (stop.isMajor ? "Bến chính" : "Điểm dừng"))}</span></div>
@@ -897,13 +1078,34 @@ const MapModule = (() => {
     const provinceFilter = State.mapFilters.province;
     const allowed = State.stops.filter((s) => {
       if (!shouldShow) return false;
-      if (majorOnly && !(s.isMajor || /đầu|cuối|bến|sân bay|ga|trung chuyển/i.test(`${s.stopType || ""} ${s.name || ""}`))) return false;
+      if (
+        majorOnly &&
+        !(
+          s.isMajor ||
+          /đầu|cuối|bến|sân bay|ga|trung chuyển/i.test(
+            `${s.stopType || ""} ${s.name || ""}`,
+          )
+        )
+      )
+        return false;
       if (provinceFilter && s.provinceCode !== provinceFilter) return false;
-      if (routeFilter && s.routeId !== routeFilter && !(s.routes || []).some((r) => r.id === routeFilter)) return false;
+      if (
+        routeFilter &&
+        s.routeId !== routeFilter &&
+        !(s.routes || []).some((r) => r.id === routeFilter)
+      )
+        return false;
       return true;
     });
-    const activeIds = new Set(allowed.map((s) => String(s.id || s.externalStopCode)));
-    stopMarkers.forEach((m, id) => { if (!activeIds.has(id)) { if (map.hasLayer(m)) m.remove(); stopMarkers.delete(id); } });
+    const activeIds = new Set(
+      allowed.map((s) => String(s.id || s.externalStopCode)),
+    );
+    stopMarkers.forEach((m, id) => {
+      if (!activeIds.has(id)) {
+        if (map.hasLayer(m)) m.remove();
+        stopMarkers.delete(id);
+      }
+    });
     allowed.forEach((stop) => {
       const id = String(stop.id || stop.externalStopCode);
       const ll = [Number(stop.lat), Number(stop.lng)];
@@ -915,7 +1117,10 @@ const MapModule = (() => {
         if (m.isPopupOpen()) m.getPopup().setContent(buildStopPopup(stop));
         if (!map.hasLayer(m)) m.addTo(map);
       } else {
-        const m = L.marker(ll, { icon: makeStopIcon(stop), zIndexOffset: 70 }).addTo(map);
+        const m = L.marker(ll, {
+          icon: makeStopIcon(stop),
+          zIndexOffset: 70,
+        }).addTo(map);
         m.bindPopup(buildStopPopup(stop), { maxWidth: 320, minWidth: 230 });
         stopMarkers.set(id, m);
       }
@@ -930,14 +1135,20 @@ const MapModule = (() => {
   }
 
   function escapeHtml(v) {
-    return String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    return String(v ?? "").replace(
+      /[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+    );
   }
 
   function focusBus(uid) {
     const bus = State.buses.find((b) => b.uid === uid);
     if (!bus || !map) return;
     const path = getPath(bus.routeId);
-    const pos = Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng)) ? [Number(bus.lat), Number(bus.lng)] : getPositionOnPath(path, bus.progress);
+    const pos =
+      Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng))
+        ? [Number(bus.lat), Number(bus.lng)]
+        : getPositionOnPath(path, bus.progress);
     map.flyTo([pos[0], pos[1]], 15, { duration: 1.2 });
     const m = markers.get(uid);
     if (m) setTimeout(() => m.openPopup(), 400);
@@ -954,11 +1165,19 @@ const MapModule = (() => {
     routeLines.forEach((line) => {
       const r = routeById(line._smartBusRouteId);
       const active = line._smartBusRouteId === rid;
-      line.setStyle({ weight: active ? 8 : 3, opacity: active ? 1 : 0.16, color: r?.color || "var(--teal)" });
-      if (active) { focused = line; line.bringToFront(); }
+      line.setStyle({
+        weight: active ? 8 : 3,
+        opacity: active ? 1 : 0.16,
+        color: r?.color || "var(--teal)",
+      });
+      if (active) {
+        focused = line;
+        line.bringToFront();
+      }
     });
     drawStops();
-    if (focused) map.fitBounds(focused.getBounds(), { padding: [36, 36], maxZoom: 14 });
+    if (focused)
+      map.fitBounds(focused.getBounds(), { padding: [36, 36], maxZoom: 14 });
   }
 
   function clearRouteHighlight() {
@@ -970,12 +1189,24 @@ const MapModule = (() => {
   function markUserLocation(lat, lng) {
     if (!map || lat == null || lng == null) return;
     State.userLocation = { lat: Number(lat), lng: Number(lng) };
-    const icon = L.divIcon({ className: "user-location-icon", html: `<div class="user-location-dot"></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
+    const icon = L.divIcon({
+      className: "user-location-icon",
+      html: `<div class="user-location-dot"></div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    });
     const ll = [Number(lat), Number(lng)];
     if (userLocationMarker) userLocationMarker.setLatLng(ll);
-    else userLocationMarker = L.marker(ll, { icon, zIndexOffset: 500 }).addTo(map);
+    else
+      userLocationMarker = L.marker(ll, { icon, zIndexOffset: 500 }).addTo(map);
     if (userLocationCircle) userLocationCircle.setLatLng(ll);
-    else userLocationCircle = L.circle(ll, { radius: 650, weight: 1, opacity: 0.7, fillOpacity: 0.08 }).addTo(map);
+    else
+      userLocationCircle = L.circle(ll, {
+        radius: 650,
+        weight: 1,
+        opacity: 0.7,
+        fillOpacity: 0.08,
+      }).addTo(map);
     userLocationMarker.bindPopup("Vị trí hiện tại của bạn");
     updateMarkers(State.buses);
     drawStops();
@@ -987,10 +1218,22 @@ const MapModule = (() => {
     const lng = Number(place.longitude ?? place.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     map.flyTo([lat, lng], 15, { duration: 1.1 });
-    const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>📍</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
+    const icon = L.divIcon({
+      className: "stop-location-icon",
+      html: `<div class="stop-location-dot"><span>📍</span></div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 30],
+      popupAnchor: [0, -30],
+    });
     if (nearestStopMarker) nearestStopMarker.setLatLng([lat, lng]);
-    else nearestStopMarker = L.marker([lat, lng], { icon, zIndexOffset: 460 }).addTo(map);
-    nearestStopMarker.bindPopup(`<b>${escapeHtml(place.name || "Địa điểm")}</b><br/>${escapeHtml(place.provinceName || place.province || "")}`);
+    else
+      nearestStopMarker = L.marker([lat, lng], {
+        icon,
+        zIndexOffset: 460,
+      }).addTo(map);
+    nearestStopMarker.bindPopup(
+      `<b>${escapeHtml(place.name || "Địa điểm")}</b><br/>${escapeHtml(place.provinceName || place.province || "")}`,
+    );
     setTimeout(() => nearestStopMarker?.openPopup(), 400);
   }
 
@@ -999,11 +1242,20 @@ const MapModule = (() => {
     const lat = Number(stop.lat ?? stop.latitude);
     const lng = Number(stop.lng ?? stop.longitude);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>🚏</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
+    const icon = L.divIcon({
+      className: "stop-location-icon",
+      html: `<div class="stop-location-dot"><span>🚏</span></div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 30],
+      popupAnchor: [0, -30],
+    });
     const ll = [lat, lng];
     if (nearestStopMarker) nearestStopMarker.setLatLng(ll);
-    else nearestStopMarker = L.marker(ll, { icon, zIndexOffset: 450 }).addTo(map);
-    nearestStopMarker.bindPopup(`<b>${escapeHtml(stop.name || "Bến gần nhất")}</b><br/>${escapeHtml(stop.address || "Điểm đón gợi ý")}`);
+    else
+      nearestStopMarker = L.marker(ll, { icon, zIndexOffset: 450 }).addTo(map);
+    nearestStopMarker.bindPopup(
+      `<b>${escapeHtml(stop.name || "Bến gần nhất")}</b><br/>${escapeHtml(stop.address || "Điểm đón gợi ý")}`,
+    );
     map.flyTo(ll, 15, { duration: 1.1 });
     setTimeout(() => nearestStopMarker?.openPopup(), 450);
   }
@@ -1015,9 +1267,23 @@ const MapModule = (() => {
     else if (shouldFit) fitVisibleRoutes();
     drawStops();
   }
-  function invalidate() { map && setTimeout(() => map.invalidateSize(), 150); }
+  function invalidate() {
+    map && setTimeout(() => map.invalidateSize(), 150);
+  }
 
-  return { init, updateMarkers, drawStops, focusBus, redrawRoutes, invalidate, highlightRoute, clearRouteHighlight, markUserLocation, focusStop, focusPlace };
+  return {
+    init,
+    updateMarkers,
+    drawStops,
+    focusBus,
+    redrawRoutes,
+    invalidate,
+    highlightRoute,
+    clearRouteHighlight,
+    markUserLocation,
+    focusStop,
+    focusPlace,
+  };
 })();
 
 /* ----------------------------------------------------------
@@ -1029,22 +1295,49 @@ function filterBus(bus) {
   const f = State.mapFilters;
   if (f.buses === "none") return false;
   if (f.buses === "active" && bus.status !== "active") return false;
-  if ((f.buses === "route" || f.routeId) && f.routeId && bus.routeId !== f.routeId) return false;
-  if ((f.buses === "province" || f.province) && f.province && route?.provinceCode !== f.province) return false;
+  if (
+    (f.buses === "route" || f.routeId) &&
+    f.routeId &&
+    bus.routeId !== f.routeId
+  )
+    return false;
+  if (
+    (f.buses === "province" || f.province) &&
+    f.province &&
+    route?.provinceCode !== f.province
+  )
+    return false;
   if (f.buses === "nearby") {
     if (!State.userLocation) return false;
     const path = getPath(bus.routeId);
-    const pos = Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng)) ? [Number(bus.lat), Number(bus.lng)] : getPositionOnPath(path, bus.progress);
-    if (!pos || getDistanceMeters([State.userLocation.lat, State.userLocation.lng], pos) > 5000) return false;
+    const pos =
+      Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng))
+        ? [Number(bus.lat), Number(bus.lng)]
+        : getPositionOnPath(path, bus.progress);
+    if (
+      !pos ||
+      getDistanceMeters([State.userLocation.lat, State.userLocation.lng], pos) >
+        5000
+    )
+      return false;
   }
-  const matchCrowd = State.filterCrowding === "all" || bus.crowding === State.filterCrowding;
+  const matchCrowd =
+    State.filterCrowding === "all" || bus.crowding === State.filterCrowding;
   const matchSearch =
     !q ||
     String(bus.routeId).toLowerCase().includes(q) ||
-    String(route?.displayCode || "").toLowerCase().includes(q) ||
-    String(bus.plate || "").toLowerCase().includes(q) ||
-    String(route?.name || "").toLowerCase().includes(q) ||
-    String(route?.provinceName || "").toLowerCase().includes(q);
+    String(route?.displayCode || "")
+      .toLowerCase()
+      .includes(q) ||
+    String(bus.plate || "")
+      .toLowerCase()
+      .includes(q) ||
+    String(route?.name || "")
+      .toLowerCase()
+      .includes(q) ||
+    String(route?.provinceName || "")
+      .toLowerCase()
+      .includes(q);
   return matchCrowd && matchSearch;
 }
 
@@ -1255,7 +1548,9 @@ const BusTableUI = {
     if (routeSel) {
       const cur = routeSel.value;
       const province = provinceSel?.value || "";
-      const routes = ROUTES.filter((r) => !province || r.provinceCode === province);
+      const routes = ROUTES.filter(
+        (r) => !province || r.provinceCode === province,
+      );
       routeSel.innerHTML = `<option value="">Tất cả tuyến</option>${routes.map((r) => `<option value="${r.id}">Tuyến ${routeLabel(r)} · ${this._esc(r.name)}</option>`).join("")}`;
       if (routes.some((r) => r.id === cur)) routeSel.value = cur;
     }
@@ -1267,11 +1562,18 @@ const BusTableUI = {
     this.renderVehicleTable();
   },
   routeFilter() {
-    return { province: $("#bus-view-province")?.value || "", routeId: $("#bus-view-route")?.value || "" };
+    return {
+      province: $("#bus-view-province")?.value || "",
+      routeId: $("#bus-view-route")?.value || "",
+    };
   },
   visibleRoutes() {
     const f = this.routeFilter();
-    return ROUTES.filter((r) => (!f.province || r.provinceCode === f.province) && (!f.routeId || r.id === f.routeId));
+    return ROUTES.filter(
+      (r) =>
+        (!f.province || r.provinceCode === f.province) &&
+        (!f.routeId || r.id === f.routeId),
+    );
   },
   renderRouteCatalog() {
     const box = $("#route-catalog-list");
@@ -1279,11 +1581,21 @@ const BusTableUI = {
     if (!box) return;
     const routes = this.visibleRoutes();
     if (count) count.textContent = `${routes.length} tuyến`;
-    if (!routes.length) { box.innerHTML = `<div class="empty-state">Không có tuyến phù hợp bộ lọc.</div>`; return; }
-    box.innerHTML = routes.map((r) => {
-      const stopCount = LOCAL_STOPS.filter((s) => s.routeId === r.id || (s.routes || []).some((x) => x.id === r.id)).length || (r.path?.length || 0);
-      const buses = State.buses.filter((b) => b.routeId === r.id);
-      return `<article class="route-catalog-card" style="--route-color:${r.color}">
+    if (!routes.length) {
+      box.innerHTML = `<div class="empty-state">Không có tuyến phù hợp bộ lọc.</div>`;
+      return;
+    }
+    box.innerHTML = routes
+      .map((r) => {
+        const stopCount =
+          LOCAL_STOPS.filter(
+            (s) =>
+              s.routeId === r.id || (s.routes || []).some((x) => x.id === r.id),
+          ).length ||
+          r.path?.length ||
+          0;
+        const buses = State.buses.filter((b) => b.routeId === r.id);
+        return `<article class="route-catalog-card" style="--route-color:${r.color}">
         <div class="route-catalog-top"><span>Tuyến ${this._esc(routeLabel(r))}</span><b>${this._esc(r.provinceName || r.provinceCode || "")}</b></div>
         <h4>${this._esc(r.name)}</h4>
         <p>${this._esc(r.originName || "Điểm đầu")} → ${this._esc(r.destinationName || "Điểm cuối")}</p>
@@ -1297,10 +1609,26 @@ const BusTableUI = {
         </div>
         <div class="route-catalog-actions"><button type="button" class="btn-ghost" data-route-focus="${r.id}">Xem trên bản đồ</button><button type="button" class="btn-ghost" data-route-chat="${r.id}">Hỏi chatbot</button><button type="button" class="btn-ghost" data-route-fav="${r.id}">💚 Lưu tuyến</button></div>
       </article>`;
-    }).join("");
-    $$('[data-route-focus]').forEach((btn) => btn.addEventListener("click", () => { Nav.go("dashboard"); setTimeout(() => MapModule.highlightRoute(btn.dataset.routeFocus), 250); }));
-    $$('[data-route-chat]').forEach((btn) => btn.addEventListener("click", () => SmartBusAssistant.sendQuestion?.(`Tuyến ${btn.dataset.routeChat} đi đâu, giờ chạy thế nào?`)));
-    $$('[data-route-fav]').forEach((btn) => btn.addEventListener("click", () => TravelUI.toggleFavoriteRoute(btn.dataset.routeFav, true)));
+      })
+      .join("");
+    $$("[data-route-focus]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        Nav.go("dashboard");
+        setTimeout(() => MapModule.highlightRoute(btn.dataset.routeFocus), 250);
+      }),
+    );
+    $$("[data-route-chat]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        SmartBusAssistant.sendQuestion?.(
+          `Tuyến ${btn.dataset.routeChat} đi đâu, giờ chạy thế nào?`,
+        ),
+      ),
+    );
+    $$("[data-route-fav]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        TravelUI.toggleFavoriteRoute(btn.dataset.routeFav, true),
+      ),
+    );
   },
   renderVehicleTable() {
     const tbody = $("#bus-table-body");
@@ -1308,14 +1636,20 @@ const BusTableUI = {
     const f = this.routeFilter();
     const data = State.buses.filter(filterBus).filter((b) => {
       const route = routeById(b.routeId);
-      return (!f.province || route?.provinceCode === f.province) && (!f.routeId || b.routeId === f.routeId);
+      return (
+        (!f.province || route?.provinceCode === f.province) &&
+        (!f.routeId || b.routeId === f.routeId)
+      );
     });
     tbody.innerHTML = data
       .map((bus) => {
         const c = CROWDING[bus.crowding];
         const route = routeById(bus.routeId);
         const path = getPath(bus.routeId);
-        const pos = (Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng))) ? [Number(bus.lat), Number(bus.lng)] : getPositionOnPath(path, bus.progress) || [0, 0];
+        const pos =
+          Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng))
+            ? [Number(bus.lat), Number(bus.lng)]
+            : getPositionOnPath(path, bus.progress) || [0, 0];
         const isResting = bus.status === "resting";
         const restMins =
           isResting && bus.restUntil
@@ -1334,13 +1668,18 @@ const BusTableUI = {
       })
       .join("");
 
-    $$('[data-bus-row]').forEach((row) => {
+    $$("[data-bus-row]").forEach((row) => {
       row.addEventListener("click", () =>
         Events.emit("bus:select", row.dataset.busRow),
       );
     });
   },
-  _esc(v) { return String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); },
+  _esc(v) {
+    return String(v ?? "").replace(
+      /[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+    );
+  },
 };
 
 // 12e. ANALYTICS
@@ -1473,7 +1812,6 @@ const Toast = {
   },
 };
 
-
 /* ----------------------------------------------------------
    13b. PUBLIC LANDING PAGE – tổng quan trước đăng nhập
 ---------------------------------------------------------- */
@@ -1482,9 +1820,13 @@ const Landing = {
     ["#landing-login-btn", "#landing-login-cta"].forEach((sel) =>
       $(sel)?.addEventListener("click", () => Auth.openLogin()),
     );
-    $("#landing-register-btn")?.addEventListener("click", () => Auth.openRegister());
+    $("#landing-register-btn")?.addEventListener("click", () =>
+      Auth.openRegister(),
+    );
     $("#landing-find-route-cta")?.addEventListener("click", () => {
-      document.querySelector("#landing-routes")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document
+        .querySelector("#landing-routes")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
       $("#landing-route-search")?.focus();
     });
     $("#landing-nearest-stop-cta")?.addEventListener("click", async () => {
@@ -1495,15 +1837,28 @@ const Landing = {
     $("#landing-chatbot-cta")?.addEventListener("click", () => {
       SmartBusAssistant.open?.();
       const input = $("#chat-input");
-      if (input) input.placeholder = "Bạn muốn đi đâu? Ví dụ: Hội An, Mỹ Khê, Cầu Rồng...";
-      SmartBusAssistant.addBotHint?.("Bạn muốn đi đâu? Ví dụ: Hội An, Mỹ Khê, Cầu Rồng, Đại Nội Huế hoặc Lý Sơn.");
+      if (input)
+        input.placeholder =
+          "Bạn muốn đi đâu? Ví dụ: Hội An, Mỹ Khê, Cầu Rồng...";
+      SmartBusAssistant.addBotHint?.(
+        "Bạn muốn đi đâu? Ví dụ: Hội An, Mỹ Khê, Cầu Rồng, Đại Nội Huế hoặc Lý Sơn.",
+      );
     });
-    $("#landing-route-search")?.addEventListener("input", debounce(() => this.renderRoutes(), 180));
-    $("#landing-province-filter")?.addEventListener("change", () => this.renderRoutes());
-    $$("[data-landing-q]").forEach((btn) => btn.addEventListener("click", () => {
-      SmartBusAssistant.open?.();
-      SmartBusAssistant.sendQuestion?.(btn.dataset.landingQ || btn.textContent || "");
-    }));
+    $("#landing-route-search")?.addEventListener(
+      "input",
+      debounce(() => this.renderRoutes(), 180),
+    );
+    $("#landing-province-filter")?.addEventListener("change", () =>
+      this.renderRoutes(),
+    );
+    $$("[data-landing-q]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        SmartBusAssistant.open?.();
+        SmartBusAssistant.sendQuestion?.(
+          btn.dataset.landingQ || btn.textContent || "",
+        );
+      }),
+    );
     this.populateProvinceFilter();
     this.renderStats();
     this.renderRoutes();
@@ -1521,16 +1876,26 @@ const Landing = {
   populateProvinceFilter() {
     const sel = $("#landing-province-filter");
     if (!sel) return;
-    const provinces = [...new Map(ROUTES.map((r) => [r.provinceCode, r.provinceName])).entries()];
-    sel.innerHTML = `<option value="">Tất cả tỉnh/thành</option>` + provinces.map(([code, name]) => `<option value="${this._esc(code)}">${this._esc(name)}</option>`).join("");
+    const provinces = [
+      ...new Map(ROUTES.map((r) => [r.provinceCode, r.provinceName])).entries(),
+    ];
+    sel.innerHTML =
+      `<option value="">Tất cả tỉnh/thành</option>` +
+      provinces
+        .map(
+          ([code, name]) =>
+            `<option value="${this._esc(code)}">${this._esc(name)}</option>`,
+        )
+        .join("");
   },
   async renderStats() {
     const statBox = $(".landing-stats");
     statBox?.classList.add("is-loading");
-    const provinceCount = new Set([
-      ...LOCAL_TOURISM_PLACES.map((p) => p.provinceCode).filter(Boolean),
-      ...ROUTES.map((r) => r.provinceCode).filter(Boolean),
-    ]).size || CONFIG.PROVINCES.length;
+    const provinceCount =
+      new Set([
+        ...LOCAL_TOURISM_PLACES.map((p) => p.provinceCode).filter(Boolean),
+        ...ROUTES.map((r) => r.provinceCode).filter(Boolean),
+      ]).size || CONFIG.PROVINCES.length;
     const fallback = {
       totalRoutes: ROUTES.length,
       totalStops: LOCAL_STOPS.length,
@@ -1540,16 +1905,36 @@ const Landing = {
     };
     let stats = fallback;
     try {
-      const data = await API.get("/stats/overview", { skipAuth: true, skipRefresh: true });
+      const data = await API.get("/stats/overview", {
+        skipAuth: true,
+        skipRefresh: true,
+      });
       stats = { ...fallback, ...(data || {}) };
     } catch (_err) {
       // Giữ số liệu fallback từ dữ liệu local đã nạp, không làm trắng trang chủ.
     }
-    this._countTo("#landing-stat-routes", stats.totalRoutes ?? stats.routes ?? fallback.totalRoutes);
-    this._countTo("#landing-stat-stops", stats.totalStops ?? stats.stops ?? fallback.totalStops);
-    this._countTo("#landing-stat-places", stats.totalTourismPlaces ?? stats.tourismPlaces ?? fallback.totalTourismPlaces);
-    this._countTo("#landing-stat-provinces", stats.totalProvinces ?? stats.provinces ?? fallback.totalProvinces);
-    this._countTo("#landing-stat-reviews", stats.totalReviews ?? stats.reviews ?? fallback.totalReviews);
+    this._countTo(
+      "#landing-stat-routes",
+      stats.totalRoutes ?? stats.routes ?? fallback.totalRoutes,
+    );
+    this._countTo(
+      "#landing-stat-stops",
+      stats.totalStops ?? stats.stops ?? fallback.totalStops,
+    );
+    this._countTo(
+      "#landing-stat-places",
+      stats.totalTourismPlaces ??
+        stats.tourismPlaces ??
+        fallback.totalTourismPlaces,
+    );
+    this._countTo(
+      "#landing-stat-provinces",
+      stats.totalProvinces ?? stats.provinces ?? fallback.totalProvinces,
+    );
+    this._countTo(
+      "#landing-stat-reviews",
+      stats.totalReviews ?? stats.reviews ?? fallback.totalReviews,
+    );
     setTimeout(() => statBox?.classList.remove("is-loading"), 300);
   },
   _countTo(selector, value) {
@@ -1571,17 +1956,37 @@ const Landing = {
     const q = ($("#landing-route-search")?.value || "").trim().toLowerCase();
     const province = $("#landing-province-filter")?.value || "";
     const routes = ROUTES.filter((r) => {
-      const text = `${r.id} ${r.name} ${r.provinceName} ${r.originName || ""} ${r.destinationName || ""}`.toLowerCase();
-      return (!province || r.provinceCode === province) && (!q || text.includes(q));
+      const text =
+        `${r.id} ${r.name} ${r.provinceName} ${r.originName || ""} ${r.destinationName || ""}`.toLowerCase();
+      return (
+        (!province || r.provinceCode === province) && (!q || text.includes(q))
+      );
     });
     if (!routes.length) {
       box.innerHTML = `<div class="landing-empty landing-empty-strong"><span class="empty-icon">🔎</span><b>Chưa tìm thấy tuyến phù hợp với bộ lọc hiện tại.</b><span>Hãy thử nhập mã tuyến, tỉnh/thành hoặc điểm đầu/cuối khác.</span><button class="landing-btn ghost" type="button" id="landing-clear-route-filter">Xóa bộ lọc</button></div>`;
-      $("#landing-clear-route-filter")?.addEventListener("click", () => { const i=$("#landing-route-search"); const s=$("#landing-province-filter"); if (i) i.value=""; if (s) s.value=""; this.renderRoutes(); });
+      $("#landing-clear-route-filter")?.addEventListener("click", () => {
+        const i = $("#landing-route-search");
+        const s = $("#landing-province-filter");
+        if (i) i.value = "";
+        if (s) s.value = "";
+        this.renderRoutes();
+      });
       return;
     }
-    box.innerHTML = `<div class="landing-preview-note">💡 Bạn có thể xem trước tuyến cơ bản. Đăng nhập để xem bản đồ, lưu tuyến và nhận gợi ý cá nhân.</div>` + routes.slice(0, 12).map((r) => {
-      const stopCount = LOCAL_STOPS.filter((s) => s.routeId === r.id || (s.routes || []).some((x) => x.id === r.id)).length || (r.path?.length || 0);
-      return `<article class="landing-route-card" style="--route-color:${this._esc(r.color)}">
+    box.innerHTML =
+      `<div class="landing-preview-note">💡 Bạn có thể xem trước tuyến cơ bản. Đăng nhập để xem bản đồ, lưu tuyến và nhận gợi ý cá nhân.</div>` +
+      routes
+        .slice(0, 12)
+        .map((r) => {
+          const stopCount =
+            LOCAL_STOPS.filter(
+              (s) =>
+                s.routeId === r.id ||
+                (s.routes || []).some((x) => x.id === r.id),
+            ).length ||
+            r.path?.length ||
+            0;
+          return `<article class="landing-route-card" style="--route-color:${this._esc(r.color)}">
         <div class="route-chip">${this._esc(r.provinceName || r.provinceCode || "Miền Trung")}</div>
         <h3>Tuyến ${this._esc(routeLabel(r))}</h3>
         <p>${this._esc(r.originName || "Điểm đầu")} → ${this._esc(r.destinationName || "Điểm cuối")}</p>
@@ -1593,19 +1998,48 @@ const Landing = {
           <button class="landing-card-action" type="button" data-route-chat-landing="${this._esc(r.id)}">Hỏi chatbot</button>
         </div>
       </article>`;
-    }).join("");
-    $$('[data-route-login]').forEach((btn) => btn.addEventListener('click', () => Auth.openLogin(`Đăng nhập để xem tuyến ${btn.dataset.routeLogin} trên bản đồ đầy đủ.`)));
-    $$('[data-route-map]').forEach((btn) => btn.addEventListener('click', () => Auth.openLogin(`Đăng nhập để mở tuyến ${btn.dataset.routeMap} trên bản đồ và lưu tuyến yêu thích.`)));
-    $$('[data-route-chat-landing]').forEach((btn) => btn.addEventListener('click', () => { SmartBusAssistant.open?.(); SmartBusAssistant.sendQuestion?.(`Tuyến ${btn.dataset.routeChatLanding} đi đâu, giờ chạy thế nào?`); }));
+        })
+        .join("");
+    $$("[data-route-login]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        Auth.openLogin(
+          `Đăng nhập để xem tuyến ${btn.dataset.routeLogin} trên bản đồ đầy đủ.`,
+        ),
+      ),
+    );
+    $$("[data-route-map]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        Auth.openLogin(
+          `Đăng nhập để mở tuyến ${btn.dataset.routeMap} trên bản đồ và lưu tuyến yêu thích.`,
+        ),
+      ),
+    );
+    $$("[data-route-chat-landing]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        SmartBusAssistant.open?.();
+        SmartBusAssistant.sendQuestion?.(
+          `Tuyến ${btn.dataset.routeChatLanding} đi đâu, giờ chạy thế nào?`,
+        );
+      }),
+    );
   },
   renderPlaces() {
     const box = $("#landing-place-list");
     if (!box) return;
-    box.innerHTML = LOCAL_TOURISM_PLACES.slice(0, 8).map((p) => `<article class="landing-place-card">
+    box.innerHTML = LOCAL_TOURISM_PLACES.slice(0, 8)
+      .map(
+        (p) => `<article class="landing-place-card">
       <div class="place-pin">📍</div><div><h4>${this._esc(p.name)}</h4><p>${this._esc(p.provinceName)} · ${this._esc(p.category || "Du lịch")}</p><span>Gần: ${this._esc(p.nearestRouteCode || "đang cập nhật")}</span></div>
-    </article>`).join("");
+    </article>`,
+      )
+      .join("");
   },
-  _esc(v) { return String(v ?? "").replace(/[&<>\"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[c]); },
+  _esc(v) {
+    return String(v ?? "").replace(
+      /[&<>\"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[c],
+    );
+  },
 };
 
 /* ----------------------------------------------------------
@@ -1621,7 +2055,9 @@ const Auth = {
 
   isAdmin(user = State.user || TokenStore.getUser()) {
     const role = String(user?.role || "").toLowerCase();
-    const roles = Array.isArray(user?.roles) ? user.roles.map((r) => String(r).toLowerCase()) : [];
+    const roles = Array.isArray(user?.roles)
+      ? user.roles.map((r) => String(r).toLowerCase())
+      : [];
     return role === "admin" || roles.includes("admin");
   },
 
@@ -1631,8 +2067,10 @@ const Auth = {
 
   _syncRoleUI(user = State.user) {
     const isAdmin = this.isAdmin(user);
-    $$('[data-admin-only]').forEach((el) => el.classList.toggle('hidden', !isAdmin));
-    if (!isAdmin && $('.view.active')?.id === 'view-admin') Nav.go('dashboard');
+    $$("[data-admin-only]").forEach((el) =>
+      el.classList.toggle("hidden", !isAdmin),
+    );
+    if (!isAdmin && $(".view.active")?.id === "view-admin") Nav.go("dashboard");
   },
 
   bind() {
@@ -1644,7 +2082,9 @@ const Auth = {
     } catch {}
 
     $("#login-close")?.addEventListener("click", () => this.closeAuthPanel());
-    $("#switch-to-register")?.addEventListener("click", () => this.openRegister());
+    $("#switch-to-register")?.addEventListener("click", () =>
+      this.openRegister(),
+    );
     $("#switch-to-login")?.addEventListener("click", () => this.openLogin());
 
     const saved = this._loadSession();
@@ -1680,7 +2120,11 @@ const Auth = {
       if (btn) btn.disabled = true;
 
       try {
-        const data = await API.post("/auth/login", { email, password: pw }, { skipAuth: true, skipRefresh: true });
+        const data = await API.post(
+          "/auth/login",
+          { email, password: pw },
+          { skipAuth: true, skipRefresh: true },
+        );
         const user = this._normalizeUser(data.user || data);
         TokenStore.save({ ...data, user }, remember);
         this._loginSuccess(user);
@@ -1714,7 +2158,10 @@ const Auth = {
     const title = $("#auth-panel-title");
     const sub = $("#auth-panel-sub");
     if (title) title.textContent = "Đăng nhập";
-    if (sub) sub.textContent = message || "Đăng nhập để vào dashboard quản lý tuyến, bản đồ, review và dữ liệu cá nhân.";
+    if (sub)
+      sub.textContent =
+        message ||
+        "Đăng nhập để vào dashboard quản lý tuyến, bản đồ, review và dữ liệu cá nhân.";
   },
 
   openRegister() {
@@ -1724,7 +2171,9 @@ const Auth = {
     const title = $("#auth-panel-title");
     const sub = $("#auth-panel-sub");
     if (title) title.textContent = "Đăng ký tài khoản";
-    if (sub) sub.textContent = "Tạo tài khoản để lưu tuyến, địa điểm yêu thích, review và lịch sử chatbot.";
+    if (sub)
+      sub.textContent =
+        "Tạo tài khoản để lưu tuyến, địa điểm yêu thích, review và lịch sử chatbot.";
   },
 
   closeAuthPanel() {
@@ -1737,12 +2186,22 @@ const Auth = {
     const email = $("#reg-email")?.value.trim() || "";
     const password = $("#reg-pw")?.value || "";
     const btn = $("#register-btn");
-    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) { Toast.show("Email đăng ký không hợp lệ", "error"); return; }
-    if (password.length < 6) { Toast.show("Mật khẩu phải có tối thiểu 6 ký tự", "error"); return; }
+    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      Toast.show("Email đăng ký không hợp lệ", "error");
+      return;
+    }
+    if (password.length < 6) {
+      Toast.show("Mật khẩu phải có tối thiểu 6 ký tự", "error");
+      return;
+    }
     btn?.classList.add("loading");
     if (btn) btn.disabled = true;
     try {
-      const data = await API.post("/auth/register", { fullName, email, password }, { skipAuth: true, skipRefresh: true });
+      const data = await API.post(
+        "/auth/register",
+        { fullName, email, password },
+        { skipAuth: true, skipRefresh: true },
+      );
       const user = this._normalizeUser(data.user || data);
       TokenStore.save({ ...data, user }, true);
       this._loginSuccess(user);
@@ -1778,7 +2237,8 @@ const Auth = {
     if (el(".sb-urole")) el(".sb-urole").textContent = normalized.roleLabel;
     this._syncRoleUI(normalized);
     App.start();
-    if (!options.silent) Toast.show(`Chào mừng, ${normalized.name}! 🚌`, "success");
+    if (!options.silent)
+      Toast.show(`Chào mừng, ${normalized.name}! 🚌`, "success");
   },
 
   _handleLoginError(err) {
@@ -1836,7 +2296,8 @@ const Auth = {
   async logout() {
     const refreshToken = TokenStore.getRefreshToken();
     try {
-      if (refreshToken) await API.post("/auth/logout", { refreshToken }, { skipRefresh: true });
+      if (refreshToken)
+        await API.post("/auth/logout", { refreshToken }, { skipRefresh: true });
     } catch (_err) {}
     this.forceLogout("Đã đăng xuất", "info");
   },
@@ -1884,7 +2345,11 @@ const Nav = {
 
   go(view) {
     if (view === "admin" && !Auth.isAdmin()) {
-      Toast.show("Bạn không có quyền truy cập chức năng quản trị nội dung.", "warning", 3500);
+      Toast.show(
+        "Bạn không có quyền truy cập chức năng quản trị nội dung.",
+        "warning",
+        3500,
+      );
       view = "dashboard";
     }
     $$(".view").forEach((v) => v.classList.remove("active"));
@@ -1952,7 +2417,8 @@ const ReportForm = {
     sel.innerHTML =
       `<option value="">-- Chọn tuyến --</option>` +
       ROUTES.map(
-        (r) => `<option value="${r.id}">Tuyến ${routeLabel(r)} – ${r.name}</option>`,
+        (r) =>
+          `<option value="${r.id}">Tuyến ${routeLabel(r)} – ${r.name}</option>`,
       ).join("");
   },
 
@@ -2082,8 +2548,13 @@ const SearchFilter = {
       State.mapFilters.province = province;
       State.mapFilters.routeId = "";
       State.mapFilters.routes = "all";
-      const routeMode = $("#gis-route-mode"); if (routeMode) routeMode.value = "all";
-      Toast.show(`Đang tải dữ liệu ${provinceMeta(province).name}...`, "info", 1200);
+      const routeMode = $("#gis-route-mode");
+      if (routeMode) routeMode.value = "all";
+      Toast.show(
+        `Đang tải dữ liệu ${provinceMeta(province).name}...`,
+        "info",
+        1200,
+      );
       await DynamicData.load(province);
       const meta = provinceMeta(province);
       MapModule.invalidate();
@@ -2096,7 +2567,8 @@ const SearchFilter = {
 
     $("#gis-route-filter")?.addEventListener("change", (e) => {
       State.mapFilters.routeId = e.target.value;
-      if (State.mapFilters.routeId && State.mapFilters.routes === "selected") MapModule.highlightRoute(State.mapFilters.routeId);
+      if (State.mapFilters.routeId && State.mapFilters.routes === "selected")
+        MapModule.highlightRoute(State.mapFilters.routeId);
       else MapModule.redrawRoutes();
       startRoadGeometryLoader();
       refresh();
@@ -2112,9 +2584,15 @@ const SearchFilter = {
 
     $("#gis-route-mode")?.addEventListener("change", (e) => {
       State.mapFilters.routes = e.target.value || "all";
-      if (State.mapFilters.routes === "selected" && State.mapFilters.routeId) MapModule.highlightRoute(State.mapFilters.routeId);
-      else if (State.mapFilters.routes === "selected" && !State.mapFilters.routeId) { Toast.show("Vui lòng chọn một tuyến để hiển thị", "warning", 3000); MapModule.redrawRoutes(); }
-      else MapModule.redrawRoutes();
+      if (State.mapFilters.routes === "selected" && State.mapFilters.routeId)
+        MapModule.highlightRoute(State.mapFilters.routeId);
+      else if (
+        State.mapFilters.routes === "selected" &&
+        !State.mapFilters.routeId
+      ) {
+        Toast.show("Vui lòng chọn một tuyến để hiển thị", "warning", 3000);
+        MapModule.redrawRoutes();
+      } else MapModule.redrawRoutes();
       refresh();
     });
 
@@ -2127,7 +2605,13 @@ const SearchFilter = {
       State.mapFilters.labels = e.target.checked;
       State.mapFilters.showStopLabels = e.target.checked;
       MapModule.drawStops();
-      Toast.show(e.target.checked ? "Đã bật tên bến khi zoom gần" : "Đã ẩn toàn bộ tên bến", "info", 1800);
+      Toast.show(
+        e.target.checked
+          ? "Đã bật tên bến khi zoom gần"
+          : "Đã ẩn toàn bộ tên bến",
+        "info",
+        1800,
+      );
     });
 
     $("#gis-gps-btn")?.addEventListener("click", () => {
@@ -2144,8 +2628,15 @@ const SearchFilter = {
           refresh();
         },
         () => {
-          Toast.show("Không lấy được vị trí chính xác, hệ thống đang dùng vị trí mặc định tại Đà Nẵng.", "warning", 4500);
-          MapModule.markUserLocation(CONFIG.MAP_CENTER[0], CONFIG.MAP_CENTER[1]);
+          Toast.show(
+            "Không lấy được vị trí chính xác, hệ thống đang dùng vị trí mặc định tại Đà Nẵng.",
+            "warning",
+            4500,
+          );
+          MapModule.markUserLocation(
+            CONFIG.MAP_CENTER[0],
+            CONFIG.MAP_CENTER[1],
+          );
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
       );
@@ -2193,15 +2684,27 @@ const TravelUI = {
   _populateRouteFilter() {
     const sel = $("#place-route");
     if (!sel) return;
-    sel.innerHTML = `<option value="">Mọi tuyến bus</option>` + ROUTES.map((r) => `<option value="${r.id}">Tuyến ${routeLabel(r)} – ${this._esc(r.name)}</option>`).join("");
+    sel.innerHTML =
+      `<option value="">Mọi tuyến bus</option>` +
+      ROUTES.map(
+        (r) =>
+          `<option value="${r.id}">Tuyến ${routeLabel(r)} – ${this._esc(r.name)}</option>`,
+      ).join("");
   },
 
   _bindTourism() {
-    ["#place-search", "#place-province", "#place-category", "#place-route"].forEach((id) => {
+    [
+      "#place-search",
+      "#place-province",
+      "#place-category",
+      "#place-route",
+    ].forEach((id) => {
       const el = $(id);
       if (!el || el.dataset.bound) return;
       el.dataset.bound = "1";
-      el.addEventListener(id === "#place-search" ? "input" : "change", () => this._debouncedPlaces());
+      el.addEventListener(id === "#place-search" ? "input" : "change", () =>
+        this._debouncedPlaces(),
+      );
     });
     const nearBtn = $("#place-near-me");
     if (nearBtn && !nearBtn.dataset.bound) {
@@ -2241,7 +2744,10 @@ const TravelUI = {
     }
     ["#community-province", "#community-category"].forEach((id) => {
       const el = $(id);
-      if (el && !el.dataset.bound) { el.dataset.bound = "1"; el.addEventListener("change", () => this.renderCommunity()); }
+      if (el && !el.dataset.bound) {
+        el.dataset.bound = "1";
+        el.addEventListener("change", () => this.renderCommunity());
+      }
     });
     const form = $("#community-review-form");
     if (form && !form.dataset.bound) {
@@ -2250,8 +2756,12 @@ const TravelUI = {
     }
   },
 
-  _debouncedPlaces: debounce(function () { TravelUI.renderPlaces(); }, 450),
-  _debouncedCommunity: debounce(function () { TravelUI.renderCommunity(); }, 450),
+  _debouncedPlaces: debounce(function () {
+    TravelUI.renderPlaces();
+  }, 450),
+  _debouncedCommunity: debounce(function () {
+    TravelUI.renderCommunity();
+  }, 450),
 
   async _getGps(showToast = false) {
     if (this.gps) return this.gps;
@@ -2268,7 +2778,11 @@ const TravelUI = {
           resolve(this.gps);
         },
         () => {
-          if (showToast) Toast.show("Không lấy được GPS, đang dùng dữ liệu gợi ý chung", "warning");
+          if (showToast)
+            Toast.show(
+              "Không lấy được GPS, đang dùng dữ liệu gợi ý chung",
+              "warning",
+            );
           resolve(null);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
@@ -2280,18 +2794,26 @@ const TravelUI = {
     const box = $("#nearby-stop-result");
     if (!box) return;
     box.innerHTML = this._loading("Đang tìm bến gần nhất...");
-    const gps = forceGps ? await this._getGps(true) : this.gps || await this._getGps(false);
+    const gps = forceGps
+      ? await this._getGps(true)
+      : this.gps || (await this._getGps(false));
     if (!gps) {
-      box.innerHTML = this._empty("Chưa có GPS. Hãy bấm “Lấy vị trí của tôi” hoặc cho phép trình duyệt truy cập vị trí.");
+      box.innerHTML = this._empty(
+        "Chưa có GPS. Hãy bấm “Lấy vị trí của tôi” hoặc cho phép trình duyệt truy cập vị trí.",
+      );
       return;
     }
     try {
-      const data = await API.get(`/bus/stops/near?lat=${gps.lat}&lng=${gps.lng}&limit=5`);
+      const data = await API.get(
+        `/bus/stops/near?lat=${gps.lat}&lng=${gps.lng}&limit=5`,
+      );
       const stop = data.stop || data;
       MapModule.focusStop?.(stop);
       box.innerHTML = `<div class="travel-card wide"><div class="travel-kicker">Bến gần nhất</div><h4>${this._esc(stop.name)}</h4><p>${this._esc(stop.address || "")}</p><div class="travel-meta"><span>${data.distanceMeters || stop.distanceMeters}m</span><span>Đi bộ ${data.walkingMinutes || stop.walkingMinutes || "?"} phút</span>${data.route ? `<span>Tuyến ${data.route.id}</span>` : ""}</div></div>`;
     } catch (err) {
-      box.innerHTML = this._empty("Backend chưa phản hồi. Bạn vẫn có thể hỏi chatbot: “Bến xe buýt gần tôi nhất ở đâu?”.");
+      box.innerHTML = this._empty(
+        "Backend chưa phản hồi. Bạn vẫn có thể hỏi chatbot: “Bến xe buýt gần tôi nhất ở đâu?”.",
+      );
     }
   },
 
@@ -2300,14 +2822,20 @@ const TravelUI = {
     const state = $("#place-state");
     if (!list) return;
     this._bindTourism();
-    state && (state.innerHTML = "Đang tải địa điểm từ SQL Server qua Backend API...");
+    state &&
+      (state.innerHTML = "Đang tải địa điểm từ SQL Server qua Backend API...");
     list.innerHTML = this._loading("Đang tải địa điểm du lịch...");
     const qRaw = ($("#place-search")?.value || "").trim().toLowerCase();
     const provinceRaw = $("#place-province")?.value || "";
     const catRaw = $("#place-category")?.value || "";
     const routeRaw = $("#place-route")?.value || "";
     const gps = this.gps;
-    const qs = [`q=${encodeURIComponent(qRaw)}`, `province=${encodeURIComponent(provinceRaw)}`, `category=${encodeURIComponent(catRaw)}`, `routeId=${encodeURIComponent(routeRaw)}`];
+    const qs = [
+      `q=${encodeURIComponent(qRaw)}`,
+      `province=${encodeURIComponent(provinceRaw)}`,
+      `category=${encodeURIComponent(catRaw)}`,
+      `routeId=${encodeURIComponent(routeRaw)}`,
+    ];
     if (gps) qs.push(`lat=${gps.lat}`, `lng=${gps.lng}`);
     let places = [];
     let source = "SQL Server";
@@ -2318,32 +2846,76 @@ const TravelUI = {
       places = [];
       source = "SQL Server/API lỗi";
     }
-    state && (state.innerHTML = `${source} · ${places.length} địa điểm phù hợp`);
-    if (!places.length) { list.innerHTML = this._empty("Chưa có địa điểm phù hợp bộ lọc."); return; }
+    state &&
+      (state.innerHTML = `${source} · ${places.length} địa điểm phù hợp`);
+    if (!places.length) {
+      list.innerHTML = this._empty("Chưa có địa điểm phù hợp bộ lọc.");
+      return;
+    }
     list.innerHTML = places.map((p) => this._placeCard(p)).join("");
-    $$("[data-place-chat]").forEach((btn) => btn.addEventListener("click", () => SmartBusAssistant.sendQuestion?.(`Tôi muốn đến ${btn.dataset.placeChat}`)));
-    $$("[data-place-reviews]").forEach((btn) => btn.addEventListener("click", () => { $("#community-search") && ($("#community-search").value = btn.dataset.placeReviews); Nav.go("reviews"); }));
+    $$("[data-place-chat]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        SmartBusAssistant.sendQuestion?.(
+          `Tôi muốn đến ${btn.dataset.placeChat}`,
+        ),
+      ),
+    );
+    $$("[data-place-reviews]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        $("#community-search") &&
+          ($("#community-search").value = btn.dataset.placeReviews);
+        Nav.go("reviews");
+      }),
+    );
   },
 
-  _filterLocalPlaces({ qRaw = "", provinceRaw = "", catRaw = "", routeRaw = "" } = {}) {
+  _filterLocalPlaces({
+    qRaw = "",
+    provinceRaw = "",
+    catRaw = "",
+    routeRaw = "",
+  } = {}) {
     return LOCAL_TOURISM_PLACES.filter((p) => {
-      const text = this._norm(`${p.name} ${p.provinceName} ${p.description} ${p.nearestRouteCode || ""} ${p.categoryName || ""} ${p.foodSuggestions || ""}`);
+      const text = this._norm(
+        `${p.name} ${p.provinceName} ${p.description} ${p.nearestRouteCode || ""} ${p.categoryName || ""} ${p.foodSuggestions || ""}`,
+      );
       if (qRaw && !text.includes(this._norm(qRaw))) return false;
       if (provinceRaw && p.provinceCode !== provinceRaw) return false;
-      if (catRaw && p.categoryCode !== catRaw && p.category !== catRaw) return false;
-      if (routeRaw && !(String(p.nearestRouteCode || "").includes(routeRaw) || String(p.nearestRouteCode || "").includes(routeLabel(routeRaw)))) return false;
+      if (catRaw && p.categoryCode !== catRaw && p.category !== catRaw)
+        return false;
+      if (
+        routeRaw &&
+        !(
+          String(p.nearestRouteCode || "").includes(routeRaw) ||
+          String(p.nearestRouteCode || "").includes(routeLabel(routeRaw))
+        )
+      )
+        return false;
       return true;
     });
   },
 
   _norm(v) {
-    return String(v || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
+    return String(v || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/đ/g, "d");
   },
 
   _placeCard(p) {
-    const route = p.recommendedRoute || p.nearestStop?.route || (p.nearestRouteCode ? { id: p.nearestRouteCode } : null);
-    const stop = p.nearestStop?.stop || (p.nearestStopName ? { name: p.nearestStopName } : null);
-    const distanceText = p.distanceMeters ? `${Math.round(p.distanceMeters / 100) / 10} km` : (p.nearestDistanceKm ? `${p.nearestDistanceKm} km tới hub/trạm` : "");
+    const route =
+      p.recommendedRoute ||
+      p.nearestStop?.route ||
+      (p.nearestRouteCode ? { id: p.nearestRouteCode } : null);
+    const stop =
+      p.nearestStop?.stop ||
+      (p.nearestStopName ? { name: p.nearestStopName } : null);
+    const distanceText = p.distanceMeters
+      ? `${Math.round(p.distanceMeters / 100) / 10} km`
+      : p.nearestDistanceKm
+        ? `${p.nearestDistanceKm} km tới hub/trạm`
+        : "";
     const walkText = p.nearestStop?.walkingMinutes || p.walkingMinutes;
     return `<article class="travel-card">
       <div class="travel-kicker">${this._esc(p.categoryName || p.category || "Du lịch")}</div>
@@ -2351,7 +2923,7 @@ const TravelUI = {
       <p>${this._esc(p.description || "")}</p>
       <div class="travel-meta"><span>⭐ ${p.averageRating || 0}</span><span>${p.reviewCount || 0} review</span>${distanceText ? `<span>${this._esc(distanceText)}</span>` : ""}</div>
       <div class="travel-meta">${route ? `<span>Bus ${this._esc(route.id || route.routeCode || route)}</span>` : ""}${stop ? `<span>Bến/hub: ${this._esc(stop.name)}</span>` : ""}${walkText ? `<span>Đi bộ/chuyển tiếp ${this._esc(walkText)} phút</span>` : ""}</div>
-      ${(p.foodSuggestions || p.bestTime) ? `<p class="travel-small">${this._esc(p.bestTime || "")} ${p.foodSuggestions ? ` · Ẩm thực: ${this._esc(p.foodSuggestions)}` : ""}</p>` : ""}
+      ${p.foodSuggestions || p.bestTime ? `<p class="travel-small">${this._esc(p.bestTime || "")} ${p.foodSuggestions ? ` · Ẩm thực: ${this._esc(p.foodSuggestions)}` : ""}</p>` : ""}
       <div class="travel-actions"><button class="btn-ghost" data-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-place-reviews="${this._esc(p.name)}">Xem review</button><button class="btn-ghost" data-place-map="${this._esc(p.id)}">Hiện trên bản đồ</button><button class="btn-ghost" data-place-fav="${this._esc(p.id)}">🔖 Lưu địa điểm</button></div>
     </article>`;
   },
@@ -2359,17 +2931,23 @@ const TravelUI = {
   renderTripIntro() {
     this._bindTrip();
     const box = $("#trip-result");
-    if (box && !box.innerHTML.trim()) box.innerHTML = this._empty("Chọn thời gian, sở thích rồi bấm “Tạo lịch trình”.");
+    if (box && !box.innerHTML.trim())
+      box.innerHTML = this._empty(
+        "Chọn thời gian, sở thích rồi bấm “Tạo lịch trình”.",
+      );
   },
 
   async generateTrip() {
     const box = $("#trip-result");
     if (!box) return;
     box.innerHTML = this._loading("Đang tạo lịch trình...");
-    const gps = this.gps || await this._getGps(false);
+    const gps = this.gps || (await this._getGps(false));
     const body = {
       timeAvailable: $("#trip-time")?.value || "1 buổi",
-      interests: ($("#trip-interests")?.value || "").split(",").map((x) => x.trim()).filter(Boolean),
+      interests: ($("#trip-interests")?.value || "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean),
       budget: $("#trip-budget")?.value || "low",
       lat: gps?.lat ?? null,
       lng: gps?.lng ?? null,
@@ -2377,9 +2955,18 @@ const TravelUI = {
     try {
       const plan = await API.post("/trip-plans/generate", body);
       const items = plan.items || [];
-      box.innerHTML = `<div class="travel-card wide"><div class="travel-kicker">${this._esc(plan.title || "Lịch trình")}</div><h4>${this._esc(plan.summary || "Gợi ý từ SmartBus")}</h4><div class="travel-actions"><button class="btn-ghost" onclick="Nav.go('dashboard')">Hiện lịch trình trên bản đồ</button><button class="btn-ghost" onclick="SmartBusAssistant.sendQuestion('Hỏi thêm về lịch trình này')">Hỏi chatbot về lịch trình này</button></div></div>` + items.map((it, i) => `<div class="travel-card"><div class="travel-kicker">${this._esc(it.timeBlock || `Buổi ${i + 1}`)} · ${this._esc(it.suggestedStart || "")}</div><h4>${this._esc(it.name)}</h4><p>${this._esc(it.description || "")}</p><div class="travel-meta"><span>Ở lại ${it.suggestedDurationMinutes || 90} phút</span>${it.busRoute ? `<span>Bus ${it.busRoute.id || it.busRoute.routeCode}</span>` : ""}${it.walkingMinutes ? `<span>Đi bộ ${it.walkingMinutes} phút</span>` : ""}</div><p class="travel-small">${this._esc(it.practicalNote || "Sắp xếp để di chuyển hợp lý, không nhồi quá nhiều điểm.")}</p></div>`).join("");
+      box.innerHTML =
+        `<div class="travel-card wide"><div class="travel-kicker">${this._esc(plan.title || "Lịch trình")}</div><h4>${this._esc(plan.summary || "Gợi ý từ SmartBus")}</h4><div class="travel-actions"><button class="btn-ghost" onclick="Nav.go('dashboard')">Hiện lịch trình trên bản đồ</button><button class="btn-ghost" onclick="SmartBusAssistant.sendQuestion('Hỏi thêm về lịch trình này')">Hỏi chatbot về lịch trình này</button></div></div>` +
+        items
+          .map(
+            (it, i) =>
+              `<div class="travel-card"><div class="travel-kicker">${this._esc(it.timeBlock || `Buổi ${i + 1}`)} · ${this._esc(it.suggestedStart || "")}</div><h4>${this._esc(it.name)}</h4><p>${this._esc(it.description || "")}</p><div class="travel-meta"><span>Ở lại ${it.suggestedDurationMinutes || 90} phút</span>${it.busRoute ? `<span>Bus ${it.busRoute.id || it.busRoute.routeCode}</span>` : ""}${it.walkingMinutes ? `<span>Đi bộ ${it.walkingMinutes} phút</span>` : ""}</div><p class="travel-small">${this._esc(it.practicalNote || "Sắp xếp để di chuyển hợp lý, không nhồi quá nhiều điểm.")}</p></div>`,
+          )
+          .join("");
     } catch (err) {
-      box.innerHTML = this._empty("Không tạo được lịch trình từ backend. Hãy kiểm tra backend-api hoặc thử lại.");
+      box.innerHTML = this._empty(
+        "Không tạo được lịch trình từ backend. Hãy kiểm tra backend-api hoặc thử lại.",
+      );
     }
   },
 
@@ -2392,19 +2979,45 @@ const TravelUI = {
     const province = encodeURIComponent($("#community-province")?.value || "");
     const category = encodeURIComponent($("#community-category")?.value || "");
     try {
-      const posts = await API.get(`/reviews?q=${q}&province=${province}&category=${category}`, { skipAuth: true });
-      if (!posts.length) { box.innerHTML = this._empty("Chưa có bài review phù hợp."); return; }
-      box.innerHTML = posts.map((p) => `<article class="travel-card"><div class="travel-kicker">${this._esc(p.category || "Review")} ${p.isSeed ? "· Bài gợi ý từ SmartBus" : "· Người dùng"}</div><h4>${this._esc(p.title)}</h4><p>${this._esc(p.shortCaption || p.content || "")}</p><div class="travel-meta"><span>⭐ ${this._esc(p.rating || 0)}/5</span><span>${this._esc(p.province || "")}</span><span>${this._esc(p.placeName || "")}</span></div><div class="travel-actions"><button class="btn-ghost" data-review-detail="${this._esc(p.id)}">Xem chi tiết</button><button class="btn-ghost" data-review-chat="${this._esc(p.placeName || p.title)}">Hỏi chatbot</button></div></article>`).join("");
-      $$('[data-review-chat]').forEach((btn) => btn.addEventListener('click', () => SmartBusAssistant.sendQuestion?.(`Địa điểm ${btn.dataset.reviewChat} có tuyến bus hoặc review gì?`)));
-      $$('[data-review-detail]').forEach((btn) => btn.addEventListener('click', async () => this.showReviewDetail(btn.dataset.reviewDetail)));
+      const posts = await API.get(
+        `/reviews?q=${q}&province=${province}&category=${category}`,
+        { skipAuth: true },
+      );
+      if (!posts.length) {
+        box.innerHTML = this._empty("Chưa có bài review phù hợp.");
+        return;
+      }
+      box.innerHTML = posts
+        .map(
+          (p) =>
+            `<article class="travel-card"><div class="travel-kicker">${this._esc(p.category || "Review")} ${p.isSeed ? "· Bài gợi ý từ SmartBus" : "· Người dùng"}</div><h4>${this._esc(p.title)}</h4><p>${this._esc(p.shortCaption || p.content || "")}</p><div class="travel-meta"><span>⭐ ${this._esc(p.rating || 0)}/5</span><span>${this._esc(p.province || "")}</span><span>${this._esc(p.placeName || "")}</span></div><div class="travel-actions"><button class="btn-ghost" data-review-detail="${this._esc(p.id)}">Xem chi tiết</button><button class="btn-ghost" data-review-chat="${this._esc(p.placeName || p.title)}">Hỏi chatbot</button></div></article>`,
+        )
+        .join("");
+      $$("[data-review-chat]").forEach((btn) =>
+        btn.addEventListener("click", () =>
+          SmartBusAssistant.sendQuestion?.(
+            `Địa điểm ${btn.dataset.reviewChat} có tuyến bus hoặc review gì?`,
+          ),
+        ),
+      );
+      $$("[data-review-detail]").forEach((btn) =>
+        btn.addEventListener("click", async () =>
+          this.showReviewDetail(btn.dataset.reviewDetail),
+        ),
+      );
     } catch (err) {
-      box.innerHTML = this._empty("Chưa kết nối được backend review API hoặc chưa chạy migration community_reviews.");
+      box.innerHTML = this._empty(
+        "Chưa kết nối được backend review API hoặc chưa chạy migration community_reviews.",
+      );
     }
   },
 
   async submitCommunityReview(e) {
     e.preventDefault();
-    if (!TokenStore.getAccessToken()) { Auth.showLogin?.("Bạn cần đăng nhập trước khi đăng review."); return; }
+    if (!TokenStore.getAccessToken()) {
+      Auth.showLogin?.("Bạn cần đăng nhập trước khi đăng review.");
+      return;
+    }
     const body = {
       title: $("#review-title")?.value.trim(),
       placeName: $("#review-place")?.value.trim(),
@@ -2416,42 +3029,103 @@ const TravelUI = {
       tips: $("#review-tips")?.value.trim(),
       imageUrl: $("#review-image")?.value.trim(),
     };
-    if (!body.title || !body.placeName || !body.content || body.content.length < 30) { Toast.show("Tiêu đề, địa điểm và nội dung tối thiểu 30 ký tự là bắt buộc", "warning", 3500); return; }
+    if (
+      !body.title ||
+      !body.placeName ||
+      !body.content ||
+      body.content.length < 30
+    ) {
+      Toast.show(
+        "Tiêu đề, địa điểm và nội dung tối thiểu 30 ký tự là bắt buộc",
+        "warning",
+        3500,
+      );
+      return;
+    }
     try {
-      const created = await API.post('/reviews', body);
-      Toast.show(created?.status === 'pending' ? 'Đã gửi bài review và chờ Admin duyệt.' : 'Đã đăng bài review thành công', 'success', 2500);
+      const created = await API.post("/reviews", body);
+      Toast.show(
+        created?.status === "pending"
+          ? "Đã gửi bài review và chờ Admin duyệt."
+          : "Đã đăng bài review thành công",
+        "success",
+        2500,
+      );
       e.target.reset();
       this.renderCommunity();
-    } catch (err) { Toast.show(err.message || 'Không đăng được review', 'error', 3500); }
+    } catch (err) {
+      Toast.show(err.message || "Không đăng được review", "error", 3500);
+    }
   },
 
   async showReviewDetail(id) {
     try {
       const p = await API.get(`/reviews/${id}`, { skipAuth: true });
-      Toast.show(`${p.title}: ${p.tips || p.shortCaption || 'Đã mở chi tiết review.'}`, 'info', 6000);
-    } catch { Toast.show('Không tải được chi tiết review', 'error'); }
+      Toast.show(
+        `${p.title}: ${p.tips || p.shortCaption || "Đã mở chi tiết review."}`,
+        "info",
+        6000,
+      );
+    } catch {
+      Toast.show("Không tải được chi tiết review", "error");
+    }
   },
 
   async toggleFavoriteRoute(routeId, add = true) {
-    if (!TokenStore.getAccessToken()) { Auth.showLogin?.("Bạn cần đăng nhập để lưu tuyến yêu thích."); return; }
+    if (!TokenStore.getAccessToken()) {
+      Auth.showLogin?.("Bạn cần đăng nhập để lưu tuyến yêu thích.");
+      return;
+    }
     try {
-      if (add) await API.post('/favorite-routes', { routeId }); else await API.request(`/favorite-routes/${encodeURIComponent(routeId)}`, { method: 'DELETE' });
-      Toast.show(add ? 'Đã lưu tuyến yêu thích' : 'Đã bỏ lưu tuyến', 'success', 2200);
-      if ($('.view.active')?.id === 'view-favorite-routes') this.renderFavoriteRoutes();
-    } catch (err) { Toast.show(err.message || 'Không thao tác được tuyến yêu thích', 'error'); }
+      if (add) await API.post("/favorite-routes", { routeId });
+      else
+        await API.request(`/favorite-routes/${encodeURIComponent(routeId)}`, {
+          method: "DELETE",
+        });
+      Toast.show(
+        add ? "Đã lưu tuyến yêu thích" : "Đã bỏ lưu tuyến",
+        "success",
+        2200,
+      );
+      if ($(".view.active")?.id === "view-favorite-routes")
+        this.renderFavoriteRoutes();
+    } catch (err) {
+      Toast.show(err.message || "Không thao tác được tuyến yêu thích", "error");
+    }
   },
 
   async toggleFavoritePlace(placeId, add = true) {
-    if (!TokenStore.getAccessToken()) { Auth.showLogin?.("Bạn cần đăng nhập để lưu địa điểm yêu thích."); return; }
+    if (!TokenStore.getAccessToken()) {
+      Auth.showLogin?.("Bạn cần đăng nhập để lưu địa điểm yêu thích.");
+      return;
+    }
     try {
-      if (add) await API.post('/favorite-places', { placeId }); else await API.request(`/favorite-places/${encodeURIComponent(placeId)}`, { method: 'DELETE' });
-      Toast.show(add ? 'Đã lưu địa điểm yêu thích' : 'Đã bỏ lưu địa điểm', 'success', 2200);
-      if ($('.view.active')?.id === 'view-favorite-places') this.renderFavoritePlaces();
-    } catch (err) { Toast.show(err.message || 'Không thao tác được địa điểm yêu thích', 'error'); }
+      if (add) await API.post("/favorite-places", { placeId });
+      else
+        await API.request(`/favorite-places/${encodeURIComponent(placeId)}`, {
+          method: "DELETE",
+        });
+      Toast.show(
+        add ? "Đã lưu địa điểm yêu thích" : "Đã bỏ lưu địa điểm",
+        "success",
+        2200,
+      );
+      if ($(".view.active")?.id === "view-favorite-places")
+        this.renderFavoritePlaces();
+    } catch (err) {
+      Toast.show(
+        err.message || "Không thao tác được địa điểm yêu thích",
+        "error",
+      );
+    }
   },
 
   async _fetchPlace(placeId) {
-    try { return await API.get(`/tourism/places/${placeId}`, { skipAuth: true }); } catch { return null; }
+    try {
+      return await API.get(`/tourism/places/${placeId}`, { skipAuth: true });
+    } catch {
+      return null;
+    }
   },
 
   async renderFavoriteRoutes() {
@@ -2460,11 +3134,37 @@ const TravelUI = {
     box.innerHTML = this._loading("Đang tải tuyến yêu thích...");
     try {
       const routes = await API.get("/favorite-routes");
-      if (!routes.length) { box.innerHTML = this._empty("Bạn chưa lưu tuyến nào. Vào Danh sách xe để bấm “Lưu tuyến”."); return; }
-      box.innerHTML = routes.map((r) => `<div class="travel-card"><div class="travel-kicker">Tuyến ${this._esc(routeLabel(r))} · ${this._esc(r.provinceName || r.provinceCode || '')}</div><h4>${this._esc(r.name || 'Tuyến không còn tồn tại')}</h4><p>${this._esc(r.originName || 'Điểm đầu')} → ${this._esc(r.destinationName || 'Điểm cuối')}</p><div class="travel-meta"><span>${this._esc(r.time || '')}</span><span>Xe hoạt động: ${this._esc(r.activeBusCount || r.vehicleCount || 0)}</span></div><div class="travel-actions"><button class="btn-ghost" data-fav-route-map="${this._esc(r.id)}">Xem trên bản đồ</button><button class="btn-ghost" data-fav-route-remove="${this._esc(r.id)}">Bỏ yêu thích</button></div></div>`).join("");
-      $$('[data-fav-route-map]').forEach((btn) => btn.addEventListener('click', () => { Nav.go('dashboard'); setTimeout(() => MapModule.highlightRoute(btn.dataset.favRouteMap), 250); }));
-      $$('[data-fav-route-remove]').forEach((btn) => btn.addEventListener('click', () => this.toggleFavoriteRoute(btn.dataset.favRouteRemove, false)));
-    } catch (_err) { box.innerHTML = this._empty("Bạn cần đăng nhập hoặc chạy migration favorites_routes để xem tuyến yêu thích."); }
+      if (!routes.length) {
+        box.innerHTML = this._empty(
+          "Bạn chưa lưu tuyến nào. Vào Danh sách xe để bấm “Lưu tuyến”.",
+        );
+        return;
+      }
+      box.innerHTML = routes
+        .map(
+          (r) =>
+            `<div class="travel-card"><div class="travel-kicker">Tuyến ${this._esc(routeLabel(r))} · ${this._esc(r.provinceName || r.provinceCode || "")}</div><h4>${this._esc(r.name || "Tuyến không còn tồn tại")}</h4><p>${this._esc(r.originName || "Điểm đầu")} → ${this._esc(r.destinationName || "Điểm cuối")}</p><div class="travel-meta"><span>${this._esc(r.time || "")}</span><span>Xe hoạt động: ${this._esc(r.activeBusCount || r.vehicleCount || 0)}</span></div><div class="travel-actions"><button class="btn-ghost" data-fav-route-map="${this._esc(r.id)}">Xem trên bản đồ</button><button class="btn-ghost" data-fav-route-remove="${this._esc(r.id)}">Bỏ yêu thích</button></div></div>`,
+        )
+        .join("");
+      $$("[data-fav-route-map]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          Nav.go("dashboard");
+          setTimeout(
+            () => MapModule.highlightRoute(btn.dataset.favRouteMap),
+            250,
+          );
+        }),
+      );
+      $$("[data-fav-route-remove]").forEach((btn) =>
+        btn.addEventListener("click", () =>
+          this.toggleFavoriteRoute(btn.dataset.favRouteRemove, false),
+        ),
+      );
+    } catch (_err) {
+      box.innerHTML = this._empty(
+        "Bạn cần đăng nhập hoặc chạy migration favorites_routes để xem tuyến yêu thích.",
+      );
+    }
   },
   async renderFavoritePlaces() {
     const box = $("#favorite-places-list");
@@ -2472,12 +3172,44 @@ const TravelUI = {
     box.innerHTML = this._loading("Đang tải địa điểm yêu thích...");
     try {
       const places = await API.get("/favorite-places");
-      if (!places.length) { box.innerHTML = this._empty("Bạn chưa lưu địa điểm nào. Vào trang Địa điểm du lịch để bấm “Lưu địa điểm”."); return; }
-      box.innerHTML = places.map((p) => `<div class="travel-card"><div class="travel-kicker">${this._esc(p.categoryName || p.category || 'Du lịch')} · ${this._esc(p.provinceName || p.provinceCode || '')}</div><h4>${this._esc(p.name || 'Địa điểm không còn tồn tại')}</h4><p>${this._esc(p.shortDescription || p.description || '')}</p><div class="travel-meta"><span>⭐ ${this._esc(p.averageRating || 0)}</span><span>${this._esc(p.reviewCount || 0)} review</span></div><div class="travel-actions"><button class="btn-ghost" data-fav-place-map="${this._esc(p.id)}">Xem trên bản đồ</button><button class="btn-ghost" data-fav-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-fav-place-remove="${this._esc(p.id)}">Bỏ yêu thích</button></div></div>`).join("");
-      $$('[data-fav-place-map]').forEach((btn) => btn.addEventListener('click', async () => { const p = await this._fetchPlace(btn.dataset.favPlaceMap); if (p) { Nav.go('dashboard'); setTimeout(() => MapModule.focusPlace?.(p), 250); } }));
-      $$('[data-fav-place-chat]').forEach((btn) => btn.addEventListener('click', () => SmartBusAssistant.sendQuestion?.(`Từ vị trí của tôi đến ${btn.dataset.favPlaceChat} đi tuyến nào?`)));
-      $$('[data-fav-place-remove]').forEach((btn) => btn.addEventListener('click', () => this.toggleFavoritePlace(btn.dataset.favPlaceRemove, false)));
-    } catch (_err) { box.innerHTML = this._empty("Bạn cần đăng nhập hoặc chạy migration favorites_places để xem địa điểm yêu thích."); }
+      if (!places.length) {
+        box.innerHTML = this._empty(
+          "Bạn chưa lưu địa điểm nào. Vào trang Địa điểm du lịch để bấm “Lưu địa điểm”.",
+        );
+        return;
+      }
+      box.innerHTML = places
+        .map(
+          (p) =>
+            `<div class="travel-card"><div class="travel-kicker">${this._esc(p.categoryName || p.category || "Du lịch")} · ${this._esc(p.provinceName || p.provinceCode || "")}</div><h4>${this._esc(p.name || "Địa điểm không còn tồn tại")}</h4><p>${this._esc(p.shortDescription || p.description || "")}</p><div class="travel-meta"><span>⭐ ${this._esc(p.averageRating || 0)}</span><span>${this._esc(p.reviewCount || 0)} review</span></div><div class="travel-actions"><button class="btn-ghost" data-fav-place-map="${this._esc(p.id)}">Xem trên bản đồ</button><button class="btn-ghost" data-fav-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-fav-place-remove="${this._esc(p.id)}">Bỏ yêu thích</button></div></div>`,
+        )
+        .join("");
+      $$("[data-fav-place-map]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const p = await this._fetchPlace(btn.dataset.favPlaceMap);
+          if (p) {
+            Nav.go("dashboard");
+            setTimeout(() => MapModule.focusPlace?.(p), 250);
+          }
+        }),
+      );
+      $$("[data-fav-place-chat]").forEach((btn) =>
+        btn.addEventListener("click", () =>
+          SmartBusAssistant.sendQuestion?.(
+            `Từ vị trí của tôi đến ${btn.dataset.favPlaceChat} đi tuyến nào?`,
+          ),
+        ),
+      );
+      $$("[data-fav-place-remove]").forEach((btn) =>
+        btn.addEventListener("click", () =>
+          this.toggleFavoritePlace(btn.dataset.favPlaceRemove, false),
+        ),
+      );
+    } catch (_err) {
+      box.innerHTML = this._empty(
+        "Bạn cần đăng nhập hoặc chạy migration favorites_places để xem địa điểm yêu thích.",
+      );
+    }
   },
   async renderChatHistory() {
     const box = $("#chat-history-list");
@@ -2485,11 +3217,38 @@ const TravelUI = {
     box.innerHTML = this._loading("Đang tải lịch sử chat...");
     try {
       const rows = await API.get("/chat/history");
-      if (!rows.length) { box.innerHTML = this._empty("Chưa có lịch sử chat."); return; }
-      box.innerHTML = rows.slice(0, 20).map((r) => `<div class="travel-card"><div class="travel-kicker">${this._esc(r.createdAt ? new Date(r.createdAt).toLocaleString('vi-VN') : '')} · ${this._esc(r.intent || "chat")}</div><h4>${this._esc(r.message)}</h4><p>${this._esc(r.reply || r.botResponse || '')}</p><div class="travel-actions">${r.relatedPlaceId ? `<button class="btn-ghost" data-history-review="${this._esc(r.relatedPlaceName || '')}">Xem review cộng đồng</button>` : ''}${r.relatedRouteId ? `<button class="btn-ghost" data-history-route="${this._esc(r.relatedRouteId)}">Xem tuyến</button>` : ''}</div></div>`).join("");
-      $$('[data-history-review]').forEach((btn) => btn.addEventListener('click', () => { $('#community-search') && ($('#community-search').value = btn.dataset.historyReview); Nav.go('reviews'); }));
-      $$('[data-history-route]').forEach((btn) => btn.addEventListener('click', () => { Nav.go('dashboard'); setTimeout(() => MapModule.highlightRoute(btn.dataset.historyRoute), 250); }));
-    } catch { box.innerHTML = this._empty("Bạn cần đăng nhập để xem lịch sử chat cá nhân."); }
+      if (!rows.length) {
+        box.innerHTML = this._empty("Chưa có lịch sử chat.");
+        return;
+      }
+      box.innerHTML = rows
+        .slice(0, 20)
+        .map(
+          (r) =>
+            `<div class="travel-card"><div class="travel-kicker">${this._esc(r.createdAt ? new Date(r.createdAt).toLocaleString("vi-VN") : "")} · ${this._esc(r.intent || "chat")}</div><h4>${this._esc(r.message)}</h4><p>${this._esc(r.reply || r.botResponse || "")}</p><div class="travel-actions">${r.relatedPlaceId ? `<button class="btn-ghost" data-history-review="${this._esc(r.relatedPlaceName || "")}">Xem review cộng đồng</button>` : ""}${r.relatedRouteId ? `<button class="btn-ghost" data-history-route="${this._esc(r.relatedRouteId)}">Xem tuyến</button>` : ""}</div></div>`,
+        )
+        .join("");
+      $$("[data-history-review]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          $("#community-search") &&
+            ($("#community-search").value = btn.dataset.historyReview);
+          Nav.go("reviews");
+        }),
+      );
+      $$("[data-history-route]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          Nav.go("dashboard");
+          setTimeout(
+            () => MapModule.highlightRoute(btn.dataset.historyRoute),
+            250,
+          );
+        }),
+      );
+    } catch {
+      box.innerHTML = this._empty(
+        "Bạn cần đăng nhập để xem lịch sử chat cá nhân.",
+      );
+    }
   },
   _adminTab: "reviews",
   _adminReviews: [],
@@ -2526,13 +3285,21 @@ const TravelUI = {
   },
 
   _bindAdminShell() {
-    $$("[data-admin-tab]").forEach((btn) => btn.addEventListener("click", () => this._switchAdminTab(btn.dataset.adminTab)));
-    $("#admin-refresh-btn")?.addEventListener("click", () => this._switchAdminTab(this._adminTab));
+    $$("[data-admin-tab]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._switchAdminTab(btn.dataset.adminTab),
+      ),
+    );
+    $("#admin-refresh-btn")?.addEventListener("click", () =>
+      this._switchAdminTab(this._adminTab),
+    );
   },
 
   async _switchAdminTab(tab) {
     this._adminTab = tab || "reviews";
-    $$("[data-admin-tab]").forEach((btn) => btn.classList.toggle("active", btn.dataset.adminTab === this._adminTab));
+    $$("[data-admin-tab]").forEach((btn) =>
+      btn.classList.toggle("active", btn.dataset.adminTab === this._adminTab),
+    );
     if (this._adminTab === "reviews") return this._renderAdminReviews();
     if (this._adminTab === "community") return this._renderAdminCommunity();
     return this._renderAdminPlaces();
@@ -2547,12 +3314,20 @@ const TravelUI = {
     if (!box) return;
     box.innerHTML = this._loading("Đang tải review cộng đồng...");
     const q = encodeURIComponent($("#admin-review-q")?.value || "");
-    const province = encodeURIComponent($("#admin-review-province")?.value || "");
-    const category = encodeURIComponent($("#admin-review-category")?.value || "");
-    const status = encodeURIComponent($("#admin-review-status")?.value || "pending");
+    const province = encodeURIComponent(
+      $("#admin-review-province")?.value || "",
+    );
+    const category = encodeURIComponent(
+      $("#admin-review-category")?.value || "",
+    );
+    const status = encodeURIComponent(
+      $("#admin-review-status")?.value || "pending",
+    );
     const sort = encodeURIComponent($("#admin-review-sort")?.value || "newest");
     try {
-      const rows = await API.get(`/admin/reviews?q=${q}&province=${province}&category=${category}&status=${status}&sort=${sort}`);
+      const rows = await API.get(
+        `/admin/reviews?q=${q}&province=${province}&category=${category}&status=${status}&sort=${sort}`,
+      );
       this._adminReviews = Array.isArray(rows) ? rows : [];
       box.innerHTML = `
         <div class="admin-filters">
@@ -2566,11 +3341,20 @@ const TravelUI = {
         ${this._adminReviews.length ? this._reviewTable(this._adminReviews) : this._empty("Hiện chưa có review nào chờ duyệt hoặc phù hợp bộ lọc.")}`;
       this._setSelectValue("#admin-review-status", decodeURIComponent(status));
       this._setSelectValue("#admin-review-sort", decodeURIComponent(sort));
-      $("#admin-review-filter-btn")?.addEventListener("click", () => this._renderAdminReviews());
-      ["#admin-review-q", "#admin-review-category"].forEach((sel) => $(sel)?.addEventListener("keydown", (e) => { if (e.key === "Enter") this._renderAdminReviews(); }));
+      $("#admin-review-filter-btn")?.addEventListener("click", () =>
+        this._renderAdminReviews(),
+      );
+      ["#admin-review-q", "#admin-review-category"].forEach((sel) =>
+        $(sel)?.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") this._renderAdminReviews();
+        }),
+      );
       this._bindAdminReviewActions();
     } catch (err) {
-      box.innerHTML = this._adminError(err, "Không tải được dữ liệu quản trị review. Vui lòng thử lại.");
+      box.innerHTML = this._adminError(
+        err,
+        "Không tải được dữ liệu quản trị review. Vui lòng thử lại.",
+      );
     }
   },
 
@@ -2579,189 +3363,346 @@ const TravelUI = {
   },
 
   _bindAdminReviewActions() {
-    $$('[data-admin-review-detail]').forEach((btn) => btn.addEventListener('click', () => this._showReviewAdminDetail(btn.dataset.adminReviewDetail)));
-    $$('[data-admin-review-approve]').forEach((btn) => btn.addEventListener('click', () => this._adminReviewStatus(btn.dataset.adminReviewApprove, 'approve')));
-    $$('[data-admin-review-hide]').forEach((btn) => btn.addEventListener('click', () => this._adminReviewStatus(btn.dataset.adminReviewHide, 'hide')));
-    $$('[data-admin-review-delete]').forEach((btn) => btn.addEventListener('click', () => this._adminDeleteReview(btn.dataset.adminReviewDelete)));
+    $$("[data-admin-review-detail]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._showReviewAdminDetail(btn.dataset.adminReviewDetail),
+      ),
+    );
+    $$("[data-admin-review-approve]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminReviewStatus(btn.dataset.adminReviewApprove, "approve"),
+      ),
+    );
+    $$("[data-admin-review-hide]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminReviewStatus(btn.dataset.adminReviewHide, "hide"),
+      ),
+    );
+    $$("[data-admin-review-delete]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminDeleteReview(btn.dataset.adminReviewDelete),
+      ),
+    );
   },
 
   _showReviewAdminDetail(id) {
     const r = this._adminReviews.find((x) => String(x.id) === String(id));
-    if (!r) return Toast.show('Không tìm thấy review', 'error');
-    this._showModal('Chi tiết review cộng đồng', `<div class="admin-detail"><h3>${this._esc(r.title)}</h3><p><b>Người đăng:</b> ${this._esc(r.authorName)} · <b>Địa điểm:</b> ${this._esc(r.placeName)}</p><p><b>Tỉnh:</b> ${this._esc(r.province)} · <b>Nhóm:</b> ${this._esc(r.category)} · <b>Rating:</b> ${this._esc(r.rating)}/5</p>${r.imageUrl ? `<img class="admin-detail-img" src="${this._esc(r.imageUrl)}" alt="Ảnh review">` : ''}<p><b>Nội dung:</b></p><p>${this._esc(r.content || '')}</p><p><b>Tips:</b> ${this._esc(r.tips || '')}</p><p><b>Tags:</b> ${this._esc(r.tags || '')}</p><p><b>Trạng thái:</b> ${this._esc(r.status)} ${r.isSeed ? '· Bài seed/demo' : ''}</p><p><b>Tạo lúc:</b> ${this._date(r.createdAt)}</p></div>`);
+    if (!r) return Toast.show("Không tìm thấy review", "error");
+    this._showModal(
+      "Chi tiết review cộng đồng",
+      `<div class="admin-detail"><h3>${this._esc(r.title)}</h3><p><b>Người đăng:</b> ${this._esc(r.authorName)} · <b>Địa điểm:</b> ${this._esc(r.placeName)}</p><p><b>Tỉnh:</b> ${this._esc(r.province)} · <b>Nhóm:</b> ${this._esc(r.category)} · <b>Rating:</b> ${this._esc(r.rating)}/5</p>${r.imageUrl ? `<img class="admin-detail-img" src="${this._esc(r.imageUrl)}" alt="Ảnh review">` : ""}<p><b>Nội dung:</b></p><p>${this._esc(r.content || "")}</p><p><b>Tips:</b> ${this._esc(r.tips || "")}</p><p><b>Tags:</b> ${this._esc(r.tags || "")}</p><p><b>Trạng thái:</b> ${this._esc(r.status)} ${r.isSeed ? "· Bài seed/demo" : ""}</p><p><b>Tạo lúc:</b> ${this._date(r.createdAt)}</p></div>`,
+    );
   },
 
   async _adminReviewStatus(id, action) {
-    const path = action === 'approve' ? `/admin/reviews/${id}/approve` : `/admin/reviews/${id}/hide`;
+    const path =
+      action === "approve"
+        ? `/admin/reviews/${id}/approve`
+        : `/admin/reviews/${id}/hide`;
     try {
-      await API.request(path, { method: 'PUT' });
-      Toast.show(action === 'approve' ? 'Đã duyệt review thành công' : 'Đã ẩn review', 'success');
+      await API.request(path, { method: "PUT" });
+      Toast.show(
+        action === "approve" ? "Đã duyệt review thành công" : "Đã ẩn review",
+        "success",
+      );
       await this._renderAdminReviews();
-    } catch (err) { this._handleAdminError(err, 'Thao tác thất bại, vui lòng thử lại'); }
+    } catch (err) {
+      this._handleAdminError(err, "Thao tác thất bại, vui lòng thử lại");
+    }
   },
 
   async _adminDeleteReview(id) {
     const r = this._adminReviews.find((x) => String(x.id) === String(id));
-    const message = r?.isSeed ? 'Đây là bài mẫu seed/demo. Bạn có chắc muốn ẩn hoặc xóa không?' : 'Bạn có chắc muốn xóa/ẩn review này không?';
-    const ok = await this._confirmModal('Xác nhận xóa review', message);
+    const message = r?.isSeed
+      ? "Đây là bài mẫu seed/demo. Bạn có chắc muốn ẩn hoặc xóa không?"
+      : "Bạn có chắc muốn xóa/ẩn review này không?";
+    const ok = await this._confirmModal("Xác nhận xóa review", message);
     if (!ok) return;
     try {
-      await API.request(`/admin/reviews/${id}`, { method: 'DELETE' });
-      Toast.show('Đã xóa review', 'success');
+      await API.request(`/admin/reviews/${id}`, { method: "DELETE" });
+      Toast.show("Đã xóa review", "success");
       await this._renderAdminReviews();
-    } catch (err) { this._handleAdminError(err, 'Thao tác thất bại, vui lòng thử lại'); }
+    } catch (err) {
+      this._handleAdminError(err, "Thao tác thất bại, vui lòng thử lại");
+    }
   },
 
   async _renderAdminCommunity() {
     const box = this._adminContent();
     if (!box) return;
-    box.innerHTML = this._loading('Đang tải bài cộng đồng chờ duyệt...');
+    box.innerHTML = this._loading("Đang tải bài cộng đồng chờ duyệt...");
     try {
-      const rows = await API.get('/admin/community/pending');
+      const rows = await API.get("/admin/community/pending");
       this._adminPosts = Array.isArray(rows) ? rows : [];
-      box.innerHTML = this._adminPosts.length ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>ID</th><th>Tiêu đề</th><th>Người gửi</th><th>Loại</th><th>Trạng thái</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody>${this._adminPosts.map((p) => `<tr><td>${this._esc(p.id)}</td><td>${this._esc(p.title || p.content || '')}</td><td>${this._esc(p.userName || '')}</td><td>${this._esc(p.topic || 'community')}</td><td>${this._statusBadge(p.status)}</td><td>${this._date(p.createdAt)}</td><td><div class="admin-actions"><button class="btn-ghost mini" data-admin-post-detail="${this._esc(p.id)}">Xem</button><button class="btn-ghost mini" data-admin-post-approve="${this._esc(p.id)}">Duyệt</button><button class="btn-ghost mini" data-admin-post-hide="${this._esc(p.id)}">Ẩn</button><button class="btn-ghost mini danger" data-admin-post-delete="${this._esc(p.id)}">Xóa</button></div></td></tr>`).join('')}</tbody></table></div>` : this._empty('Hiện chưa có bài cộng đồng nào chờ duyệt.');
+      box.innerHTML = this._adminPosts.length
+        ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>ID</th><th>Tiêu đề</th><th>Người gửi</th><th>Loại</th><th>Trạng thái</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody>${this._adminPosts.map((p) => `<tr><td>${this._esc(p.id)}</td><td>${this._esc(p.title || p.content || "")}</td><td>${this._esc(p.userName || "")}</td><td>${this._esc(p.topic || "community")}</td><td>${this._statusBadge(p.status)}</td><td>${this._date(p.createdAt)}</td><td><div class="admin-actions"><button class="btn-ghost mini" data-admin-post-detail="${this._esc(p.id)}">Xem</button><button class="btn-ghost mini" data-admin-post-approve="${this._esc(p.id)}">Duyệt</button><button class="btn-ghost mini" data-admin-post-hide="${this._esc(p.id)}">Ẩn</button><button class="btn-ghost mini danger" data-admin-post-delete="${this._esc(p.id)}">Xóa</button></div></td></tr>`).join("")}</tbody></table></div>`
+        : this._empty("Hiện chưa có bài cộng đồng nào chờ duyệt.");
       this._bindAdminPostActions();
     } catch (err) {
-      box.innerHTML = this._adminError(err, 'Không tải được dữ liệu bài cộng đồng. Vui lòng thử lại.');
+      box.innerHTML = this._adminError(
+        err,
+        "Không tải được dữ liệu bài cộng đồng. Vui lòng thử lại.",
+      );
     }
   },
 
   _bindAdminPostActions() {
-    $$('[data-admin-post-detail]').forEach((btn) => btn.addEventListener('click', () => this._showPostAdminDetail(btn.dataset.adminPostDetail)));
-    $$('[data-admin-post-approve]').forEach((btn) => btn.addEventListener('click', () => this._adminPostStatus(btn.dataset.adminPostApprove, 'approve')));
-    $$('[data-admin-post-hide]').forEach((btn) => btn.addEventListener('click', () => this._adminPostStatus(btn.dataset.adminPostHide, 'hide')));
-    $$('[data-admin-post-delete]').forEach((btn) => btn.addEventListener('click', () => this._adminDeletePost(btn.dataset.adminPostDelete)));
+    $$("[data-admin-post-detail]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._showPostAdminDetail(btn.dataset.adminPostDetail),
+      ),
+    );
+    $$("[data-admin-post-approve]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminPostStatus(btn.dataset.adminPostApprove, "approve"),
+      ),
+    );
+    $$("[data-admin-post-hide]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminPostStatus(btn.dataset.adminPostHide, "hide"),
+      ),
+    );
+    $$("[data-admin-post-delete]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminDeletePost(btn.dataset.adminPostDelete),
+      ),
+    );
   },
 
   _showPostAdminDetail(id) {
     const p = this._adminPosts.find((x) => String(x.id) === String(id));
-    if (!p) return Toast.show('Không tìm thấy bài cộng đồng', 'error');
-    this._showModal('Chi tiết bài cộng đồng', `<div class="admin-detail"><h3>${this._esc(p.title)}</h3><p><b>Người gửi:</b> ${this._esc(p.userName)} · <b>Loại:</b> ${this._esc(p.topic || '')}</p><p><b>Nội dung:</b></p><p>${this._esc(p.content || '')}</p><p><b>Tuyến:</b> ${this._esc(p.routeId || '')} · <b>Địa điểm ID:</b> ${this._esc(p.placeId || '')}</p><p><b>Trạng thái:</b> ${this._esc(p.status)} · <b>Tạo lúc:</b> ${this._date(p.createdAt)}</p></div>`);
+    if (!p) return Toast.show("Không tìm thấy bài cộng đồng", "error");
+    this._showModal(
+      "Chi tiết bài cộng đồng",
+      `<div class="admin-detail"><h3>${this._esc(p.title)}</h3><p><b>Người gửi:</b> ${this._esc(p.userName)} · <b>Loại:</b> ${this._esc(p.topic || "")}</p><p><b>Nội dung:</b></p><p>${this._esc(p.content || "")}</p><p><b>Tuyến:</b> ${this._esc(p.routeId || "")} · <b>Địa điểm ID:</b> ${this._esc(p.placeId || "")}</p><p><b>Trạng thái:</b> ${this._esc(p.status)} · <b>Tạo lúc:</b> ${this._date(p.createdAt)}</p></div>`,
+    );
   },
 
   async _adminPostStatus(id, action) {
-    const path = action === 'approve' ? `/admin/community/${id}/approve` : `/admin/community/${id}/hide`;
+    const path =
+      action === "approve"
+        ? `/admin/community/${id}/approve`
+        : `/admin/community/${id}/hide`;
     try {
-      await API.request(path, { method: 'PUT' });
-      Toast.show(action === 'approve' ? 'Đã duyệt bài cộng đồng' : 'Đã ẩn bài cộng đồng', 'success');
+      await API.request(path, { method: "PUT" });
+      Toast.show(
+        action === "approve" ? "Đã duyệt bài cộng đồng" : "Đã ẩn bài cộng đồng",
+        "success",
+      );
       await this._renderAdminCommunity();
-    } catch (err) { this._handleAdminError(err, 'Thao tác thất bại, vui lòng thử lại'); }
+    } catch (err) {
+      this._handleAdminError(err, "Thao tác thất bại, vui lòng thử lại");
+    }
   },
 
   async _adminDeletePost(id) {
-    const ok = await this._confirmModal('Xác nhận xóa bài', 'Bạn có chắc muốn xóa/ẩn bài cộng đồng này không?');
+    const ok = await this._confirmModal(
+      "Xác nhận xóa bài",
+      "Bạn có chắc muốn xóa/ẩn bài cộng đồng này không?",
+    );
     if (!ok) return;
     try {
-      await API.request(`/admin/community/${id}`, { method: 'DELETE' });
-      Toast.show('Đã xóa/ẩn bài cộng đồng', 'success');
+      await API.request(`/admin/community/${id}`, { method: "DELETE" });
+      Toast.show("Đã xóa/ẩn bài cộng đồng", "success");
       await this._renderAdminCommunity();
-    } catch (err) { this._handleAdminError(err, 'Thao tác thất bại, vui lòng thử lại'); }
+    } catch (err) {
+      this._handleAdminError(err, "Thao tác thất bại, vui lòng thử lại");
+    }
   },
 
   async _renderAdminPlaces() {
     const box = this._adminContent();
     if (!box) return;
-    box.innerHTML = this._loading('Đang tải địa điểm du lịch...');
+    box.innerHTML = this._loading("Đang tải địa điểm du lịch...");
     try {
-      const rows = await API.get('/admin/places?includeInactive=true');
-      const q = (this._adminPlaceQ || '').toLowerCase();
+      const rows = await API.get("/admin/places?includeInactive=true");
+      const q = (this._adminPlaceQ || "").toLowerCase();
       this._adminPlaces = Array.isArray(rows) ? rows : [];
-      const shown = q ? this._adminPlaces.filter((p) => `${p.name} ${p.provinceCode} ${p.categoryName} ${p.tags || ''}`.toLowerCase().includes(q)) : this._adminPlaces;
-      box.innerHTML = `<div class="admin-filters"><input id="admin-place-q" class="travel-input" placeholder="Tìm địa điểm, tỉnh, category..." value="${this._esc(this._adminPlaceQ || '')}" /><button class="btn-primary mini" id="admin-place-add">Thêm địa điểm</button></div>${shown.length ? this._placeAdminTable(shown) : this._empty('Chưa có địa điểm du lịch nào.')}`;
-      $('#admin-place-q')?.addEventListener('input', debounce((e) => { this._adminPlaceQ = e.target.value; this._renderAdminPlaces(); }, 350));
-      $('#admin-place-add')?.addEventListener('click', () => this._openPlaceForm());
+      const shown = q
+        ? this._adminPlaces.filter((p) =>
+            `${p.name} ${p.provinceCode} ${p.categoryName} ${p.tags || ""}`
+              .toLowerCase()
+              .includes(q),
+          )
+        : this._adminPlaces;
+      box.innerHTML = `<div class="admin-filters"><input id="admin-place-q" class="travel-input" placeholder="Tìm địa điểm, tỉnh, category..." value="${this._esc(this._adminPlaceQ || "")}" /><button class="btn-primary mini" id="admin-place-add">Thêm địa điểm</button></div>${shown.length ? this._placeAdminTable(shown) : this._empty("Chưa có địa điểm du lịch nào.")}`;
+      $("#admin-place-q")?.addEventListener(
+        "input",
+        debounce((e) => {
+          this._adminPlaceQ = e.target.value;
+          this._renderAdminPlaces();
+        }, 350),
+      );
+      $("#admin-place-add")?.addEventListener("click", () =>
+        this._openPlaceForm(),
+      );
       this._bindAdminPlaceActions();
     } catch (err) {
-      box.innerHTML = this._adminError(err, 'Không tải được dữ liệu địa điểm. Vui lòng thử lại.');
+      box.innerHTML = this._adminError(
+        err,
+        "Không tải được dữ liệu địa điểm. Vui lòng thử lại.",
+      );
     }
   },
 
   _placeAdminTable(rows) {
-    return `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>ID</th><th>Tên địa điểm</th><th>Tỉnh/khu vực</th><th>Category</th><th>Latitude</th><th>Longitude</th><th>Trạng thái</th><th>Tags</th><th>Thao tác</th></tr></thead><tbody>${rows.map((p) => `<tr><td>${this._esc(p.id)}</td><td>${this._esc(p.name || '')}</td><td>${this._esc(p.provinceName || p.provinceCode || '')}</td><td>${this._esc(p.categoryName || p.category || '')}</td><td>${this._esc(p.latitude ?? '')}</td><td>${this._esc(p.longitude ?? '')}</td><td>${this._statusBadge(p.isActive ? 'active' : 'inactive')}</td><td>${this._esc(p.tags || '')}</td><td><div class="admin-actions"><button class="btn-ghost mini" data-admin-place-detail="${this._esc(p.id)}">Xem</button><button class="btn-ghost mini" data-admin-place-edit="${this._esc(p.id)}">Sửa</button>${p.isActive ? `<button class="btn-ghost mini danger" data-admin-place-delete="${this._esc(p.id)}">Ẩn</button>` : `<button class="btn-ghost mini" data-admin-place-activate="${this._esc(p.id)}">Kích hoạt</button>`}</div></td></tr>`).join('')}</tbody></table></div>`;
+    return `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>ID</th><th>Tên địa điểm</th><th>Tỉnh/khu vực</th><th>Category</th><th>Latitude</th><th>Longitude</th><th>Trạng thái</th><th>Tags</th><th>Thao tác</th></tr></thead><tbody>${rows.map((p) => `<tr><td>${this._esc(p.id)}</td><td>${this._esc(p.name || "")}</td><td>${this._esc(p.provinceName || p.provinceCode || "")}</td><td>${this._esc(p.categoryName || p.category || "")}</td><td>${this._esc(p.latitude ?? "")}</td><td>${this._esc(p.longitude ?? "")}</td><td>${this._statusBadge(p.isActive ? "active" : "inactive")}</td><td>${this._esc(p.tags || "")}</td><td><div class="admin-actions"><button class="btn-ghost mini" data-admin-place-detail="${this._esc(p.id)}">Xem</button><button class="btn-ghost mini" data-admin-place-edit="${this._esc(p.id)}">Sửa</button>${p.isActive ? `<button class="btn-ghost mini danger" data-admin-place-delete="${this._esc(p.id)}">Ẩn</button>` : `<button class="btn-ghost mini" data-admin-place-activate="${this._esc(p.id)}">Kích hoạt</button>`}</div></td></tr>`).join("")}</tbody></table></div>`;
   },
 
   _bindAdminPlaceActions() {
-    $$('[data-admin-place-detail]').forEach((btn) => btn.addEventListener('click', () => this._showPlaceAdminDetail(btn.dataset.adminPlaceDetail)));
-    $$('[data-admin-place-edit]').forEach((btn) => btn.addEventListener('click', () => this._openPlaceForm(this._adminPlaces.find((p) => String(p.id) === String(btn.dataset.adminPlaceEdit)))));
-    $$('[data-admin-place-delete]').forEach((btn) => btn.addEventListener('click', () => this._adminDeletePlace(btn.dataset.adminPlaceDelete)));
-    $$('[data-admin-place-activate]').forEach((btn) => btn.addEventListener('click', () => this._adminActivatePlace(btn.dataset.adminPlaceActivate)));
+    $$("[data-admin-place-detail]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._showPlaceAdminDetail(btn.dataset.adminPlaceDetail),
+      ),
+    );
+    $$("[data-admin-place-edit]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._openPlaceForm(
+          this._adminPlaces.find(
+            (p) => String(p.id) === String(btn.dataset.adminPlaceEdit),
+          ),
+        ),
+      ),
+    );
+    $$("[data-admin-place-delete]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminDeletePlace(btn.dataset.adminPlaceDelete),
+      ),
+    );
+    $$("[data-admin-place-activate]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminActivatePlace(btn.dataset.adminPlaceActivate),
+      ),
+    );
   },
 
   _showPlaceAdminDetail(id) {
     const p = this._adminPlaces.find((x) => String(x.id) === String(id));
-    if (!p) return Toast.show('Không tìm thấy địa điểm', 'error');
-    this._showModal('Chi tiết địa điểm du lịch', `<div class="admin-detail"><h3>${this._esc(p.name)}</h3><p><b>Tỉnh:</b> ${this._esc(p.provinceName || p.provinceCode || '')} · <b>Nhóm:</b> ${this._esc(p.categoryName || p.category || '')}</p><p><b>Tọa độ:</b> ${this._esc(p.latitude)}, ${this._esc(p.longitude)}</p><p><b>Mô tả:</b></p><p>${this._esc(p.description || '')}</p><p><b>Tips:</b> ${this._esc(p.tips || p.nearbySuggestions || '')}</p><p><b>Thời điểm nên đi:</b> ${this._esc(p.bestTime || '')}</p><p><b>Tags:</b> ${this._esc(p.tags || '')}</p><p><b>Trạng thái:</b> ${p.isActive ? 'Đang hoạt động' : 'Đã ẩn'}</p></div>`);
+    if (!p) return Toast.show("Không tìm thấy địa điểm", "error");
+    this._showModal(
+      "Chi tiết địa điểm du lịch",
+      `<div class="admin-detail"><h3>${this._esc(p.name)}</h3><p><b>Tỉnh:</b> ${this._esc(p.provinceName || p.provinceCode || "")} · <b>Nhóm:</b> ${this._esc(p.categoryName || p.category || "")}</p><p><b>Tọa độ:</b> ${this._esc(p.latitude)}, ${this._esc(p.longitude)}</p><p><b>Mô tả:</b></p><p>${this._esc(p.description || "")}</p><p><b>Tips:</b> ${this._esc(p.tips || p.nearbySuggestions || "")}</p><p><b>Thời điểm nên đi:</b> ${this._esc(p.bestTime || "")}</p><p><b>Tags:</b> ${this._esc(p.tags || "")}</p><p><b>Trạng thái:</b> ${p.isActive ? "Đang hoạt động" : "Đã ẩn"}</p></div>`,
+    );
   },
 
   _openPlaceForm(place = null) {
     const isEdit = Boolean(place?.id);
     const html = `<form id="admin-place-form" class="admin-form">
       <div class="review-form-grid">
-        <input class="travel-input" name="name" placeholder="Tên địa điểm *" value="${this._esc(place?.name || '')}" required />
+        <input class="travel-input" name="name" placeholder="Tên địa điểm *" value="${this._esc(place?.name || "")}" required />
         <select class="travel-input" name="provinceCode"><option value="DN">Đà Nẵng</option><option value="QN_CU">Quảng Nam cũ / Hội An</option><option value="HUE">Huế</option><option value="QT">Quảng Trị</option><option value="QNG">Quảng Ngãi</option></select>
-        <input class="travel-input" name="category" placeholder="Category *" value="${this._esc(place?.categoryName || place?.category || '')}" required />
-        <input class="travel-input" name="latitude" placeholder="Latitude *" value="${this._esc(place?.latitude ?? '')}" required />
-        <input class="travel-input" name="longitude" placeholder="Longitude *" value="${this._esc(place?.longitude ?? '')}" required />
-        <input class="travel-input" name="imageUrl" placeholder="URL ảnh nếu có" value="${this._esc(place?.thumbnailUrl || place?.imageUrl || '')}" />
+        <input class="travel-input" name="category" placeholder="Category *" value="${this._esc(place?.categoryName || place?.category || "")}" required />
+        <input class="travel-input" name="latitude" placeholder="Latitude *" value="${this._esc(place?.latitude ?? "")}" required />
+        <input class="travel-input" name="longitude" placeholder="Longitude *" value="${this._esc(place?.longitude ?? "")}" required />
+        <input class="travel-input" name="imageUrl" placeholder="URL ảnh nếu có" value="${this._esc(place?.thumbnailUrl || place?.imageUrl || "")}" />
       </div>
-      <textarea class="travel-input" name="description" rows="3" placeholder="Mô tả">${this._esc(place?.description || '')}</textarea>
-      <textarea class="travel-input" name="tips" rows="2" placeholder="Tips/gợi ý">${this._esc(place?.tips || place?.nearbySuggestions || '')}</textarea>
-      <input class="travel-input" name="bestTime" placeholder="Thời điểm nên đi" value="${this._esc(place?.bestTime || '')}" />
-      <input class="travel-input" name="tags" placeholder="Tags, phân tách bằng dấu phẩy" value="${this._esc(place?.tags || '')}" />
-      <label class="admin-check"><input type="checkbox" name="isActive" ${place?.isActive === false ? '' : 'checked'} /> Địa điểm đang hoạt động</label>
-      <button class="btn-primary mini" type="submit">${isEdit ? 'Cập nhật địa điểm' : 'Thêm địa điểm'}</button>
+      <textarea class="travel-input" name="description" rows="3" placeholder="Mô tả">${this._esc(place?.description || "")}</textarea>
+      <textarea class="travel-input" name="tips" rows="2" placeholder="Tips/gợi ý">${this._esc(place?.tips || place?.nearbySuggestions || "")}</textarea>
+      <input class="travel-input" name="bestTime" placeholder="Thời điểm nên đi" value="${this._esc(place?.bestTime || "")}" />
+      <input class="travel-input" name="tags" placeholder="Tags, phân tách bằng dấu phẩy" value="${this._esc(place?.tags || "")}" />
+      <label class="admin-check"><input type="checkbox" name="isActive" ${place?.isActive === false ? "" : "checked"} /> Địa điểm đang hoạt động</label>
+      <button class="btn-primary mini" type="submit">${isEdit ? "Cập nhật địa điểm" : "Thêm địa điểm"}</button>
     </form>`;
-    this._showModal(isEdit ? 'Sửa địa điểm' : 'Thêm địa điểm', html, (modal) => {
-      const provinceSelect = modal.querySelector('[name="provinceCode"]');
-      if (provinceSelect) provinceSelect.value = place?.provinceCode || 'DN';
-      modal.querySelector('#admin-place-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fd = new FormData(e.target);
-        const body = Object.fromEntries(fd.entries());
-        body.latitude = Number(body.latitude);
-        body.longitude = Number(body.longitude);
-        body.isActive = e.target.elements.isActive.checked;
-        if (!body.name || !body.category || !Number.isFinite(body.latitude) || body.latitude < -90 || body.latitude > 90 || !Number.isFinite(body.longitude) || body.longitude < -180 || body.longitude > 180) {
-          Toast.show('Tên, category và tọa độ hợp lệ là bắt buộc', 'warning');
-          return;
-        }
-        if (body.imageUrl && !/^https?:\/\//i.test(body.imageUrl)) {
-          Toast.show('Image URL phải bắt đầu bằng http:// hoặc https://', 'warning');
-          return;
-        }
-        try {
-          if (isEdit) await API.request(`/admin/places/${place.id}`, { method: 'PUT', body: JSON.stringify(body) });
-          else await API.post('/admin/places', body);
-          Toast.show(isEdit ? 'Đã cập nhật địa điểm' : 'Đã thêm địa điểm', 'success');
-          this._closeModal();
-          await this._renderAdminPlaces();
-        } catch (err) { this._handleAdminError(err, 'Không lưu được địa điểm'); }
-      });
-    });
+    this._showModal(
+      isEdit ? "Sửa địa điểm" : "Thêm địa điểm",
+      html,
+      (modal) => {
+        const provinceSelect = modal.querySelector('[name="provinceCode"]');
+        if (provinceSelect) provinceSelect.value = place?.provinceCode || "DN";
+        modal
+          .querySelector("#admin-place-form")
+          ?.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const body = Object.fromEntries(fd.entries());
+            body.latitude = Number(body.latitude);
+            body.longitude = Number(body.longitude);
+            body.isActive = e.target.elements.isActive.checked;
+            if (
+              !body.name ||
+              !body.category ||
+              !Number.isFinite(body.latitude) ||
+              body.latitude < -90 ||
+              body.latitude > 90 ||
+              !Number.isFinite(body.longitude) ||
+              body.longitude < -180 ||
+              body.longitude > 180
+            ) {
+              Toast.show(
+                "Tên, category và tọa độ hợp lệ là bắt buộc",
+                "warning",
+              );
+              return;
+            }
+            if (body.imageUrl && !/^https?:\/\//i.test(body.imageUrl)) {
+              Toast.show(
+                "Image URL phải bắt đầu bằng http:// hoặc https://",
+                "warning",
+              );
+              return;
+            }
+            try {
+              if (isEdit)
+                await API.request(`/admin/places/${place.id}`, {
+                  method: "PUT",
+                  body: JSON.stringify(body),
+                });
+              else await API.post("/admin/places", body);
+              Toast.show(
+                isEdit ? "Đã cập nhật địa điểm" : "Đã thêm địa điểm",
+                "success",
+              );
+              this._closeModal();
+              await this._renderAdminPlaces();
+            } catch (err) {
+              this._handleAdminError(err, "Không lưu được địa điểm");
+            }
+          });
+      },
+    );
   },
 
   async _adminDeletePlace(id) {
-    const ok = await this._confirmModal('Xác nhận ẩn địa điểm', 'Bạn có chắc muốn ẩn/xóa mềm địa điểm này không?');
+    const ok = await this._confirmModal(
+      "Xác nhận ẩn địa điểm",
+      "Bạn có chắc muốn ẩn/xóa mềm địa điểm này không?",
+    );
     if (!ok) return;
     try {
-      await API.request(`/admin/places/${id}`, { method: 'DELETE' });
-      Toast.show('Đã ẩn địa điểm', 'success');
+      await API.request(`/admin/places/${id}`, { method: "DELETE" });
+      Toast.show("Đã ẩn địa điểm", "success");
       await this._renderAdminPlaces();
-    } catch (err) { this._handleAdminError(err, 'Không ẩn được địa điểm'); }
+    } catch (err) {
+      this._handleAdminError(err, "Không ẩn được địa điểm");
+    }
   },
 
   async _adminActivatePlace(id) {
     const p = this._adminPlaces.find((x) => String(x.id) === String(id));
     if (!p) return;
     try {
-      await API.request(`/admin/places/${id}`, { method: 'PUT', body: JSON.stringify({ ...p, provinceCode: p.provinceCode || 'DN', category: p.categoryName || p.category || 'Du lịch', imageUrl: p.thumbnailUrl || p.imageUrl || '', isActive: true }) });
-      Toast.show('Đã kích hoạt lại địa điểm', 'success');
+      await API.request(`/admin/places/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          ...p,
+          provinceCode: p.provinceCode || "DN",
+          category: p.categoryName || p.category || "Du lịch",
+          imageUrl: p.thumbnailUrl || p.imageUrl || "",
+          isActive: true,
+        }),
+      });
+      Toast.show("Đã kích hoạt lại địa điểm", "success");
       await this._renderAdminPlaces();
-    } catch (err) { this._handleAdminError(err, 'Không kích hoạt được địa điểm'); }
+    } catch (err) {
+      this._handleAdminError(err, "Không kích hoạt được địa điểm");
+    }
   },
 
-  _provinceOptions(selected = '') {
-    return CONFIG.PROVINCES.map((p) => `<option value="${this._esc(p.name)}" ${selected === p.name ? 'selected' : ''}>${this._esc(p.name)}</option>`).join('');
+  _provinceOptions(selected = "") {
+    return CONFIG.PROVINCES.map(
+      (p) =>
+        `<option value="${this._esc(p.name)}" ${selected === p.name ? "selected" : ""}>${this._esc(p.name)}</option>`,
+    ).join("");
   },
 
   _setSelectValue(selector, value) {
@@ -2770,54 +3711,104 @@ const TravelUI = {
   },
 
   _statusBadge(status, isSeed = false) {
-    const s = String(status || '').toLowerCase();
-    const label = { pending: 'Chờ duyệt', approved: 'Đã duyệt', approved_seed: 'Bài mẫu', hidden: 'Đã ẩn', active: 'Đang hoạt động', inactive: 'Đã ẩn' }[s] || status || 'Không rõ';
-    return `<span class="admin-status admin-status-${this._esc(s || 'unknown')}">${this._esc(label)}${isSeed ? ' · Seed' : ''}</span>`;
+    const s = String(status || "").toLowerCase();
+    const label =
+      {
+        pending: "Chờ duyệt",
+        approved: "Đã duyệt",
+        approved_seed: "Bài mẫu",
+        hidden: "Đã ẩn",
+        active: "Đang hoạt động",
+        inactive: "Đã ẩn",
+      }[s] ||
+      status ||
+      "Không rõ";
+    return `<span class="admin-status admin-status-${this._esc(s || "unknown")}">${this._esc(label)}${isSeed ? " · Seed" : ""}</span>`;
   },
 
   _date(value) {
-    if (!value) return '';
-    try { return new Date(value).toLocaleString('vi-VN'); } catch { return String(value); }
+    if (!value) return "";
+    try {
+      return new Date(value).toLocaleString("vi-VN");
+    } catch {
+      return String(value);
+    }
   },
 
   _adminError(err, fallback) {
-    const msg = err?.status === 401 ? 'Bạn cần đăng nhập để sử dụng chức năng này.' : err?.status === 403 ? 'Bạn không có quyền quản trị nội dung.' : (err?.message || fallback);
+    const msg =
+      err?.status === 401
+        ? "Bạn cần đăng nhập để sử dụng chức năng này."
+        : err?.status === 403
+          ? "Bạn không có quyền quản trị nội dung."
+          : err?.message || fallback;
     return `<div class="travel-card wide empty-state"><h4>${this._esc(fallback)}</h4><p>${this._esc(msg)}</p></div>`;
   },
 
   _handleAdminError(err, fallback) {
-    if (err?.status === 401) return Auth.forceLogout('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'warning');
-    if (err?.status === 403) return Toast.show('Bạn không có quyền quản trị nội dung.', 'error', 4000);
-    Toast.show(err?.message || fallback, 'error', 4000);
+    if (err?.status === 401)
+      return Auth.forceLogout(
+        "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+        "warning",
+      );
+    if (err?.status === 403)
+      return Toast.show("Bạn không có quyền quản trị nội dung.", "error", 4000);
+    Toast.show(err?.message || fallback, "error", 4000);
   },
 
   _showModal(title, html, onMount) {
     this._closeModal();
-    const el = document.createElement('div');
-    el.className = 'admin-modal-backdrop';
+    const el = document.createElement("div");
+    el.className = "admin-modal-backdrop";
     el.innerHTML = `<div class="admin-modal"><div class="admin-modal-head"><h3>${this._esc(title)}</h3><button class="btn-ghost mini" data-admin-modal-close>Đóng</button></div><div class="admin-modal-body">${html}</div></div>`;
     document.body.appendChild(el);
-    el.addEventListener('click', (e) => { if (e.target === el || e.target.closest('[data-admin-modal-close]')) this._closeModal(); });
-    if (typeof onMount === 'function') onMount(el);
+    el.addEventListener("click", (e) => {
+      if (e.target === el || e.target.closest("[data-admin-modal-close]"))
+        this._closeModal();
+    });
+    if (typeof onMount === "function") onMount(el);
     return el;
   },
 
   _closeModal() {
-    document.querySelector('.admin-modal-backdrop')?.remove();
+    document.querySelector(".admin-modal-backdrop")?.remove();
   },
 
   _confirmModal(title, message) {
     return new Promise((resolve) => {
-      this._showModal(title, `<p>${this._esc(message)}</p><div class="admin-confirm-actions"><button class="btn-ghost" data-confirm-no>Hủy</button><button class="btn-primary mini" data-confirm-yes>Đồng ý</button></div>`, (modal) => {
-        modal.querySelector('[data-confirm-no]')?.addEventListener('click', () => { this._closeModal(); resolve(false); });
-        modal.querySelector('[data-confirm-yes]')?.addEventListener('click', () => { this._closeModal(); resolve(true); });
-      });
+      this._showModal(
+        title,
+        `<p>${this._esc(message)}</p><div class="admin-confirm-actions"><button class="btn-ghost" data-confirm-no>Hủy</button><button class="btn-primary mini" data-confirm-yes>Đồng ý</button></div>`,
+        (modal) => {
+          modal
+            .querySelector("[data-confirm-no]")
+            ?.addEventListener("click", () => {
+              this._closeModal();
+              resolve(false);
+            });
+          modal
+            .querySelector("[data-confirm-yes]")
+            ?.addEventListener("click", () => {
+              this._closeModal();
+              resolve(true);
+            });
+        },
+      );
     });
   },
 
-  _loading(text) { return `<div class="travel-card wide skeleton">${this._esc(text)}</div>`; },
-  _empty(text) { return `<div class="travel-card wide empty-state">${this._esc(text)}</div>`; },
-  _esc(v) { return String(v ?? "").replace(/[&<>\"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[c]); },
+  _loading(text) {
+    return `<div class="travel-card wide skeleton">${this._esc(text)}</div>`;
+  },
+  _empty(text) {
+    return `<div class="travel-card wide empty-state">${this._esc(text)}</div>`;
+  },
+  _esc(v) {
+    return String(v ?? "").replace(
+      /[&<>\"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[c],
+    );
+  },
 };
 
 /* ----------------------------------------------------------
@@ -2862,9 +3853,16 @@ const App = {
     this._started = true;
 
     // 1. Ưu tiên tải dữ liệu thật từ SQL Server; fallback chỉ dùng khi backend chưa chạy.
-    State.mapFilters.province = State.mapFilters.province || CONFIG.DEFAULT_PROVINCE;
+    State.mapFilters.province =
+      State.mapFilters.province || CONFIG.DEFAULT_PROVINCE;
     const loadedSql = await DynamicData.load(State.mapFilters.province);
-    if (!State.buses.length) State.buses = createBuses().filter((b) => routeById(b.routeId)?.provinceCode === State.mapFilters.province).slice(0, CONFIG.BUS_LIMIT_PER_PROVINCE);
+    if (!State.buses.length)
+      State.buses = createBuses()
+        .filter(
+          (b) =>
+            routeById(b.routeId)?.provinceCode === State.mapFilters.province,
+        )
+        .slice(0, CONFIG.BUS_LIMIT_PER_PROVINCE);
 
     // 2. Khởi tạo bản đồ GIS.
     MapModule.init();
@@ -2889,7 +3887,8 @@ const App = {
     this._startLoop();
 
     // 8. Kiểm tra lịch mỗi 30 giây (bắt đúng mốc chuyển)
-    if (!this._schedTimer) this._schedTimer = setInterval(() => this._checkSchedule(), 30000);
+    if (!this._schedTimer)
+      this._schedTimer = setInterval(() => this._checkSchedule(), 30000);
   },
 
   _startLoop() {
@@ -2911,7 +3910,6 @@ const App = {
       this._updateAll();
     }, CONFIG.TICK_MS);
   },
-
 
   stop() {
     this._started = false;
@@ -2984,14 +3982,17 @@ document.addEventListener("DOMContentLoaded", () => {
   ScheduleUI.show(State.systemStatus);
 });
 
-console.log("🚌 SMARTBUS v4.1 – Road-snapped GIS + route catalog + full tourism – Ready");
-
+console.log(
+  "🚌 SMARTBUS v4.1 – Road-snapped GIS + route catalog + full tourism – Ready",
+);
 
 /* ----------------------------------------------------------
    22. SMARTBUS ASSISTANT – Frontend API + GPS
 ---------------------------------------------------------- */
 const SmartBusAssistant = (() => {
-  const API_BASE = window.SMARTBUS_API_BASE || "http://localhost:5000/api/v1";
+  const API_BASE =
+    window.SMARTBUS_API_BASE ||
+    "https://smartbus-backend-xr34.onrender.com/api/v1";
   let currentPosition = null;
   let busy = false;
 
@@ -3009,7 +4010,9 @@ const SmartBusAssistant = (() => {
   function bind() {
     const e = els();
     if (!e.panel || !e.toggle) return;
-    e.toggle.addEventListener("click", () => e.panel.classList.toggle("hidden"));
+    e.toggle.addEventListener("click", () =>
+      e.panel.classList.toggle("hidden"),
+    );
     e.close?.addEventListener("click", () => e.panel.classList.add("hidden"));
     e.gpsBtn?.addEventListener("click", () => requestGPS(true));
     e.form?.addEventListener("submit", onSubmit);
@@ -3041,23 +4044,48 @@ const SmartBusAssistant = (() => {
   function buildCard(data) {
     const route = data.route || null;
     const stop = data.nearestStop || null;
-    if (!route && !stop && !data.fare && !data.cta && !data.suggestedPlaces?.length) return "";
+    if (
+      !route &&
+      !stop &&
+      !data.fare &&
+      !data.cta &&
+      !data.suggestedPlaces?.length
+    )
+      return "";
     const rows = [];
-    if (route) rows.push(["Tuyến", `T.${route.id || route.route_id} – ${route.name || route.route_name || ""}`]);
-    if (stop) rows.push(["Bến gần nhất", stop.name || stop.stop_name || "Điểm đón gợi ý"]);
-    if (Number.isFinite(Number(data.walkingMinutes))) rows.push(["Đi bộ", `${data.walkingMinutes} phút`]);
-    if (Number.isFinite(Number(data.etaMinutes))) rows.push(["Xe đến", `${data.etaMinutes} phút`]);
-    if (data.fare || route?.fare) rows.push(["Giá vé", data.fare || route.fare]);
+    if (route)
+      rows.push([
+        "Tuyến",
+        `T.${route.id || route.route_id} – ${route.name || route.route_name || ""}`,
+      ]);
+    if (stop)
+      rows.push([
+        "Bến gần nhất",
+        stop.name || stop.stop_name || "Điểm đón gợi ý",
+      ]);
+    if (Number.isFinite(Number(data.walkingMinutes)))
+      rows.push(["Đi bộ", `${data.walkingMinutes} phút`]);
+    if (Number.isFinite(Number(data.etaMinutes)))
+      rows.push(["Xe đến", `${data.etaMinutes} phút`]);
+    if (data.fare || route?.fare)
+      rows.push(["Giá vé", data.fare || route.fare]);
     let extra = "";
     if (Array.isArray(data.suggestedPlaces) && data.suggestedPlaces.length) {
-      extra += `<div class="chat-card-row"><span>Gợi ý</span><b>${data.suggestedPlaces.slice(0,3).map((p) => sanitize(p.name)).join(", ")}</b></div>`;
+      extra += `<div class="chat-card-row"><span>Gợi ý</span><b>${data.suggestedPlaces
+        .slice(0, 3)
+        .map((p) => sanitize(p.name))
+        .join(", ")}</b></div>`;
     }
-    if (data.cta?.view) extra += `<button type="button" class="chat-cta" onclick="Nav.go('${sanitize(data.cta.view)}'); ${data.cta.routeId ? `setTimeout(function(){ MapModule.highlightRoute('${sanitize(data.cta.routeId)}'); }, 250);` : ''}">${sanitize(data.cta.label || "Mở trang")}</button>`;
-    return `<div class="chat-card">${rows.map(([k,v]) => `<div class="chat-card-row"><span>${sanitize(k)}</span><b>${sanitize(v)}</b></div>`).join("")}${extra}</div>`;
+    if (data.cta?.view)
+      extra += `<button type="button" class="chat-cta" onclick="Nav.go('${sanitize(data.cta.view)}'); ${data.cta.routeId ? `setTimeout(function(){ MapModule.highlightRoute('${sanitize(data.cta.routeId)}'); }, 250);` : ""}">${sanitize(data.cta.label || "Mở trang")}</button>`;
+    return `<div class="chat-card">${rows.map(([k, v]) => `<div class="chat-card-row"><span>${sanitize(k)}</span><b>${sanitize(v)}</b></div>`).join("")}${extra}</div>`;
   }
 
   function sanitize(v) {
-    return String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    return String(v ?? "").replace(
+      /[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+    );
   }
 
   async function onSubmit(ev) {
@@ -3070,23 +4098,55 @@ const SmartBusAssistant = (() => {
   }
 
   function normText(v) {
-    return String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+    return String(v || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d");
   }
 
   function findProvinceFromText(text) {
-    if (/quang tri|dong ha|vinh moc|cua tung|cua viet|la vang|hien luong/.test(text)) return "QT";
-    if (/hue|thua thien|dai noi|dong ba|thien mu|khai dinh|tu duc|lang co/.test(text)) return "HUE";
-    if (/da nang|danang|ba na|my khe|son tra|ngu hanh|cau rong|cho han|hai van/.test(text)) return "DN";
-    if (/quang ngai|ly son|sa ky|sa huynh|son my|thien an|ba to|dung quat|van tuong/.test(text)) return "QNG";
-    if (/quang nam|hoi an|chua cau|my son|cu lao cham|tam ky|vinwonders|cau mong|tra que|thanh ha|an bang|cua dai/.test(text)) return "QN_CU";
+    if (
+      /quang tri|dong ha|vinh moc|cua tung|cua viet|la vang|hien luong/.test(
+        text,
+      )
+    )
+      return "QT";
+    if (
+      /hue|thua thien|dai noi|dong ba|thien mu|khai dinh|tu duc|lang co/.test(
+        text,
+      )
+    )
+      return "HUE";
+    if (
+      /da nang|danang|ba na|my khe|son tra|ngu hanh|cau rong|cho han|hai van/.test(
+        text,
+      )
+    )
+      return "DN";
+    if (
+      /quang ngai|ly son|sa ky|sa huynh|son my|thien an|ba to|dung quat|van tuong/.test(
+        text,
+      )
+    )
+      return "QNG";
+    if (
+      /quang nam|hoi an|chua cau|my son|cu lao cham|tam ky|vinwonders|cau mong|tra que|thanh ha|an bang|cua dai/.test(
+        text,
+      )
+    )
+      return "QN_CU";
     return "";
   }
 
   function findRouteFromLocal(question) {
     const text = normText(question);
-    const code = question.match(/\b(QT|HUE|DN|DNG|QNG|QN)\s*-?\s*(\d{1,2})(?:-?old|-?2025|-?tour)?\b/i);
+    const code = question.match(
+      /\b(QT|HUE|DN|DNG|QNG|QN)\s*-?\s*(\d{1,2})(?:-?old|-?2025|-?tour)?\b/i,
+    );
     if (code) {
-      const prefix = code[1].toUpperCase() === "DNG" ? "DN" : code[1].toUpperCase();
+      const prefix =
+        code[1].toUpperCase() === "DNG" ? "DN" : code[1].toUpperCase();
       const rid = `${prefix}-${String(code[2]).padStart(2, "0")}`;
       const exact = routeById(rid);
       if (exact) return exact;
@@ -3095,45 +4155,109 @@ const SmartBusAssistant = (() => {
     if (simple) {
       const n = String(simple[1] || simple[2]).padStart(2, "0");
       const province = findProvinceFromText(text);
-      const byProvince = ROUTES.find((r) => r.provinceCode === province && String(r.id).endsWith(`-${n}`));
+      const byProvince = ROUTES.find(
+        (r) => r.provinceCode === province && String(r.id).endsWith(`-${n}`),
+      );
       if (byProvince) return byProvince;
       const any = ROUTES.find((r) => String(r.id).endsWith(`-${n}`));
       if (any) return any;
     }
     const rules = [
-      [/hoi an|cua dai|viet han/, "DN-02"], [/ba na|cau vang|suoi mo/, "DN-03"], [/my khe|cong vien bien dong/, "DN-05"], [/cau rong|bao tang cham|san bay.*viet han/, "DN-06"], [/cho han|song han/, "DN-05"], [/hai van|khu cong nghe cao/, "DN-14"],
-      [/vinh moc|cua tung|cua viet|con co/, "QT-03"], [/hien luong|ben hai|ho xa|vinh chap/, "QT-01"], [/thanh co|la vang|hai lang/, "QT-02"], [/khe sanh|ta con|lao bao/, "QT-01"],
-      [/dai noi|kinh thanh|dong ba|truong tien/, "HUE-01"], [/thien mu|tu duc|khai dinh|thuy xuan|lang huong/, "HUE-05"], [/thuan an|vinh hien/, "HUE-03"], [/lang co|lap an|hai van/, "HUE-10"], [/a luoi/, "HUE-12"],
-      [/ly son|sa ky|son my|my khe quang ngai/, "QNG-03"], [/sa huynh/, "QNG-02"], [/thien an|song tra/, "QNG-01"], [/ba to|ba vi/, "QNG-04"], [/dung quat|van tuong|doosan/, "QNG-05"], [/tra bong/, "QNG-08"],
+      [/hoi an|cua dai|viet han/, "DN-02"],
+      [/ba na|cau vang|suoi mo/, "DN-03"],
+      [/my khe|cong vien bien dong/, "DN-05"],
+      [/cau rong|bao tang cham|san bay.*viet han/, "DN-06"],
+      [/cho han|song han/, "DN-05"],
+      [/hai van|khu cong nghe cao/, "DN-14"],
+      [/vinh moc|cua tung|cua viet|con co/, "QT-03"],
+      [/hien luong|ben hai|ho xa|vinh chap/, "QT-01"],
+      [/thanh co|la vang|hai lang/, "QT-02"],
+      [/khe sanh|ta con|lao bao/, "QT-01"],
+      [/dai noi|kinh thanh|dong ba|truong tien/, "HUE-01"],
+      [/thien mu|tu duc|khai dinh|thuy xuan|lang huong/, "HUE-05"],
+      [/thuan an|vinh hien/, "HUE-03"],
+      [/lang co|lap an|hai van/, "HUE-10"],
+      [/a luoi/, "HUE-12"],
+      [/ly son|sa ky|son my|my khe quang ngai/, "QNG-03"],
+      [/sa huynh/, "QNG-02"],
+      [/thien an|song tra/, "QNG-01"],
+      [/ba to|ba vi/, "QNG-04"],
+      [/dung quat|van tuong|doosan/, "QNG-05"],
+      [/tra bong/, "QNG-08"],
     ];
     const found = rules.find(([rx]) => rx.test(text));
     if (found) return routeById(found[1]);
-    return ROUTES.find((r) => normText(`${r.name} ${r.description} ${r.originName} ${r.destinationName} ${r.provinceName}`).includes(text) && text.length > 2) || null;
+    return (
+      ROUTES.find(
+        (r) =>
+          normText(
+            `${r.name} ${r.description} ${r.originName} ${r.destinationName} ${r.provinceName}`,
+          ).includes(text) && text.length > 2,
+      ) || null
+    );
   }
 
   function searchLocalPlaces(question, route = null) {
     const text = normText(question);
     const province = findProvinceFromText(text);
     let places = LOCAL_TOURISM_PLACES.filter((p) => {
-      const hay = normText(`${p.name} ${p.provinceName} ${p.description} ${p.categoryName} ${p.foodSuggestions} ${p.nearestRouteCode}`);
-      if (route && String(p.nearestRouteCode || "").includes(route.id)) return true;
-      if (province && p.provinceCode === province && /dia diem|du lich|di dau|noi tieng|check|bien|cho|chua|am thuc/.test(text)) return true;
-      return text.split(/\s+/).filter((x) => x.length >= 3).some((w) => hay.includes(w));
+      const hay = normText(
+        `${p.name} ${p.provinceName} ${p.description} ${p.categoryName} ${p.foodSuggestions} ${p.nearestRouteCode}`,
+      );
+      if (route && String(p.nearestRouteCode || "").includes(route.id))
+        return true;
+      if (
+        province &&
+        p.provinceCode === province &&
+        /dia diem|du lich|di dau|noi tieng|check|bien|cho|chua|am thuc/.test(
+          text,
+        )
+      )
+        return true;
+      return text
+        .split(/\s+/)
+        .filter((x) => x.length >= 3)
+        .some((w) => hay.includes(w));
     });
-    if (/bien|tam bien/.test(text)) places = places.filter((p) => /beach|bien|dao|biển|đảo/i.test(`${p.categoryCode} ${p.categoryName}`));
-    if (/cho|mua sam|am thuc/.test(text)) places = places.filter((p) => /shopping|food|chợ|ẩm thực/i.test(`${p.categoryCode} ${p.categoryName} ${p.name}`));
-    if (/tam linh|chua|hanh huong/.test(text)) places = places.filter((p) => /spiritual|chùa|tâm linh|tôn giáo|lăng/i.test(`${p.categoryCode} ${p.categoryName} ${p.name}`));
+    if (/bien|tam bien/.test(text))
+      places = places.filter((p) =>
+        /beach|bien|dao|biển|đảo/i.test(`${p.categoryCode} ${p.categoryName}`),
+      );
+    if (/cho|mua sam|am thuc/.test(text))
+      places = places.filter((p) =>
+        /shopping|food|chợ|ẩm thực/i.test(
+          `${p.categoryCode} ${p.categoryName} ${p.name}`,
+        ),
+      );
+    if (/tam linh|chua|hanh huong/.test(text))
+      places = places.filter((p) =>
+        /spiritual|chùa|tâm linh|tôn giáo|lăng/i.test(
+          `${p.categoryCode} ${p.categoryName} ${p.name}`,
+        ),
+      );
     return places.slice(0, 5);
   }
 
   function nearestLocalStop(lat, lng, routeId = "") {
     const origin = [Number(lat), Number(lng)];
     if (!Number.isFinite(origin[0]) || !Number.isFinite(origin[1])) return null;
-    const candidates = LOCAL_STOPS.filter((s) => !routeId || s.routeId === routeId || (s.routes || []).some((r) => r.id === routeId));
-    return candidates
-      .map((s) => ({ ...s, distanceMeters: Math.round(getDistanceMeters(origin, [Number(s.lat), Number(s.lng)])) }))
-      .filter((s) => Number.isFinite(s.distanceMeters))
-      .sort((a, b) => a.distanceMeters - b.distanceMeters)[0] || null;
+    const candidates = LOCAL_STOPS.filter(
+      (s) =>
+        !routeId ||
+        s.routeId === routeId ||
+        (s.routes || []).some((r) => r.id === routeId),
+    );
+    return (
+      candidates
+        .map((s) => ({
+          ...s,
+          distanceMeters: Math.round(
+            getDistanceMeters(origin, [Number(s.lat), Number(s.lng)]),
+          ),
+        }))
+        .filter((s) => Number.isFinite(s.distanceMeters))
+        .sort((a, b) => a.distanceMeters - b.distanceMeters)[0] || null
+    );
   }
 
   function buildLocalAnswer(question, payload = {}) {
@@ -3143,46 +4267,139 @@ const SmartBusAssistant = (() => {
     const province = findProvinceFromText(text);
     const wantsStats = /bao nhieu|thong ke|tong so|co may/.test(text);
     if (wantsStats) {
-      return { reply: `Dữ liệu chính nằm trong SQL Server. Hãy chạy API /api/v1/bus/routes, /api/v1/tourism/places và /api/v1/chatbot/ask để thống kê dữ liệu 5 khu vực.`, intent: "local_stats", suggestedPlaces: LOCAL_TOURISM_PLACES.slice(0, 3), cta: { label: "Mở bản đồ", view: "map" } };
+      return {
+        reply: `Dữ liệu chính nằm trong SQL Server. Hãy chạy API /api/v1/bus/routes, /api/v1/tourism/places và /api/v1/chatbot/ask để thống kê dữ liệu 5 khu vực.`,
+        intent: "local_stats",
+        suggestedPlaces: LOCAL_TOURISM_PLACES.slice(0, 3),
+        cta: { label: "Mở bản đồ", view: "map" },
+      };
     }
-    if (/ben.*gan|gan.*ben|gan toi|gan tôi/.test(text) && payload.lat && payload.lng) {
+    if (
+      /ben.*gan|gan.*ben|gan toi|gan tôi/.test(text) &&
+      payload.lat &&
+      payload.lng
+    ) {
       const stop = nearestLocalStop(payload.lat, payload.lng, route?.id);
       if (stop) {
-        return { reply: `Bến/điểm GPS gần bạn nhất là ${stop.name} (${stop.provinceName}), cách khoảng ${stop.distanceMeters}m. Tuyến gợi ý: ${stop.routeDisplayCode || stop.routeId}.`, intent: "local_nearest_stop", route, nearestStop: stop, walkingMinutes: Math.max(1, Math.round(stop.distanceMeters / 80)), cta: { label: "Mở bản đồ", view: "map" } };
+        return {
+          reply: `Bến/điểm GPS gần bạn nhất là ${stop.name} (${stop.provinceName}), cách khoảng ${stop.distanceMeters}m. Tuyến gợi ý: ${stop.routeDisplayCode || stop.routeId}.`,
+          intent: "local_nearest_stop",
+          route,
+          nearestStop: stop,
+          walkingMinutes: Math.max(1, Math.round(stop.distanceMeters / 80)),
+          cta: { label: "Mở bản đồ", view: "map" },
+        };
       }
     }
     if (/danh sach|cac tuyen|chuyen nao|tuyen nao/.test(text) && province) {
-      const routes = ROUTES.filter((r) => r.provinceCode === province).slice(0, 8);
-      return { reply: `${routes[0]?.provinceName || "Tỉnh này"} hiện có ${routes.length} tuyến trong dữ liệu SmartBus: ${routes.map((r) => `${r.id} (${r.originName} → ${r.destinationName}, ${r.time})`).join("; ")}.`, intent: "local_route_list", route: routes[0] || null, cta: { label: "Xem danh sách xe", view: "buses" } };
+      const routes = ROUTES.filter((r) => r.provinceCode === province).slice(
+        0,
+        8,
+      );
+      return {
+        reply: `${routes[0]?.provinceName || "Tỉnh này"} hiện có ${routes.length} tuyến trong dữ liệu SmartBus: ${routes.map((r) => `${r.id} (${r.originName} → ${r.destinationName}, ${r.time})`).join("; ")}.`,
+        intent: "local_route_list",
+        route: routes[0] || null,
+        cta: { label: "Xem danh sách xe", view: "buses" },
+      };
     }
     if (route) {
-      const stop = payload.lat && payload.lng ? nearestLocalStop(payload.lat, payload.lng, route.id) : null;
-      const routePlaces = places.length ? places : LOCAL_TOURISM_PLACES.filter((p) => String(p.nearestRouteCode || "").includes(route.id)).slice(0, 3);
-      return { reply: `Bạn có thể đi tuyến ${route.id} – ${route.name}. Giờ chạy: ${route.time || "đang cập nhật"}, tần suất: ${route.interval || "đang cập nhật"}, cự ly khoảng ${route.distanceKm || "?"} km, tốc độ TB ${route.avgSpeedKmh || "?"} km/h. ${stop ? `Bến gần bạn: ${stop.name}, cách ${stop.distanceMeters}m.` : "Bật GPS để mình tìm bến gần bạn."} ${routePlaces.length ? `Điểm du lịch gần/gợi ý: ${routePlaces.map((p) => p.name).join(", ")}.` : ""}`, intent: "local_route", route, nearestStop: stop, suggestedPlaces: routePlaces, walkingMinutes: stop ? Math.max(1, Math.round(stop.distanceMeters / 80)) : null, etaMinutes: 8 + Math.floor(Math.random() * 12), fare: route.fare || "Đang cập nhật", cta: { label: "Xem tuyến trên bản đồ", view: "map" } };
+      const stop =
+        payload.lat && payload.lng
+          ? nearestLocalStop(payload.lat, payload.lng, route.id)
+          : null;
+      const routePlaces = places.length
+        ? places
+        : LOCAL_TOURISM_PLACES.filter((p) =>
+            String(p.nearestRouteCode || "").includes(route.id),
+          ).slice(0, 3);
+      return {
+        reply: `Bạn có thể đi tuyến ${route.id} – ${route.name}. Giờ chạy: ${route.time || "đang cập nhật"}, tần suất: ${route.interval || "đang cập nhật"}, cự ly khoảng ${route.distanceKm || "?"} km, tốc độ TB ${route.avgSpeedKmh || "?"} km/h. ${stop ? `Bến gần bạn: ${stop.name}, cách ${stop.distanceMeters}m.` : "Bật GPS để mình tìm bến gần bạn."} ${routePlaces.length ? `Điểm du lịch gần/gợi ý: ${routePlaces.map((p) => p.name).join(", ")}.` : ""}`,
+        intent: "local_route",
+        route,
+        nearestStop: stop,
+        suggestedPlaces: routePlaces,
+        walkingMinutes: stop
+          ? Math.max(1, Math.round(stop.distanceMeters / 80))
+          : null,
+        etaMinutes: 8 + Math.floor(Math.random() * 12),
+        fare: route.fare || "Đang cập nhật",
+        cta: { label: "Xem tuyến trên bản đồ", view: "map" },
+      };
     }
     if (places.length) {
       const first = places[0];
       const firstRoute = routeById(first.nearestRouteCode);
-      return { reply: `Mình tìm thấy ${places.length} địa điểm phù hợp: ${places.map((p) => p.name).join(", ")}. Với ${first.name}, tuyến gợi ý là ${first.nearestRouteCode || "đang cập nhật"}, bến/hub gần: ${first.nearestStopName || "đang cập nhật"}, khoảng cách ${first.nearestDistanceKm || "?"} km. Thời điểm đẹp: ${first.bestTime || "theo mùa khô"}. Ẩm thực gợi ý: ${first.foodSuggestions || "đặc sản địa phương"}.`, intent: "local_tourism", route: firstRoute, suggestedPlaces: places, cta: { label: "Mở địa điểm du lịch", view: "tourism" } };
+      return {
+        reply: `Mình tìm thấy ${places.length} địa điểm phù hợp: ${places.map((p) => p.name).join(", ")}. Với ${first.name}, tuyến gợi ý là ${first.nearestRouteCode || "đang cập nhật"}, bến/hub gần: ${first.nearestStopName || "đang cập nhật"}, khoảng cách ${first.nearestDistanceKm || "?"} km. Thời điểm đẹp: ${first.bestTime || "theo mùa khô"}. Ẩm thực gợi ý: ${first.foodSuggestions || "đặc sản địa phương"}.`,
+        intent: "local_tourism",
+        route: firstRoute,
+        suggestedPlaces: places,
+        cta: { label: "Mở địa điểm du lịch", view: "tourism" },
+      };
     }
     if (/an gi|mon ngon|dac san|am thuc|food/.test(text)) {
-      const foodPlaces = searchLocalPlaces(question).filter((p) => p.foodSuggestions || /food|cho|am thuc|đặc sản|ẩm thực/i.test(`${p.categoryCode} ${p.categoryName} ${p.name}`));
+      const foodPlaces = searchLocalPlaces(question).filter(
+        (p) =>
+          p.foodSuggestions ||
+          /food|cho|am thuc|đặc sản|ẩm thực/i.test(
+            `${p.categoryCode} ${p.categoryName} ${p.name}`,
+          ),
+      );
       if (foodPlaces.length) {
-        return { reply: `Về ăn uống, bạn có thể tham khảo ${foodPlaces.slice(0,3).map((p) => `${p.name}${p.foodSuggestions ? ` (${p.foodSuggestions})` : ""}`).join("; ")}. Hỏi thêm tên địa điểm cụ thể để mình gợi ý tuyến/bến gần hơn.`, intent: "local_food", suggestedPlaces: foodPlaces.slice(0,3), cta: { label: "Xem địa điểm du lịch", view: "tourism" } };
+        return {
+          reply: `Về ăn uống, bạn có thể tham khảo ${foodPlaces
+            .slice(0, 3)
+            .map(
+              (p) =>
+                `${p.name}${p.foodSuggestions ? ` (${p.foodSuggestions})` : ""}`,
+            )
+            .join(
+              "; ",
+            )}. Hỏi thêm tên địa điểm cụ thể để mình gợi ý tuyến/bến gần hơn.`,
+          intent: "local_food",
+          suggestedPlaces: foodPlaces.slice(0, 3),
+          cta: { label: "Xem địa điểm du lịch", view: "tourism" },
+        };
       }
     }
     if (/review|danh gia|nhan xet/.test(text)) {
       const reviewPlaces = searchLocalPlaces(question);
-      return { reply: reviewPlaces.length ? `Mình tìm thấy địa điểm liên quan để xem review: ${reviewPlaces.slice(0,3).map((p) => p.name).join(", ")}. Bạn mở Cộng đồng review để xem bài mẫu và bài người dùng.` : `Mình chưa tìm thấy review đúng địa điểm. Bạn có thể hỏi rõ hơn như “Có review về Biển Mỹ Khê không?” hoặc “Review Lý Sơn thế nào?”.`, intent: "local_review", suggestedPlaces: reviewPlaces.slice(0,3), cta: { label: "Mở cộng đồng review", view: "reviews" } };
+      return {
+        reply: reviewPlaces.length
+          ? `Mình tìm thấy địa điểm liên quan để xem review: ${reviewPlaces
+              .slice(0, 3)
+              .map((p) => p.name)
+              .join(
+                ", ",
+              )}. Bạn mở Cộng đồng review để xem bài mẫu và bài người dùng.`
+          : `Mình chưa tìm thấy review đúng địa điểm. Bạn có thể hỏi rõ hơn như “Có review về Biển Mỹ Khê không?” hoặc “Review Lý Sơn thế nào?”.`,
+        intent: "local_review",
+        suggestedPlaces: reviewPlaces.slice(0, 3),
+        cta: { label: "Mở cộng đồng review", view: "reviews" },
+      };
     }
-    return { reply: `Mình chưa hiểu rõ ý bạn. Bạn có thể hỏi theo mẫu: “Tôi muốn đến Hội An”, “Bến gần tôi ở đâu?”, “Gợi ý lịch trình Đà Nẵng 1 ngày”, “Huế có gì chơi?” hoặc “Có review về Lý Sơn không?”.`, intent: "local_help", suggestions: ["Tôi muốn đến Hội An", "Đi Mỹ Khê bằng tuyến nào?", "Gợi ý lịch trình Đà Nẵng 1 ngày", "Có review về Lý Sơn không?"] };
+    return {
+      reply: `Mình chưa hiểu rõ ý bạn. Bạn có thể hỏi theo mẫu: “Tôi muốn đến Hội An”, “Bến gần tôi ở đâu?”, “Gợi ý lịch trình Đà Nẵng 1 ngày”, “Huế có gì chơi?” hoặc “Có review về Lý Sơn không?”.`,
+      intent: "local_help",
+      suggestions: [
+        "Tôi muốn đến Hội An",
+        "Đi Mỹ Khê bằng tuyến nào?",
+        "Gợi ý lịch trình Đà Nẵng 1 ngày",
+        "Có review về Lý Sơn không?",
+      ],
+    };
   }
 
   async function sendQuestion(question) {
     const safeQuestion = String(question || "").trim();
     if (!safeQuestion || busy) return;
     if (safeQuestion.length > 1000) {
-      Toast.show("Câu hỏi quá dài. Vui lòng rút gọn dưới 1000 ký tự.", "warning", 3500);
+      Toast.show(
+        "Câu hỏi quá dài. Vui lòng rút gọn dưới 1000 ký tự.",
+        "warning",
+        3500,
+      );
       return;
     }
     let payload = { message: safeQuestion, lat: null, lng: null };
@@ -3214,7 +4431,11 @@ const SmartBusAssistant = (() => {
       const local = buildLocalAnswer(safeQuestion, payload);
       addMessage(local.reply, "bot", local);
       applyMapResult(local, payload);
-      Toast.show("Mình chưa kết nối được dữ liệu backend, đang dùng gợi ý dự phòng trên giao diện.", "warning", 3800);
+      Toast.show(
+        "Mình chưa kết nối được dữ liệu backend, đang dùng gợi ý dự phòng trên giao diện.",
+        "warning",
+        3800,
+      );
     } finally {
       busy = false;
     }
@@ -3223,7 +4444,8 @@ const SmartBusAssistant = (() => {
   function applyMapResult(data, payload) {
     const routeId = data?.route?.id || data?.route?.route_id || data?.routeId;
     if (routeId) MapModule.highlightRoute?.(routeId);
-    if (payload?.lat && payload?.lng) MapModule.markUserLocation?.(payload.lat, payload.lng);
+    if (payload?.lat && payload?.lng)
+      MapModule.markUserLocation?.(payload.lat, payload.lng);
     if (data?.nearestStop) MapModule.focusStop?.(data.nearestStop);
   }
 
@@ -3239,24 +4461,35 @@ const SmartBusAssistant = (() => {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           clearTimeout(timer);
-          currentPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          if (status) status.textContent = "Đã có GPS – tư vấn theo vị trí của bạn";
-          MapModule.markUserLocation?.(currentPosition.lat, currentPosition.lng);
+          currentPosition = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
+          if (status)
+            status.textContent = "Đã có GPS – tư vấn theo vị trí của bạn";
+          MapModule.markUserLocation?.(
+            currentPosition.lat,
+            currentPosition.lng,
+          );
           if (showToast) Toast.show("Đã lấy vị trí GPS của bạn", "success");
           resolve(currentPosition);
         },
         () => {
           clearTimeout(timer);
-          if (status) status.textContent = "Không lấy được vị trí chính xác – đang dùng mặc định Đà Nẵng nếu cần";
-          if (showToast) Toast.show("Không lấy được vị trí chính xác, hệ thống đang dùng vị trí mặc định tại Đà Nẵng.", "warning");
+          if (status)
+            status.textContent =
+              "Không lấy được vị trí chính xác – đang dùng mặc định Đà Nẵng nếu cần";
+          if (showToast)
+            Toast.show(
+              "Không lấy được vị trí chính xác, hệ thống đang dùng vị trí mặc định tại Đà Nẵng.",
+              "warning",
+            );
           resolve(null);
         },
         { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 },
       );
     });
   }
-
-
 
   function open() {
     const e = els();

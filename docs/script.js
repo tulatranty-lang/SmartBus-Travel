@@ -170,7 +170,7 @@ const API = {
       res = await fetch(`${this.BASE}${path}`, { ...fetchOptions, headers });
     } catch (_err) {
       const err = new Error(
-        "Không kết nối được backend. Kiểm tra backend đã chạy tại http://localhost:5000 chưa.",
+        "Không kết nối được backend. Kiểm tra backend đã chạy tại https://smartbus-backend-xr34.onrender.com/api/v1 chưa.",
       );
       err.code = "NETWORK";
       throw err;
@@ -3988,7 +3988,9 @@ console.log(
    22. SMARTBUS ASSISTANT – Frontend API + GPS
 ---------------------------------------------------------- */
 const SmartBusAssistant = (() => {
-  const API_BASE = window.SMARTBUS_API_BASE || "http://localhost:5000/api/v1";
+  const API_BASE =
+    window.SMARTBUS_API_BASE ||
+    "https://smartbus-backend-xr34.onrender.com/api/v1";
   let currentPosition = null;
   let busy = false;
 
