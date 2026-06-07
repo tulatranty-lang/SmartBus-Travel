@@ -146,7 +146,9 @@ const TokenStore = {
 };
 
 const API = {
-  BASE: window.SMARTBUS_API_BASE || "http://192.168.1.34/api/v1",
+  BASE:
+    window.SMARTBUS_API_BASE ||
+    "https://smartbus-backend-xr34.onrender.com/api/v1",
 
   async request(path, options = {}) {
     const { skipAuth = false, skipRefresh = false, ...fetchOptions } = options;
