@@ -2440,12 +2440,17 @@ const Nav = {
     if (view === "favorite-places") TravelUI.renderFavoritePlaces();
     if (view === "chat-history") TravelUI.renderChatHistory();
     if (view === "admin") TravelUI.renderAdmin();
+    if (view !== "dashboard") MapModule.clearTravelPlan?.();
     this._closeSidebar();
   },
 
   bind() {
+    this._bindSidebarScroller();
     $$(".sb-link[data-view]").forEach((link) =>
-      link.addEventListener("click", () => this.go(link.dataset.view)),
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        this.go(link.dataset.view);
+      }),
     );
     $("#menu-btn")?.addEventListener("click", (event) => {
       event.preventDefault();
@@ -2455,13 +2460,56 @@ const Nav = {
     $("#overlay")?.addEventListener("click", () => this._closeSidebar());
     $("#overlay")?.addEventListener("touchstart", () => this._closeSidebar(), { passive: true });
     $("#sidebar")?.addEventListener("click", (event) => event.stopPropagation());
+    document.addEventListener("pointerdown", (event) => {
+      if (!document.body.classList.contains("sidebar-open")) return;
+      const sidebar = $("#sidebar");
+      const menuBtn = $("#menu-btn");
+      const target = event.target;
+      if (sidebar?.contains(target) || menuBtn?.contains(target)) return;
+      this._closeSidebar();
+    }, true);
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && document.body.classList.contains("sidebar-open")) this._closeSidebar();
     });
     window.addEventListener("resize", () => {
-      if (window.innerWidth > 768 && document.body.classList.contains("sidebar-open")) this._closeSidebar();
+      this._bindSidebarScroller();
+      if (window.innerWidth > 900 && document.body.classList.contains("sidebar-open")) this._closeSidebar();
     });
     $("#logout-btn")?.addEventListener("click", () => Auth.logout());
+  },
+
+  _bindSidebarScroller() {
+    const sidebar = $("#sidebar");
+    const scroller = $("#sidebar-scroll") || sidebar?.querySelector(".sb-scroll") || sidebar;
+    if (!sidebar || !scroller || scroller.dataset.scrollBound === "1") return;
+    scroller.dataset.scrollBound = "1";
+
+    scroller.addEventListener("wheel", (event) => {
+      if (!document.body.classList.contains("sidebar-open")) return;
+      const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+      if (max <= 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      scroller.scrollTop = Math.max(0, Math.min(max, scroller.scrollTop + event.deltaY));
+    }, { passive: false });
+
+    let startY = 0;
+    let startTop = 0;
+    scroller.addEventListener("touchstart", (event) => {
+      if (!event.touches?.length) return;
+      startY = event.touches[0].clientY;
+      startTop = scroller.scrollTop;
+    }, { passive: true });
+
+    scroller.addEventListener("touchmove", (event) => {
+      if (!document.body.classList.contains("sidebar-open") || !event.touches?.length) return;
+      const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+      if (max <= 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const delta = startY - event.touches[0].clientY;
+      scroller.scrollTop = Math.max(0, Math.min(max, startTop + delta));
+    }, { passive: false });
   },
 
   _closeChatbotForMenu() {
@@ -2487,11 +2535,13 @@ const Nav = {
 
   _openSidebar() {
     this._closeChatbotForMenu();
+    this._bindSidebarScroller();
     $("#sidebar")?.classList.add("open", "active", "is-open");
     $("#overlay")?.classList.add("show", "open", "active", "is-open");
     document.body.classList.add("sidebar-open");
     document.body.style.overflow = "hidden";
     this._setMenuButtonState(true);
+    setTimeout(() => $("#sidebar-scroll")?.focus({ preventScroll: true }), 0);
     window.safeInvalidateSmartBusMap?.(250);
   },
   _closeSidebar() {
@@ -3863,324 +3913,3 @@ const SmartBusAssistant = (() => {
 document.addEventListener("DOMContentLoaded", () => {
   SmartBusAssistant.bind();
 });
-
-/* ==========================================================
-   SmartBus HOTFIX SIDEBAR SCROLL LOCK — 2026-06-07
-   Bắt wheel/touch trực tiếp trên menu để không bị map/body chặn cuộn.
-========================================================== */
-(function smartBusSidebarScrollHotfix() {
-  if (window.__SMARTBUS_SIDEBAR_SCROLL_HOTFIX__) return;
-  window.__SMARTBUS_SIDEBAR_SCROLL_HOTFIX__ = true;
-
-  function bind() {
-    const sidebar = document.getElementById("sidebar");
-    if (!sidebar || sidebar.dataset.scrollHotfixBound === "1") return;
-    sidebar.dataset.scrollHotfixBound = "1";
-
-    const getScroller = () => sidebar.querySelector(".sb-nav") || sidebar;
-
-    const canScroll = (el) => el && el.scrollHeight > el.clientHeight + 2;
-
-    sidebar.addEventListener(
-      "wheel",
-      (event) => {
-        if (!document.body.classList.contains("sidebar-open") && !sidebar.classList.contains("open")) return;
-        const scroller = getScroller();
-        if (!canScroll(scroller)) return;
-        event.preventDefault();
-        event.stopPropagation();
-        scroller.scrollTop += event.deltaY;
-      },
-      { passive: false, capture: true },
-    );
-
-    let startY = 0;
-    let startScrollTop = 0;
-
-    sidebar.addEventListener(
-      "touchstart",
-      (event) => {
-        const scroller = getScroller();
-        if (!event.touches || !event.touches.length || !canScroll(scroller)) return;
-        startY = event.touches[0].clientY;
-        startScrollTop = scroller.scrollTop;
-      },
-      { passive: true, capture: true },
-    );
-
-    sidebar.addEventListener(
-      "touchmove",
-      (event) => {
-        if (!document.body.classList.contains("sidebar-open") && !sidebar.classList.contains("open")) return;
-        const scroller = getScroller();
-        if (!event.touches || !event.touches.length || !canScroll(scroller)) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const currentY = event.touches[0].clientY;
-        scroller.scrollTop = startScrollTop + (startY - currentY);
-      },
-      { passive: false, capture: true },
-    );
-
-    document.addEventListener("click", () => {
-      if (document.body.classList.contains("sidebar-open")) {
-        sidebar.style.pointerEvents = "auto";
-        const scroller = getScroller();
-        scroller.style.overflowY = "scroll";
-      }
-    }, true);
-  }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
-  else bind();
-})();
-
-
-/* ==========================================================
-   SmartBus FINAL TOUCH MENU + CHATBOT ROUTE RESET PATCH
-   - Sidebar closes when touching/clicking outside.
-   - Whole sidebar scrolls with wheel/touch, not the map.
-   - Map controls clear chatbot travel-plan mode before applying user filters.
-========================================================== */
-(function smartBusFinalTouchMenuAndRouteReset() {
-  if (window.__SMARTBUS_FINAL_TOUCH_MENU_ROUTE_RESET__) return;
-  window.__SMARTBUS_FINAL_TOUCH_MENU_ROUTE_RESET__ = true;
-
-  function sidebarOpen() {
-    return document.body.classList.contains("sidebar-open") || document.getElementById("sidebar")?.classList.contains("open");
-  }
-
-  function bindSidebar() {
-    const sidebar = document.getElementById("sidebar");
-    const menuBtn = document.getElementById("menu-btn");
-    if (!sidebar || sidebar.dataset.finalTouchScrollBound === "1") return;
-    sidebar.dataset.finalTouchScrollBound = "1";
-
-    const canScroll = () => sidebar.scrollHeight > sidebar.clientHeight + 2;
-
-    sidebar.addEventListener("wheel", (event) => {
-      if (!sidebarOpen() || !canScroll()) return;
-      event.preventDefault();
-      event.stopPropagation();
-      sidebar.scrollTop += event.deltaY;
-    }, { passive: false, capture: true });
-
-    let startY = 0;
-    let startScrollTop = 0;
-    sidebar.addEventListener("touchstart", (event) => {
-      if (!event.touches?.length) return;
-      startY = event.touches[0].clientY;
-      startScrollTop = sidebar.scrollTop;
-    }, { passive: true, capture: true });
-
-    sidebar.addEventListener("touchmove", (event) => {
-      if (!sidebarOpen() || !event.touches?.length || !canScroll()) return;
-      event.preventDefault();
-      event.stopPropagation();
-      sidebar.scrollTop = startScrollTop + (startY - event.touches[0].clientY);
-    }, { passive: false, capture: true });
-
-    document.addEventListener("pointerdown", (event) => {
-      if (!sidebarOpen()) return;
-      const target = event.target;
-      if (sidebar.contains(target) || menuBtn?.contains(target)) return;
-      Nav._closeSidebar?.();
-    }, true);
-
-    document.addEventListener("touchstart", (event) => {
-      if (!sidebarOpen()) return;
-      const target = event.target;
-      if (sidebar.contains(target) || menuBtn?.contains(target)) return;
-      Nav._closeSidebar?.();
-    }, { passive: true, capture: true });
-  }
-
-  function bindMapControls() {
-    ["gis-province-filter", "gis-route-filter", "gis-route-mode", "gis-show-stops", "gis-show-labels", "gis-bus-filter"].forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el || el.dataset.routeResetBound === "1") return;
-      el.dataset.routeResetBound = "1";
-      el.addEventListener("change", () => {
-        MapModule.clearTravelPlan?.();
-        if (id === "gis-province-filter" || (id === "gis-route-mode" && el.value !== "selected")) {
-          MapModule.clearRouteHighlight?.();
-        }
-      }, true);
-    });
-  }
-
-  function bind() {
-    bindSidebar();
-    bindMapControls();
-  }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
-  else bind();
-  window.addEventListener("load", bind);
-})();
-
-/* ==========================================================
-   SMARTBUS DEFINITIVE MOBILE SIDEBAR SCROLL FIX — 2026-06-07
-   Lý do: các bản trước để .sb-nav/footer chịu nhiều CSS ghi đè chéo,
-   nên wheel/touch có lúc bị body/map/overlay chặn. Bản này tạo 1 vùng
-   cuộn riêng .sb-mobile-scroll-region và bắt wheel/touch ở document capture.
-========================================================== */
-(function smartBusDefinitiveMobileSidebarScrollFix() {
-  if (window.__SMARTBUS_DEFINITIVE_MOBILE_SIDEBAR_SCROLL_FIX__) return;
-  window.__SMARTBUS_DEFINITIVE_MOBILE_SIDEBAR_SCROLL_FIX__ = true;
-
-  function isMobileMenuMode() {
-    return window.matchMedia ? window.matchMedia("(max-width: 900px)").matches : window.innerWidth <= 900;
-  }
-
-  function sidebarOpen() {
-    const sidebar = document.getElementById("sidebar");
-    return Boolean(document.body.classList.contains("sidebar-open") || sidebar?.classList.contains("open") || sidebar?.classList.contains("active") || sidebar?.classList.contains("is-open"));
-  }
-
-  function getSidebar() {
-    return document.getElementById("sidebar");
-  }
-
-  function ensureScrollRegion() {
-    const sidebar = getSidebar();
-    if (!sidebar) return null;
-
-    let region = sidebar.querySelector(":scope > .sb-mobile-scroll-region");
-    const nav = sidebar.querySelector(":scope > .sb-nav, .sb-mobile-scroll-region > .sb-nav");
-    const footer = sidebar.querySelector(":scope > .sb-footer, .sb-mobile-scroll-region > .sb-footer");
-
-    if (!region) {
-      region = document.createElement("div");
-      region.className = "sb-mobile-scroll-region";
-      region.setAttribute("aria-label", "Danh sách chức năng SmartBus");
-      const header = sidebar.querySelector(":scope > .sb-header");
-      if (header && header.nextSibling) sidebar.insertBefore(region, header.nextSibling);
-      else sidebar.appendChild(region);
-    }
-
-    if (nav && nav.parentElement !== region) region.appendChild(nav);
-    if (footer && footer.parentElement !== region) region.appendChild(footer);
-
-    sidebar.style.overflow = "hidden";
-    sidebar.style.touchAction = "auto";
-    region.style.overflowY = "scroll";
-    region.style.overflowX = "hidden";
-    region.style.webkitOverflowScrolling = "touch";
-    region.style.touchAction = "pan-y";
-    region.style.overscrollBehaviorY = "contain";
-    region.style.minHeight = "0";
-
-    return region;
-  }
-
-  function closeSidebar() {
-    if (window.Nav && typeof window.Nav._closeSidebar === "function") {
-      window.Nav._closeSidebar();
-      return;
-    }
-    const sidebar = getSidebar();
-    const overlay = document.getElementById("overlay");
-    sidebar?.classList.remove("open", "active", "is-open");
-    overlay?.classList.remove("show", "open", "active", "is-open");
-    document.body.classList.remove("sidebar-open", "menu-open");
-    document.body.style.overflow = "";
-  }
-
-  let wheelRemainder = 0;
-  function scrollRegionBy(deltaY) {
-    const region = ensureScrollRegion();
-    if (!region) return false;
-    const max = Math.max(0, region.scrollHeight - region.clientHeight);
-    if (max <= 1) return false;
-    const before = region.scrollTop;
-    wheelRemainder += Number(deltaY) || 0;
-    region.scrollTop = Math.max(0, Math.min(max, before + wheelRemainder));
-    wheelRemainder = 0;
-    return region.scrollTop !== before || before === 0 || before === max;
-  }
-
-  function isInsideSidebar(target) {
-    const sidebar = getSidebar();
-    return Boolean(sidebar && target && sidebar.contains(target));
-  }
-
-  function isMenuButton(target) {
-    const btn = document.getElementById("menu-btn");
-    return Boolean(btn && target && btn.contains(target));
-  }
-
-  function bind() {
-    ensureScrollRegion();
-
-    const originalOpen = window.Nav && typeof window.Nav._openSidebar === "function" ? window.Nav._openSidebar.bind(window.Nav) : null;
-    if (originalOpen && !window.Nav.__definitiveScrollOpenPatched) {
-      window.Nav._openSidebar = function patchedOpenSidebar() {
-        const result = originalOpen();
-        setTimeout(() => {
-          const region = ensureScrollRegion();
-          if (region) region.style.overflowY = "scroll";
-        }, 0);
-        return result;
-      };
-      window.Nav.__definitiveScrollOpenPatched = true;
-    }
-
-    document.addEventListener("wheel", (event) => {
-      if (!isMobileMenuMode() || !sidebarOpen()) return;
-      const target = event.target;
-      if (isInsideSidebar(target)) {
-        event.preventDefault();
-        event.stopPropagation();
-        scrollRegionBy(event.deltaY || 0);
-        return;
-      }
-      if (!isMenuButton(target)) closeSidebar();
-    }, { passive: false, capture: true });
-
-    let touchStartY = 0;
-    let touchStartTop = 0;
-    let touchInsideSidebar = false;
-
-    document.addEventListener("touchstart", (event) => {
-      if (!isMobileMenuMode() || !sidebarOpen()) return;
-      const target = event.target;
-      touchInsideSidebar = isInsideSidebar(target);
-      if (!touchInsideSidebar) {
-        if (!isMenuButton(target)) closeSidebar();
-        return;
-      }
-      const region = ensureScrollRegion();
-      if (!region || !event.touches || !event.touches.length) return;
-      touchStartY = event.touches[0].clientY;
-      touchStartTop = region.scrollTop;
-    }, { passive: true, capture: true });
-
-    document.addEventListener("touchmove", (event) => {
-      if (!isMobileMenuMode() || !sidebarOpen() || !touchInsideSidebar) return;
-      const region = ensureScrollRegion();
-      if (!region || !event.touches || !event.touches.length) return;
-      const max = Math.max(0, region.scrollHeight - region.clientHeight);
-      if (max <= 1) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const currentY = event.touches[0].clientY;
-      region.scrollTop = Math.max(0, Math.min(max, touchStartTop + (touchStartY - currentY)));
-    }, { passive: false, capture: true });
-
-    document.addEventListener("pointerdown", (event) => {
-      if (!isMobileMenuMode() || !sidebarOpen()) return;
-      const target = event.target;
-      if (isInsideSidebar(target) || isMenuButton(target)) return;
-      closeSidebar();
-    }, true);
-
-    window.addEventListener("resize", () => {
-      ensureScrollRegion();
-    });
-  }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
-  else bind();
-})();
-

@@ -21,7 +21,6 @@
     <link rel="stylesheet" href="css/tourism.css" />
     <link rel="stylesheet" href="css/chatbot.css" />
     <link rel="stylesheet" href="css/responsive.css" />
-    <link rel="stylesheet" href="css/mobile-sidebar-final.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   </head>
   <body>
@@ -332,6 +331,7 @@
           </div>
           <div class="sb-logo-txt">Smart<span>Bus Travel</span></div>
         </div>
+        <div class="sb-scroll" id="sidebar-scroll" tabindex="0" aria-label="Danh sách chức năng SmartBus">
         <nav class="sb-nav">
           <div class="sb-nav-section">
             <div class="sb-nav-label">Theo dõi</div>
@@ -389,7 +389,9 @@
             >Đăng xuất
           </button>
         </div>
+        </div>
       </aside>
+      <div id="overlay" aria-hidden="true"></div>
       <div class="main">
         <header class="topbar">
           <button class="topbar-menu" id="menu-btn">
@@ -1089,7 +1091,6 @@
         </div>
       </div>
     </div>
-    <div id="overlay"></div>
     <div id="toast-box"></div>
 
     <!-- SmartBus Assistant: full-stack chatbot + GPS -->
@@ -1132,6 +1133,5 @@
     </div>
     <script src="script.js"></script>
     <script src="js/performance.js"></script>
-    <script src="js/mobile-sidebar-final.js"></script>
   </body>
 </html>
