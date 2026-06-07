@@ -4018,3 +4018,169 @@ document.addEventListener("DOMContentLoaded", () => {
   else bind();
   window.addEventListener("load", bind);
 })();
+
+/* ==========================================================
+   SMARTBUS DEFINITIVE MOBILE SIDEBAR SCROLL FIX — 2026-06-07
+   Lý do: các bản trước để .sb-nav/footer chịu nhiều CSS ghi đè chéo,
+   nên wheel/touch có lúc bị body/map/overlay chặn. Bản này tạo 1 vùng
+   cuộn riêng .sb-mobile-scroll-region và bắt wheel/touch ở document capture.
+========================================================== */
+(function smartBusDefinitiveMobileSidebarScrollFix() {
+  if (window.__SMARTBUS_DEFINITIVE_MOBILE_SIDEBAR_SCROLL_FIX__) return;
+  window.__SMARTBUS_DEFINITIVE_MOBILE_SIDEBAR_SCROLL_FIX__ = true;
+
+  function isMobileMenuMode() {
+    return window.matchMedia ? window.matchMedia("(max-width: 900px)").matches : window.innerWidth <= 900;
+  }
+
+  function sidebarOpen() {
+    const sidebar = document.getElementById("sidebar");
+    return Boolean(document.body.classList.contains("sidebar-open") || sidebar?.classList.contains("open") || sidebar?.classList.contains("active") || sidebar?.classList.contains("is-open"));
+  }
+
+  function getSidebar() {
+    return document.getElementById("sidebar");
+  }
+
+  function ensureScrollRegion() {
+    const sidebar = getSidebar();
+    if (!sidebar) return null;
+
+    let region = sidebar.querySelector(":scope > .sb-mobile-scroll-region");
+    const nav = sidebar.querySelector(":scope > .sb-nav, .sb-mobile-scroll-region > .sb-nav");
+    const footer = sidebar.querySelector(":scope > .sb-footer, .sb-mobile-scroll-region > .sb-footer");
+
+    if (!region) {
+      region = document.createElement("div");
+      region.className = "sb-mobile-scroll-region";
+      region.setAttribute("aria-label", "Danh sách chức năng SmartBus");
+      const header = sidebar.querySelector(":scope > .sb-header");
+      if (header && header.nextSibling) sidebar.insertBefore(region, header.nextSibling);
+      else sidebar.appendChild(region);
+    }
+
+    if (nav && nav.parentElement !== region) region.appendChild(nav);
+    if (footer && footer.parentElement !== region) region.appendChild(footer);
+
+    sidebar.style.overflow = "hidden";
+    sidebar.style.touchAction = "auto";
+    region.style.overflowY = "scroll";
+    region.style.overflowX = "hidden";
+    region.style.webkitOverflowScrolling = "touch";
+    region.style.touchAction = "pan-y";
+    region.style.overscrollBehaviorY = "contain";
+    region.style.minHeight = "0";
+
+    return region;
+  }
+
+  function closeSidebar() {
+    if (window.Nav && typeof window.Nav._closeSidebar === "function") {
+      window.Nav._closeSidebar();
+      return;
+    }
+    const sidebar = getSidebar();
+    const overlay = document.getElementById("overlay");
+    sidebar?.classList.remove("open", "active", "is-open");
+    overlay?.classList.remove("show", "open", "active", "is-open");
+    document.body.classList.remove("sidebar-open", "menu-open");
+    document.body.style.overflow = "";
+  }
+
+  let wheelRemainder = 0;
+  function scrollRegionBy(deltaY) {
+    const region = ensureScrollRegion();
+    if (!region) return false;
+    const max = Math.max(0, region.scrollHeight - region.clientHeight);
+    if (max <= 1) return false;
+    const before = region.scrollTop;
+    wheelRemainder += Number(deltaY) || 0;
+    region.scrollTop = Math.max(0, Math.min(max, before + wheelRemainder));
+    wheelRemainder = 0;
+    return region.scrollTop !== before || before === 0 || before === max;
+  }
+
+  function isInsideSidebar(target) {
+    const sidebar = getSidebar();
+    return Boolean(sidebar && target && sidebar.contains(target));
+  }
+
+  function isMenuButton(target) {
+    const btn = document.getElementById("menu-btn");
+    return Boolean(btn && target && btn.contains(target));
+  }
+
+  function bind() {
+    ensureScrollRegion();
+
+    const originalOpen = window.Nav && typeof window.Nav._openSidebar === "function" ? window.Nav._openSidebar.bind(window.Nav) : null;
+    if (originalOpen && !window.Nav.__definitiveScrollOpenPatched) {
+      window.Nav._openSidebar = function patchedOpenSidebar() {
+        const result = originalOpen();
+        setTimeout(() => {
+          const region = ensureScrollRegion();
+          if (region) region.style.overflowY = "scroll";
+        }, 0);
+        return result;
+      };
+      window.Nav.__definitiveScrollOpenPatched = true;
+    }
+
+    document.addEventListener("wheel", (event) => {
+      if (!isMobileMenuMode() || !sidebarOpen()) return;
+      const target = event.target;
+      if (isInsideSidebar(target)) {
+        event.preventDefault();
+        event.stopPropagation();
+        scrollRegionBy(event.deltaY || 0);
+        return;
+      }
+      if (!isMenuButton(target)) closeSidebar();
+    }, { passive: false, capture: true });
+
+    let touchStartY = 0;
+    let touchStartTop = 0;
+    let touchInsideSidebar = false;
+
+    document.addEventListener("touchstart", (event) => {
+      if (!isMobileMenuMode() || !sidebarOpen()) return;
+      const target = event.target;
+      touchInsideSidebar = isInsideSidebar(target);
+      if (!touchInsideSidebar) {
+        if (!isMenuButton(target)) closeSidebar();
+        return;
+      }
+      const region = ensureScrollRegion();
+      if (!region || !event.touches || !event.touches.length) return;
+      touchStartY = event.touches[0].clientY;
+      touchStartTop = region.scrollTop;
+    }, { passive: true, capture: true });
+
+    document.addEventListener("touchmove", (event) => {
+      if (!isMobileMenuMode() || !sidebarOpen() || !touchInsideSidebar) return;
+      const region = ensureScrollRegion();
+      if (!region || !event.touches || !event.touches.length) return;
+      const max = Math.max(0, region.scrollHeight - region.clientHeight);
+      if (max <= 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const currentY = event.touches[0].clientY;
+      region.scrollTop = Math.max(0, Math.min(max, touchStartTop + (touchStartY - currentY)));
+    }, { passive: false, capture: true });
+
+    document.addEventListener("pointerdown", (event) => {
+      if (!isMobileMenuMode() || !sidebarOpen()) return;
+      const target = event.target;
+      if (isInsideSidebar(target) || isMenuButton(target)) return;
+      closeSidebar();
+    }, true);
+
+    window.addEventListener("resize", () => {
+      ensureScrollRegion();
+    });
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
+  else bind();
+})();
+
