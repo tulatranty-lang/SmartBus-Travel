@@ -693,6 +693,48 @@ function getPath(routeId) {
   return State.routeGeometries[r?.id || routeId] || r?.path || [];
 }
 
+function sameRouteKey(a, b) {
+  const aa = String(a || "").trim().toUpperCase();
+  const bb = String(b || "").trim().toUpperCase();
+  return Boolean(aa && bb && aa === bb);
+}
+
+function routeMatchesStop(route, stop) {
+  const routeKeys = routeKeyCandidates(route).map((v) => String(v).trim().toUpperCase()).filter(Boolean);
+  const stopKeys = stopRouteKeyCandidates(stop).map((v) => String(v).trim().toUpperCase()).filter(Boolean);
+  if (routeKeys.some((rk) => stopKeys.includes(rk))) return true;
+  const nestedRoutes = Array.isArray(stop?.routes) ? stop.routes : [];
+  return nestedRoutes.some((item) => routeKeys.some((rk) =>
+    sameRouteKey(rk, item?.id) || sameRouteKey(rk, item?.routeCode) || sameRouteKey(rk, item?.displayCode) || sameRouteKey(rk, item?.routeDisplayCode)
+  ));
+}
+
+function buildRoutePathFromStops(route) {
+  const matched = (State.stops || [])
+    .map((stop, index) => ({ stop, index }))
+    .filter(({ stop }) => routeMatchesStop(route, stop))
+    .sort((a, b) => stopSortValue(a.stop, a.index) - stopSortValue(b.stop, b.index));
+  const points = matched
+    .map(({ stop }) => normalizeLatLng(stop, { source: `draw-route-stop-fallback:${route?.id || route?.routeCode || "?"}` }))
+    .filter(Boolean);
+  const unique = [];
+  const seen = new Set();
+  points.forEach((pt) => {
+    const key = `${Number(pt[0]).toFixed(6)},${Number(pt[1]).toFixed(6)}`;
+    if (!seen.has(key)) { seen.add(key); unique.push(pt); }
+  });
+  return unique;
+}
+
+function getRenderableRoutePath(route) {
+  if (!route) return [];
+  const routeId = route.id || route.routeId || route.routeCode || route.displayCode;
+  let pts = normalizePathPoints(State.routeGeometries[route.id] || State.routeGeometries[routeId] || route.path || [], { source: `render-route-primary:${routeId}` });
+  if (pts.length < 2) pts = normalizePathPoints(getPath(routeId), { source: `render-route-getPath:${routeId}` });
+  if (pts.length < 2) pts = buildRoutePathFromStops(route);
+  return pts;
+}
+
 const DynamicData = {
   async load(provinceCode = State.mapFilters.province || CONFIG.DEFAULT_PROVINCE) {
     const province = provinceCode || CONFIG.DEFAULT_PROVINCE;
@@ -782,6 +824,15 @@ const DynamicData = {
         };
       }).filter(Boolean);
       State.stops = sqlStops;
+
+      ROUTES.forEach((route) => {
+        const clean = normalizePathPoints(route.path || [], { source: `post-load-route-path:${route.id}` });
+        if (clean.length >= 2) route.path = clean;
+        else {
+          const fallback = buildRoutePathFromStops(route);
+          if (fallback.length >= 2) route.path = fallback;
+        }
+      });
 
       const apiBuses = (Array.isArray(busesRaw) ? busesRaw : []).map((b, idx) => {
         const ck = CROWDING[b.crowding] ? b.crowding : pick(Object.keys(CROWDING));
@@ -993,11 +1044,16 @@ const MapModule = (() => {
   }
 
   function routeVisible(route) {
-    const f = State.mapFilters;
-    if (f.routes === "none") return false;
-    if (f.routes === "selected") return Boolean(f.routeId) && route.id === f.routeId;
-    if (f.province && route.provinceCode !== f.province) return false;
-    if (f.routes === "province" && f.province && route.provinceCode !== f.province) return false;
+    const f = State.mapFilters || {};
+    const mode = ["all", "selected", "none", "province"].includes(f.routes) ? f.routes : "all";
+    const routeProvince = String(route?.provinceCode || route?.province_code || "").toUpperCase();
+    const filterProvince = String(f.province || "").toUpperCase();
+    if (mode === "none") return false;
+    if (mode === "selected") {
+      return Boolean(f.routeId) && routeKeyCandidates(route).some((key) => sameRouteKey(key, f.routeId));
+    }
+    if (filterProvince && routeProvince && routeProvince !== filterProvince) return false;
+    if (mode === "province" && filterProvince && routeProvince && routeProvince !== filterProvince) return false;
     return true;
   }
 
@@ -1007,19 +1063,20 @@ const MapModule = (() => {
     routeLines.forEach((l) => l.remove());
     routeLines.length = 0;
     ROUTES.forEach((route) => {
-      const pts = normalizePathPoints(getPath(route.id), { source: `draw-route:${route.id}` });
+      const pts = getRenderableRoutePath(route);
       if (!pts || pts.length < 2 || !routeVisible(route)) return;
       const isRoadSnapped = State.geometryStatus[route.id] === "ok";
       const line = L.polyline(pts, {
-        pane: "routePane",
-        renderer: routeRenderer || undefined,
+        pane: "overlayPane",
         className: "smartbus-route-line",
         color: route.color || "#22d3ee",
-        weight: highlightedRouteId === route.id ? 8 : 5,
-        opacity: highlightedRouteId && highlightedRouteId !== route.id ? 0.24 : 0.95,
+        weight: highlightedRouteId === route.id ? 9 : 6,
+        opacity: highlightedRouteId && highlightedRouteId !== route.id ? 0.34 : 1,
         lineCap: "round",
         lineJoin: "round",
-        dashArray: isRoadSnapped ? null : "9 7",
+        interactive: true,
+        bubblingMouseEvents: false,
+        dashArray: isRoadSnapped ? null : "10 7",
       }).addTo(map);
       if (line.bringToFront) line.bringToFront();
       line._smartBusRouteId = route.id;

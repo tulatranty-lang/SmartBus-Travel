@@ -4091,3 +4091,62 @@ body.app-active { overflow: hidden; }
     pointer-events: none !important;
   }
 }
+
+
+/* ==========================================================
+   SmartBus FINAL FORCE route visibility + mobile menu scroll
+   Last override: tuyến dùng overlay pane mặc định để chắc chắn hiện trên mobile.
+========================================================== */
+@media (max-width: 900px) {
+  #sidebar.sidebar,
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: min(88vw, 360px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    z-index: 10020 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    touch-action: pan-y !important;
+    display: block !important;
+    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .sidebar .sb-nav,
+  #sidebar .sb-nav {
+    display: block !important;
+    max-height: none !important;
+    overflow: visible !important;
+    touch-action: pan-y !important;
+  }
+
+  .leaflet-tile-pane { z-index: 200 !important; }
+  .leaflet-overlay-pane { z-index: 450 !important; pointer-events: auto !important; }
+  .leaflet-shadow-pane { z-index: 500 !important; }
+  .leaflet-marker-pane { z-index: 620 !important; }
+  .leaflet-tooltip-pane { z-index: 660 !important; }
+  .leaflet-popup-pane { z-index: 720 !important; }
+  .leaflet-control-container,
+  .leaflet-top,
+  .leaflet-bottom,
+  .leaflet-control { z-index: 800 !important; }
+
+  .smartbus-route-line,
+  .leaflet-overlay-pane path.smartbus-route-line {
+    stroke-width: 6px !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+    vector-effect: non-scaling-stroke;
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .58));
+  }
+
+  body.sidebar-open .map-wrap,
+  body.sidebar-open #map,
+  body.sidebar-open .leaflet-container {
+    pointer-events: none !important;
+  }
+}
