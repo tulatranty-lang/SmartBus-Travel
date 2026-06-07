@@ -375,6 +375,147 @@ const mapDataQuery = () => {
 };
 
 
+
+/* ----------------------------------------------------------
+   6a. GIS COORDINATE SAFETY – one source for Leaflet lat/lng
+---------------------------------------------------------- */
+const CENTRAL_VIETNAM_BOUNDS = {
+  minLat: 15.0,
+  maxLat: 17.25,
+  minLng: 107.0,
+  maxLng: 109.25,
+};
+
+function toSmartBusNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const normalized = String(value).trim().replace(",", ".");
+  if (!normalized) return null;
+  const num = Number.parseFloat(normalized);
+  return Number.isFinite(num) ? num : null;
+}
+
+function isLatLngInValidRange(latLng) {
+  if (!Array.isArray(latLng) || latLng.length < 2) return false;
+  const lat = toSmartBusNumber(latLng[0]);
+  const lng = toSmartBusNumber(latLng[1]);
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+function isCoordinateInCentralVietnam(latLng) {
+  if (!isLatLngInValidRange(latLng)) return false;
+  const [lat, lng] = latLng.map(Number);
+  return lat >= CENTRAL_VIETNAM_BOUNDS.minLat &&
+    lat <= CENTRAL_VIETNAM_BOUNDS.maxLat &&
+    lng >= CENTRAL_VIETNAM_BOUNDS.minLng &&
+    lng <= CENTRAL_VIETNAM_BOUNDS.maxLng;
+}
+
+function normalizeLatLng(item, options = {}) {
+  const { allowOutsideCentral = false, source = "unknown" } = options;
+  if (!item && item !== 0) return null;
+
+  let lat = null;
+  let lng = null;
+
+  if (Array.isArray(item)) {
+    if (item.length < 2) return null;
+    const a = toSmartBusNumber(item[0]);
+    const b = toSmartBusNumber(item[1]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    // Leaflet uses [lat,lng]. If an array clearly looks like GeoJSON [lng,lat], swap it.
+    if ((Math.abs(a) > 90 && Math.abs(b) <= 90) || (a >= 100 && a <= 115 && b >= 5 && b <= 25)) {
+      lat = b;
+      lng = a;
+    } else {
+      lat = a;
+      lng = b;
+    }
+  } else if (typeof item === "object") {
+    lat = toSmartBusNumber(item.lat) ??
+      toSmartBusNumber(item.latitude) ??
+      toSmartBusNumber(item.Latitude) ??
+      toSmartBusNumber(item.stop_lat) ??
+      toSmartBusNumber(item.stopLat) ??
+      toSmartBusNumber(item.y);
+
+    lng = toSmartBusNumber(item.lng) ??
+      toSmartBusNumber(item.lon) ??
+      toSmartBusNumber(item.longitude) ??
+      toSmartBusNumber(item.Longitude) ??
+      toSmartBusNumber(item.stop_lng) ??
+      toSmartBusNumber(item.stop_lon) ??
+      toSmartBusNumber(item.stopLng) ??
+      toSmartBusNumber(item.stopLon) ??
+      toSmartBusNumber(item.x);
+
+    if ((!Number.isFinite(lat) || !Number.isFinite(lng)) && Array.isArray(item.coordinates) && item.coordinates.length >= 2) {
+      // GeoJSON/database geography convention is [lng,lat]. Convert before giving to Leaflet.
+      lng = toSmartBusNumber(item.coordinates[0]);
+      lat = toSmartBusNumber(item.coordinates[1]);
+    }
+  }
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const point = [lat, lng];
+  if (!isLatLngInValidRange(point)) {
+    console.warn("SmartBus ignored invalid coordinate range", source, item, point);
+    return null;
+  }
+  if (!allowOutsideCentral && !isCoordinateInCentralVietnam(point)) {
+    console.warn("SmartBus ignored coordinate outside Central Vietnam", source, item, point);
+    return null;
+  }
+  return point;
+}
+
+function normalizePathPoints(points, options = {}) {
+  if (!Array.isArray(points)) return [];
+  return points.map((p) => normalizeLatLng(p, options)).filter(Boolean);
+}
+
+function routeKeyCandidates(route) {
+  return [
+    route?.id,
+    route?.routeId,
+    route?.route_id,
+    route?.routeCode,
+    route?.route_code,
+    route?.displayCode,
+    route?.routeDisplayCode,
+  ].map((v) => String(v || "").trim()).filter(Boolean);
+}
+
+function stopRouteKeyCandidates(stop) {
+  return [
+    stop?.routeId,
+    stop?.route_id,
+    stop?.routeCode,
+    stop?.route_code,
+    stop?.displayCode,
+    stop?.routeDisplayCode,
+  ].map((v) => String(v || "").trim()).filter(Boolean);
+}
+
+function stopSortValue(stop, index = 0) {
+  const value = toSmartBusNumber(stop?.sequence) ??
+    toSmartBusNumber(stop?.stopOrder) ??
+    toSmartBusNumber(stop?.stop_order) ??
+    toSmartBusNumber(stop?.order) ??
+    toSmartBusNumber(stop?.sortOrder) ??
+    toSmartBusNumber(stop?.id) ??
+    index;
+  return Number.isFinite(value) ? value : index;
+}
+
+function distanceFromPathMeters(point, path) {
+  if (!point || !Array.isArray(path) || !path.length) return Number.POSITIVE_INFINITY;
+  return path.reduce((min, p) => {
+    if (!isLatLngInValidRange(p)) return min;
+    return Math.min(min, getDistanceMeters(point, p));
+  }, Number.POSITIVE_INFINITY);
+}
+
 function getDistanceMeters(a, b) {
   const R = 6371000;
   const toRad = (deg) => (deg * Math.PI) / 180;
@@ -389,26 +530,28 @@ function getDistanceMeters(a, b) {
 }
 
 function getPositionOnPath(path, progress) {
-  if (!path || path.length < 2) return path?.[0] || [16.05, 108.2];
+  const cleanPath = normalizePathPoints(path || [], { source: "route-position" });
+  if (!cleanPath.length) return [16.0544, 108.2022];
+  if (cleanPath.length < 2) return cleanPath[0];
 
   const segments = [];
   let totalDistance = 0;
-  for (let i = 0; i < path.length - 1; i++) {
-    const distance = getDistanceMeters(path[i], path[i + 1]);
+  for (let i = 0; i < cleanPath.length - 1; i++) {
+    const distance = getDistanceMeters(cleanPath[i], cleanPath[i + 1]);
     segments.push(distance);
     totalDistance += distance;
   }
 
-  if (!totalDistance) return path[0];
+  if (!totalDistance) return cleanPath[0];
   let target = clamp(progress, 0, 1) * totalDistance;
   for (let i = 0; i < segments.length; i++) {
     if (target <= segments[i]) {
       const ratio = segments[i] ? target / segments[i] : 0;
-      return lerp(path[i], path[i + 1], ratio);
+      return lerp(cleanPath[i], cleanPath[i + 1], ratio);
     }
     target -= segments[i];
   }
-  return path[path.length - 1];
+  return cleanPath[cleanPath.length - 1];
 }
 
 /* ----------------------------------------------------------
@@ -419,7 +562,9 @@ const geometryLoading = new Set();
 let geometryQueueRunning = false;
 
 function pathSignature(route) {
-  return (route.path || []).map((p) => `${Number(p[0]).toFixed(5)},${Number(p[1]).toFixed(5)}`).join("|");
+  return normalizePathPoints(route?.path || [], { source: `signature:${route?.id || "?"}` })
+    .map((p) => `${Number(p[0]).toFixed(5)},${Number(p[1]).toFixed(5)}`)
+    .join("|");
 }
 
 function geometryCacheKey(route) {
@@ -434,8 +579,9 @@ function readCachedGeometry(route) {
     const raw = localStorage.getItem(geometryCacheKey(route));
     if (!raw) return null;
     const pts = JSON.parse(raw);
-    if (!Array.isArray(pts) || pts.length < 2) return null;
-    return pts.map((p) => [Number(p[0]), Number(p[1])]).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    const clean = normalizePathPoints(pts, { source: `cached-geometry:${route?.id || "?"}` });
+    if (!Array.isArray(clean) || clean.length < 2) return null;
+    return clean;
   } catch {
     return null;
   }
@@ -443,7 +589,8 @@ function readCachedGeometry(route) {
 
 function saveCachedGeometry(route, pts) {
   try {
-    if (Array.isArray(pts) && pts.length >= 2) localStorage.setItem(geometryCacheKey(route), JSON.stringify(pts));
+    const clean = normalizePathPoints(pts || [], { source: `save-geometry:${route?.id || "?"}` });
+    if (Array.isArray(clean) && clean.length >= 2) localStorage.setItem(geometryCacheKey(route), JSON.stringify(clean));
   } catch {}
 }
 
@@ -471,16 +618,18 @@ async function fetchSegment(from, to) {
 }
 
 async function buildRouteGeometry(route) {
-  if (!route?.path || route.path.length < 2) return route?.path || [];
+  const basePath = normalizePathPoints(route?.path || [], { source: `route-path:${route?.id || "?"}` });
+  if (basePath.length < 2) return basePath;
   const cached = readCachedGeometry(route);
   if (cached?.length >= 2) return cached;
 
   const segments = [];
-  for (let i = 0; i < route.path.length - 1; i += 1) {
-    const seg = await fetchSegment(route.path[i], route.path[i + 1]);
-    segments.push(...(i === 0 ? seg : seg.slice(1)));
+  for (let i = 0; i < basePath.length - 1; i += 1) {
+    const seg = await fetchSegment(basePath[i], basePath[i + 1]);
+    const cleanSeg = normalizePathPoints(seg, { source: `osrm-segment:${route?.id || "?"}` });
+    segments.push(...(i === 0 ? cleanSeg : cleanSeg.slice(1)));
   }
-  const geometry = segments.length >= 2 ? segments : route.path;
+  const geometry = segments.length >= 2 ? segments : basePath;
   saveCachedGeometry(route, geometry);
   return geometry;
 }
@@ -535,52 +684,95 @@ const DynamicData = {
         API.get(`/bus/stops?${qs}`, { skipAuth: true }),
         API.get(`/bus/vehicle-locations?${qs}`, { skipAuth: true }),
       ]);
+
       const stops = Array.isArray(stopsRaw) ? stopsRaw : [];
-      const groupedStops = stops.reduce((acc, stop) => {
-        const rid = String(stop.routeId || "");
-        if (!rid) return acc;
-        (acc[rid] = acc[rid] || []).push(stop);
+      const stopGroups = stops.reduce((acc, stop) => {
+        stopRouteKeyCandidates(stop).forEach((key) => {
+          (acc[key] = acc[key] || []).push(stop);
+        });
         return acc;
       }, {});
+
       const routes = (Array.isArray(routesRaw) ? routesRaw : []).map((r) => {
-        const points = Array.isArray(r.path) && r.path.length
-          ? r.path
-          : (groupedStops[r.id] || []).sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0)).map((s) => [Number(s.lat), Number(s.lng)]).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+        const routeKeys = routeKeyCandidates(r);
+        const grouped = routeKeys.flatMap((key) => stopGroups[key] || []);
+        const uniqueGrouped = Array.from(new Map(grouped.map((stop, idx) => [String(stop.id || stop.externalStopCode || `${routeKeys[0] || 'route'}-${idx}`), stop])).values());
+
+        let points = normalizePathPoints(r.path || r.geometry || [], { source: `route-api:${r.id || r.routeCode || '?'}` });
+        if (points.length < 2 && Array.isArray(r.coordinates)) {
+          points = normalizePathPoints(r.coordinates.map(([lng, lat]) => ({ coordinates: [lng, lat] })), { source: `route-coordinates:${r.id || r.routeCode || '?'}` });
+        }
+        if (points.length < 2) {
+          points = uniqueGrouped
+            .map((s, index) => ({ stop: s, index }))
+            .sort((a, b) => stopSortValue(a.stop, a.index) - stopSortValue(b.stop, b.index))
+            .map(({ stop }) => normalizeLatLng(stop, { source: `stop-for-route:${r.id || r.routeCode || '?'}` }))
+            .filter(Boolean);
+        }
+
+        const id = String(r.id || r.routeId || r.routeCode || r.displayCode || r.routeDisplayCode || "").trim();
         return {
           ...r,
-          id: String(r.id || r.routeCode || r.displayCode),
-          routeCode: String(r.routeCode || r.id || r.displayCode),
-          displayCode: r.displayCode || r.routeDisplayCode || r.id,
+          id,
+          routeCode: String(r.routeCode || r.route_code || r.id || r.displayCode || id),
+          displayCode: r.displayCode || r.routeDisplayCode || r.routeCode || r.id,
+          provinceCode: r.provinceCode || r.province_code || province,
           path: points,
           color: r.color || "#2563eb",
           time: r.time || r.operatingTime || "Đang cập nhật",
           interval: r.interval || r.intervalText || "Đang cập nhật",
         };
       }).filter((r) => r.id && r.path?.length >= 2);
+
       ROUTES.splice(0, ROUTES.length, ...routes);
       State.routeGeometries = {};
-      const sqlStops = stops.map((s) => ({ ...s, lat: Number(s.lat), lng: Number(s.lng) })).filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+      State.geometryStatus = {};
+
+      const validRouteIds = new Set(ROUTES.flatMap((r) => routeKeyCandidates(r)));
+      const sqlStops = stops.map((s, idx) => {
+        const ll = normalizeLatLng(s, { source: `bus-stop:${s.id || idx}` });
+        if (!ll) return null;
+        const routeKeys = stopRouteKeyCandidates(s).filter((key) => validRouteIds.has(key));
+        const routeId = routeKeys[0] || String(s.routeId || s.routeCode || s.routeDisplayCode || "");
+        return {
+          ...s,
+          id: s.id || s.externalStopCode || `${routeId || province}-stop-${idx}`,
+          routeId,
+          routeCode: s.routeCode || s.route_code || routeId,
+          provinceCode: s.provinceCode || s.province_code || province,
+          lat: ll[0],
+          lng: ll[1],
+        };
+      }).filter(Boolean);
       State.stops = sqlStops;
+
       const apiBuses = (Array.isArray(busesRaw) ? busesRaw : []).map((b, idx) => {
         const ck = CROWDING[b.crowding] ? b.crowding : pick(Object.keys(CROWDING));
         const c = CROWDING[ck];
+        const routeId = String(b.routeId || b.route_id || b.routeCode || b.route_code || b.displayCode || "").trim();
+        const route = routeById(routeId);
+        const path = route?.path || [];
+        const apiPoint = normalizeLatLng(b, { source: `bus-api:${b.id || idx}` });
+        const isNearRoute = apiPoint && path.length ? distanceFromPathMeters(apiPoint, path) <= 2500 : Boolean(apiPoint);
+        const safePoint = isNearRoute ? apiPoint : null;
         return {
           ...b,
-          uid: String(b.uid || b.vehicleCode || b.id || `${b.routeId}-${idx + 1}`),
-          routeId: String(b.routeId || b.routeCode || ""),
-          plate: b.plate || b.licensePlate || b.vehicleCode || `BUS-${idx + 1}`,
+          uid: String(b.uid || b.vehicleCode || b.vehicle_code || b.id || `${routeId || 'BUS'}-${idx + 1}`),
+          routeId,
+          plate: b.plate || b.licensePlate || b.license_plate || b.vehicleCode || `BUS-${idx + 1}`,
           crowding: ck,
           passengers: Number(b.passengers || rnd(c.min, c.max)),
-          speed: Number(b.speed || b.speedKmh || CONFIG.SPEEDS.min),
-          progress: Number.isFinite(Number(b.progress)) ? Number(b.progress) : Math.random(),
+          speed: Number(b.speed || b.speedKmh || b.speed_kmh || CONFIG.SPEEDS.min),
+          progress: Number.isFinite(Number(b.progress)) ? Number(b.progress) : ((idx % 10) + 1) / 11,
           status: b.status || "active",
-          lat: Number(b.lat),
-          lng: Number(b.lng),
+          lat: safePoint ? safePoint[0] : null,
+          lng: safePoint ? safePoint[1] : null,
         };
-      }).filter((b) => b.routeId);
+      }).filter((b) => b.routeId && routeById(b.routeId));
       State.buses = apiBuses;
       State.dataSource = "sql";
       this.populateFilters();
+      window.safeInvalidateSmartBusMap?.(200);
       return true;
     } catch (err) {
       console.error("Không tải được dữ liệu SQL Server. Frontend không dùng dữ liệu cứng; hãy chạy backend và import SQL Server:", err);
@@ -593,6 +785,7 @@ const DynamicData = {
       return false;
     } finally {
       document.body.classList.remove('map-loading');
+      window.safeInvalidateSmartBusMap?.(250);
     }
   },
   populateFilters() {
@@ -700,7 +893,7 @@ const MapModule = (() => {
 
     if (map) {
       State.mapReady = true;
-      setTimeout(() => map.invalidateSize(), 200);
+      window.safeInvalidateSmartBusMap?.(150);
       drawRoutes();
       drawStops();
       return;
@@ -717,6 +910,8 @@ const MapModule = (() => {
 
     const meta = provinceMeta(State.mapFilters.province || CONFIG.DEFAULT_PROVINCE);
     map = L.map("map", { zoomControl: false, scrollWheelZoom: true, preferCanvas: true }).setView(meta.center || CONFIG.MAP_CENTER, meta.zoom || CONFIG.MAP_ZOOM);
+    window.smartBusMap = map;
+    window.map = map;
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
@@ -731,7 +926,8 @@ const MapModule = (() => {
     drawStops();
     State.mapReady = true;
     fitVisibleRoutes();
-    setTimeout(() => map.invalidateSize(), 200);
+    window.safeInvalidateSmartBusMap?.(200);
+    window.safeInvalidateSmartBusMap?.(500);
   }
 
   function averageCenter(points) {
@@ -754,7 +950,7 @@ const MapModule = (() => {
     routeLines.forEach((l) => l.remove());
     routeLines.length = 0;
     ROUTES.forEach((route) => {
-      const pts = getPath(route.id);
+      const pts = normalizePathPoints(getPath(route.id), { source: `draw-route:${route.id}` });
       if (!pts || pts.length < 2 || !routeVisible(route)) return;
       const isRoadSnapped = State.geometryStatus[route.id] === "ok";
       const line = L.polyline(pts, {
@@ -769,6 +965,7 @@ const MapModule = (() => {
       line.bindPopup(buildRoutePopup(route));
       routeLines.push(line);
     });
+    window.safeInvalidateSmartBusMap?.(120);
   }
 
   function fitVisibleRoutes() {
@@ -806,6 +1003,13 @@ const MapModule = (() => {
     </div>`;
   }
 
+  function getSafeBusPosition(bus) {
+    const path = normalizePathPoints(getPath(bus.routeId), { source: `bus-path:${bus.routeId}` });
+    const apiPoint = normalizeLatLng(bus, { source: `bus-marker:${bus.uid || bus.id || "?"}` });
+    if (apiPoint && (!path.length || distanceFromPathMeters(apiPoint, path) <= 2500)) return apiPoint;
+    return getPositionOnPath(path, Number.isFinite(Number(bus.progress)) ? Number(bus.progress) : 0);
+  }
+
   function makeIcon(bus) {
     const c = CROWDING[bus.crowding] || CROWDING.quiet;
     const route = routeById(bus.routeId);
@@ -831,10 +1035,8 @@ const MapModule = (() => {
     markers.forEach((m, id) => { if (!currentIds.has(String(id))) { if (map.hasLayer(m)) m.remove(); markers.delete(id); } });
     const visible = new Set(buses.filter((b) => filterBus(b)).map((b) => b.uid));
     buses.forEach((bus) => {
-      const path = getPath(bus.routeId);
-      const fromApi = Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng)) ? [Number(bus.lat), Number(bus.lng)] : null;
-      const pos = fromApi || getPositionOnPath(path, bus.progress);
-      if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) return;
+      const pos = getSafeBusPosition(bus);
+      if (!isLatLngInValidRange(pos) || !isCoordinateInCentralVietnam(pos)) return;
       const latlng = [pos[0], pos[1]];
       if (markers.has(bus.uid)) {
         const m = markers.get(bus.uid);
@@ -850,6 +1052,7 @@ const MapModule = (() => {
         if (!visible.has(bus.uid)) m.remove();
       }
     });
+    window.safeInvalidateSmartBusMap?.(120);
   }
 
   function stopIconType(stop) {
@@ -906,8 +1109,8 @@ const MapModule = (() => {
     stopMarkers.forEach((m, id) => { if (!activeIds.has(id)) { if (map.hasLayer(m)) m.remove(); stopMarkers.delete(id); } });
     allowed.forEach((stop) => {
       const id = String(stop.id || stop.externalStopCode);
-      const ll = [Number(stop.lat), Number(stop.lng)];
-      if (!Number.isFinite(ll[0]) || !Number.isFinite(ll[1])) return;
+      const ll = normalizeLatLng(stop, { source: `draw-stop:${id}` });
+      if (!ll) return;
       if (stopMarkers.has(id)) {
         const m = stopMarkers.get(id);
         m.setLatLng(ll);
@@ -920,6 +1123,7 @@ const MapModule = (() => {
         stopMarkers.set(id, m);
       }
     });
+    window.safeInvalidateSmartBusMap?.(120);
   }
 
   function updateStopLabelVisibility() {
@@ -936,9 +1140,10 @@ const MapModule = (() => {
   function focusBus(uid) {
     const bus = State.buses.find((b) => b.uid === uid);
     if (!bus || !map) return;
-    const path = getPath(bus.routeId);
-    const pos = Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng)) ? [Number(bus.lat), Number(bus.lng)] : getPositionOnPath(path, bus.progress);
+    const pos = getSafeBusPosition(bus);
+    if (!isLatLngInValidRange(pos)) return;
     map.flyTo([pos[0], pos[1]], 15, { duration: 1.2 });
+    window.safeInvalidateSmartBusMap?.(300);
     const m = markers.get(uid);
     if (m) setTimeout(() => m.openPopup(), 400);
   }
@@ -969,9 +1174,10 @@ const MapModule = (() => {
 
   function markUserLocation(lat, lng) {
     if (!map || lat == null || lng == null) return;
-    State.userLocation = { lat: Number(lat), lng: Number(lng) };
+    const ll = normalizeLatLng({ lat, lng }, { allowOutsideCentral: true, source: "user-location" });
+    if (!ll) return;
+    State.userLocation = { lat: ll[0], lng: ll[1] };
     const icon = L.divIcon({ className: "user-location-icon", html: `<div class="user-location-dot"></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
-    const ll = [Number(lat), Number(lng)];
     if (userLocationMarker) userLocationMarker.setLatLng(ll);
     else userLocationMarker = L.marker(ll, { icon, zIndexOffset: 500 }).addTo(map);
     if (userLocationCircle) userLocationCircle.setLatLng(ll);
@@ -979,32 +1185,32 @@ const MapModule = (() => {
     userLocationMarker.bindPopup("Vị trí hiện tại của bạn");
     updateMarkers(State.buses);
     drawStops();
+    window.safeInvalidateSmartBusMap?.(200);
   }
 
   function focusPlace(place) {
     if (!map || !place) return;
-    const lat = Number(place.latitude ?? place.lat);
-    const lng = Number(place.longitude ?? place.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    map.flyTo([lat, lng], 15, { duration: 1.1 });
+    const ll = normalizeLatLng(place, { source: `focus-place:${place?.id || place?.name || "?"}` });
+    if (!ll) return;
+    map.flyTo(ll, 15, { duration: 1.1 });
     const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>📍</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
-    if (nearestStopMarker) nearestStopMarker.setLatLng([lat, lng]);
-    else nearestStopMarker = L.marker([lat, lng], { icon, zIndexOffset: 460 }).addTo(map);
+    if (nearestStopMarker) nearestStopMarker.setLatLng(ll);
+    else nearestStopMarker = L.marker(ll, { icon, zIndexOffset: 460 }).addTo(map);
     nearestStopMarker.bindPopup(`<b>${escapeHtml(place.name || "Địa điểm")}</b><br/>${escapeHtml(place.provinceName || place.province || "")}`);
+    window.safeInvalidateSmartBusMap?.(300);
     setTimeout(() => nearestStopMarker?.openPopup(), 400);
   }
 
   function focusStop(stop) {
     if (!map || !stop) return;
-    const lat = Number(stop.lat ?? stop.latitude);
-    const lng = Number(stop.lng ?? stop.longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const ll = normalizeLatLng(stop, { source: `focus-stop:${stop?.id || stop?.name || "?"}` });
+    if (!ll) return;
     const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>🚏</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
-    const ll = [lat, lng];
     if (nearestStopMarker) nearestStopMarker.setLatLng(ll);
     else nearestStopMarker = L.marker(ll, { icon, zIndexOffset: 450 }).addTo(map);
     nearestStopMarker.bindPopup(`<b>${escapeHtml(stop.name || "Bến gần nhất")}</b><br/>${escapeHtml(stop.address || "Điểm đón gợi ý")}`);
     map.flyTo(ll, 15, { duration: 1.1 });
+    window.safeInvalidateSmartBusMap?.(300);
     setTimeout(() => nearestStopMarker?.openPopup(), 450);
   }
 
@@ -1015,10 +1221,26 @@ const MapModule = (() => {
     else if (shouldFit) fitVisibleRoutes();
     drawStops();
   }
-  function invalidate() { map && setTimeout(() => map.invalidateSize(), 150); }
+  function invalidate() { map && setTimeout(() => map.invalidateSize(true), 150); }
 
   return { init, updateMarkers, drawStops, focusBus, redrawRoutes, invalidate, highlightRoute, clearRouteHighlight, markUserLocation, focusStop, focusPlace };
 })();
+
+/* ----------------------------------------------------------
+   10a. LEAFLET RESPONSIVE INVALIDATION – mobile/layout safety
+---------------------------------------------------------- */
+function safeInvalidateSmartBusMap(delay = 200) {
+  setTimeout(() => {
+    const liveMap = window.smartBusMap || window.map || null;
+    if (liveMap && typeof liveMap.invalidateSize === "function") {
+      try { liveMap.invalidateSize(true); } catch (err) { console.warn("SmartBus map invalidate failed", err); }
+    }
+  }, delay);
+}
+window.safeInvalidateSmartBusMap = safeInvalidateSmartBusMap;
+window.addEventListener("load", () => safeInvalidateSmartBusMap(350));
+window.addEventListener("resize", debounce(() => safeInvalidateSmartBusMap(250), 120));
+window.addEventListener("orientationchange", () => safeInvalidateSmartBusMap(550));
 
 /* ----------------------------------------------------------
    11. FILTER HELPER – chia sẻ giữa map và list
@@ -1033,8 +1255,11 @@ function filterBus(bus) {
   if ((f.buses === "province" || f.province) && f.province && route?.provinceCode !== f.province) return false;
   if (f.buses === "nearby") {
     if (!State.userLocation) return false;
-    const path = getPath(bus.routeId);
-    const pos = Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng)) ? [Number(bus.lat), Number(bus.lng)] : getPositionOnPath(path, bus.progress);
+    const path = normalizePathPoints(getPath(bus.routeId), { source: `filter-bus:${bus.routeId}` });
+    const apiPoint = normalizeLatLng(bus, { source: `filter-bus-api:${bus.uid || bus.id || "?"}` });
+    const pos = apiPoint && (!path.length || distanceFromPathMeters(apiPoint, path) <= 2500)
+      ? apiPoint
+      : getPositionOnPath(path, bus.progress);
     if (!pos || getDistanceMeters([State.userLocation.lat, State.userLocation.lng], pos) > 5000) return false;
   }
   const matchCrowd = State.filterCrowding === "all" || bus.crowding === State.filterCrowding;
@@ -1535,10 +1760,22 @@ const SmartBusGeo = (() => {
             lng: Number(pos.coords.longitude),
             accuracy: Number(pos.coords.accuracy || 0),
           };
+          const gpsPoint = normalizeLatLng(gps, { allowOutsideCentral: true, source: "gps-success" });
+          if (!gpsPoint) {
+            const msg = "GPS trả về tọa độ không hợp lệ. Hãy bật định vị và thử lại.";
+            if (statusEl) statusEl.textContent = msg;
+            if (showToast) Toast.show(msg, "warning", 4200);
+            resolve(null);
+            return;
+          }
+          gps.lat = gpsPoint[0];
+          gps.lng = gpsPoint[1];
           lastPosition = gps;
           if (statusEl) statusEl.textContent = `Đã có GPS – độ chính xác khoảng ${Math.round(gps.accuracy || 0)}m`;
           MapModule.markUserLocation?.(gps.lat, gps.lng);
           State.userLocation = gps;
+          window.smartBusUserLocation = gps;
+          window.safeInvalidateSmartBusMap?.(200);
           if (typeof onSuccess === "function") onSuccess(gps);
           if (showToast) Toast.show("Đã lấy vị trí hiện tại của bạn.", "success", 2600);
           resolve(gps);
@@ -1557,8 +1794,36 @@ const SmartBusGeo = (() => {
     });
   }
 
-  return { get, setLoading };
+  function requestFromUserAction(button = null, extra = {}) {
+    return get({
+      showToast: true,
+      timeoutMs: 20000,
+      allowCache: false,
+      buttons: [button].filter(Boolean),
+      ...extra,
+    });
+  }
+
+  return { get, setLoading, requestFromUserAction };
 })();
+window.SmartBusGeo = SmartBusGeo;
+window.requestSmartBusGpsFromUserAction = (button = null, extra = {}) => SmartBusGeo.requestFromUserAction(button, extra);
+
+function bindSmartBusGpsButtons() {
+  const selectors = ["#gis-gps-btn", "#nearby-gps-btn", "#place-near-me", "#chat-gps-btn", "[data-location-button]", ".near-me-btn", ".gps-btn", ".location-btn", "#getLocationBtn"];
+  $$(selectors.join(",")).forEach((btn) => {
+    if (!btn || btn.dataset.smartbusGpsBound === "true") return;
+    const text = (btn.textContent || "").toLowerCase();
+    const isLocationButton = btn.id === "gis-gps-btn" || btn.id === "nearby-gps-btn" || btn.id === "place-near-me" || btn.id === "chat-gps-btn" ||
+      btn.hasAttribute("data-location-button") || btn.classList.contains("near-me-btn") || btn.classList.contains("gps-btn") || btn.classList.contains("location-btn") ||
+      text.includes("lấy vị trí") || text.includes("bến gần tôi") || text.includes("vị trí của tôi");
+    if (!isLocationButton) return;
+    btn.dataset.smartbusGpsBound = "true";
+  });
+}
+document.addEventListener("DOMContentLoaded", bindSmartBusGpsButtons);
+setTimeout(bindSmartBusGpsButtons, 500);
+setTimeout(bindSmartBusGpsButtons, 1500);
 
 
 /* ----------------------------------------------------------
@@ -2028,18 +2293,33 @@ const Nav = {
     else this._openSidebar();
   },
 
+  _setMenuButtonState(isOpen) {
+    const btn = $("#menu-btn");
+    if (!btn) return;
+    btn.classList.toggle("is-open", Boolean(isOpen));
+    btn.setAttribute("aria-expanded", String(Boolean(isOpen)));
+    btn.setAttribute("aria-label", isOpen ? "Thu menu" : "Mở menu");
+    btn.innerHTML = isOpen
+      ? `<span class="mobile-menu-x" aria-hidden="true">×</span>`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>`;
+  },
+
   _openSidebar() {
     this._closeChatbotForMenu();
     $("#sidebar")?.classList.add("open", "active", "is-open");
     $("#overlay")?.classList.add("show", "open", "active", "is-open");
     document.body.classList.add("sidebar-open");
     document.body.style.overflow = "hidden";
+    this._setMenuButtonState(true);
+    window.safeInvalidateSmartBusMap?.(250);
   },
   _closeSidebar() {
     $("#sidebar")?.classList.remove("open", "active", "is-open");
     $("#overlay")?.classList.remove("show", "open", "active", "is-open");
     document.body.classList.remove("sidebar-open", "menu-open");
     document.body.style.overflow = "";
+    this._setMenuButtonState(false);
+    window.safeInvalidateSmartBusMap?.(250);
   },
 };
 
@@ -2175,7 +2455,7 @@ const ReportForm = {
 ---------------------------------------------------------- */
 const SearchFilter = {
   bind() {
-    const refresh = () => this._refresh();
+    const refresh = () => { this._refresh(); window.safeInvalidateSmartBusMap?.(180); };
 
     $("#search-inp")?.addEventListener("input", (e) => {
       State.searchQuery = e.target.value.trim();
@@ -2244,7 +2524,9 @@ const SearchFilter = {
       Toast.show(e.target.checked ? "Đã bật tên bến khi zoom gần" : "Đã ẩn toàn bộ tên bến", "info", 1800);
     });
 
-    $("#gis-gps-btn")?.addEventListener("click", async () => {
+    $("#gis-gps-btn")?.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       const gps = await SmartBusGeo.get({
         showToast: true,
         timeoutMs: 15000,

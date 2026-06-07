@@ -3653,3 +3653,222 @@ body.app-active { overflow: hidden; }
   .chat-form { gap: 6px !important; padding: 10px !important; }
   .chat-gps, .chat-form button[type="submit"] { padding: 0 10px !important; }
 }
+
+/* ==========================================================
+   SmartBus GIS/Mobile fix 2: stable mobile menu, map layers,
+   Leaflet z-index and GPS button usability.
+========================================================== */
+@media (max-width: 768px) {
+  body.app-active { overflow: auto !important; }
+  body.sidebar-open { overflow: hidden !important; }
+
+  #app {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .main, .main-body, .view.active {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .topbar {
+    position: sticky !important;
+    top: 0 !important;
+    min-height: 58px;
+    padding-left: 72px !important;
+    z-index: 1500 !important;
+  }
+
+  #menu-btn.topbar-menu,
+  .topbar-menu {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: fixed !important;
+    top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    left: 14px !important;
+    width: 44px !important;
+    height: 44px !important;
+    z-index: 10001 !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(62, 207, 191, 0.38) !important;
+    background: rgba(5, 32, 28, 0.96) !important;
+    color: #d7fff8 !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(62, 207, 191, 0.08) inset !important;
+    cursor: pointer !important;
+  }
+
+  #menu-btn.topbar-menu svg,
+  .topbar-menu svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  #menu-btn .mobile-menu-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 34px;
+    line-height: 1;
+    font-weight: 700;
+    transform: translateY(-1px);
+  }
+
+  #sidebar.sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: min(86vw, 340px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    z-index: 10000 !important;
+    transform: translateX(-108%) !important;
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    will-change: transform;
+  }
+
+  body.sidebar-open #sidebar.sidebar,
+  #sidebar.sidebar.open,
+  #sidebar.sidebar.active,
+  #sidebar.sidebar.is-open {
+    transform: translateX(0) !important;
+  }
+
+  #overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
+    background: rgba(0, 0, 0, 0.48) !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    display: block !important;
+    transition: opacity 0.2s ease, visibility 0.2s ease !important;
+  }
+
+  body.sidebar-open #overlay,
+  #overlay.show,
+  #overlay.open,
+  #overlay.active,
+  #overlay.is-open {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  .gis-toolbar {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    margin: 10px 0 16px !important;
+    padding: 12px !important;
+    max-width: 100% !important;
+  }
+
+  .gis-field,
+  .gis-check,
+  .gis-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .gis-check,
+  .gis-btn {
+    min-height: 46px !important;
+    justify-content: flex-start !important;
+    padding-left: 16px !important;
+  }
+
+  .dash-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .map-wrap {
+    width: 100% !important;
+    min-height: 430px !important;
+    height: min(62vh, 560px) !important;
+    max-height: 620px !important;
+    overflow: hidden !important;
+    contain: layout paint;
+  }
+
+  #map,
+  .leaflet-container {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 430px !important;
+    max-width: 100% !important;
+    touch-action: pan-x pan-y !important;
+  }
+
+  .leaflet-container,
+  .leaflet-pane,
+  .leaflet-map-pane,
+  .leaflet-tile-pane,
+  .leaflet-overlay-pane,
+  .leaflet-shadow-pane,
+  .leaflet-marker-pane,
+  .leaflet-tooltip-pane,
+  .leaflet-popup-pane,
+  .leaflet-control-container,
+  .leaflet-top,
+  .leaflet-bottom,
+  .leaflet-control {
+    z-index: 1 !important;
+  }
+
+  body.sidebar-open .leaflet-container,
+  body.sidebar-open .leaflet-pane,
+  body.sidebar-open .leaflet-map-pane,
+  body.sidebar-open .leaflet-tile-pane,
+  body.sidebar-open .leaflet-overlay-pane,
+  body.sidebar-open .leaflet-shadow-pane,
+  body.sidebar-open .leaflet-marker-pane,
+  body.sidebar-open .leaflet-tooltip-pane,
+  body.sidebar-open .leaflet-popup-pane,
+  body.sidebar-open .leaflet-control-container,
+  body.sidebar-open .leaflet-top,
+  body.sidebar-open .leaflet-bottom,
+  body.sidebar-open .leaflet-control,
+  body.sidebar-open .map-wrap,
+  body.sidebar-open #map {
+    z-index: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .bus-div-icon,
+  .stop-div-icon {
+    transform-origin: center bottom;
+  }
+
+  .bus-panel {
+    max-height: 360px !important;
+  }
+
+  .smartbus-chat-root {
+    z-index: 9000 !important;
+  }
+  body.sidebar-open .smartbus-chat-root,
+  body.sidebar-open #chat-panel,
+  body.sidebar-open #chat-toggle {
+    display: none !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .topbar-title h2 { font-size: 1.05rem !important; }
+  .map-wrap { min-height: 400px !important; height: 58vh !important; }
+  #map, .leaflet-container { min-height: 400px !important; }
+}
