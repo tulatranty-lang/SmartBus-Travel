@@ -358,8 +358,9 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const routeById = (id) => {
-  const value = String(id || "");
-  return ROUTES.find((r) => [r.id, r.routeCode, r.displayCode].some((x) => String(x || "") === value));
+  const value = String(id || "").trim();
+  if (!value) return undefined;
+  return ROUTES.find((r) => routeKeyCandidates(r).some((x) => String(x || "").trim() === value));
 };
 const routeLabel = (routeOrId) => {
   const r = typeof routeOrId === "object" ? routeOrId : routeById(routeOrId);
@@ -380,10 +381,20 @@ const mapDataQuery = () => {
    6a. GIS COORDINATE SAFETY – one source for Leaflet lat/lng
 ---------------------------------------------------------- */
 const CENTRAL_VIETNAM_BOUNDS = {
-  minLat: 15.0,
-  maxLat: 17.25,
-  minLng: 107.0,
-  maxLng: 109.25,
+  // Mở rộng đủ Quảng Trị, Huế, Đà Nẵng, Quảng Nam cũ/Hội An và Quảng Ngãi.
+  // Bản cũ minLat=15.0 và minLng=107.0 làm rơi Sa Huỳnh/Ba Tơ/Cam Lộ.
+  minLat: 14.55,
+  maxLat: 17.35,
+  minLng: 106.70,
+  maxLng: 109.35,
+};
+
+const PROVINCE_GIS_BOUNDS = {
+  DN: { minLat: 15.85, maxLat: 16.25, minLng: 107.88, maxLng: 108.35 },
+  QN_CU: { minLat: 15.35, maxLat: 16.15, minLng: 107.20, maxLng: 108.80 },
+  HUE: { minLat: 15.95, maxLat: 16.85, minLng: 107.00, maxLng: 108.25 },
+  QT: { minLat: 16.15, maxLat: 17.25, minLng: 106.70, maxLng: 107.45 },
+  QNG: { minLat: 14.55, maxLat: 15.45, minLng: 108.10, maxLng: 109.35 },
 };
 
 function toSmartBusNumber(value) {
@@ -481,8 +492,11 @@ function routeKeyCandidates(route) {
     route?.route_id,
     route?.routeCode,
     route?.route_code,
+    route?.routeNumber,
+    route?.route_number,
     route?.displayCode,
     route?.routeDisplayCode,
+    route?.route_display_code,
   ].map((v) => String(v || "").trim()).filter(Boolean);
 }
 
@@ -492,8 +506,11 @@ function stopRouteKeyCandidates(stop) {
     stop?.route_id,
     stop?.routeCode,
     stop?.route_code,
+    stop?.routeNumber,
+    stop?.route_number,
     stop?.displayCode,
     stop?.routeDisplayCode,
+    stop?.route_display_code,
   ].map((v) => String(v || "").trim()).filter(Boolean);
 }
 
@@ -669,7 +686,19 @@ function startRoadGeometryLoader() {
 
 function getPath(routeId) {
   const r = routeById(routeId);
-  return State.routeGeometries[r?.id || routeId] || r?.path || [];
+  const rid = r?.id || String(routeId || "").trim();
+  if (State.routeGeometries[rid]?.length >= 2) return State.routeGeometries[rid];
+  if (r?.path?.length >= 2) return r.path;
+
+  // Fallback quan trọng: nếu API route.path thiếu, dựng path từ danh sách bến theo sequence_no.
+  const keys = new Set(routeKeyCandidates(r || { id: rid, routeId: rid, routeCode: rid }));
+  const fallbackStops = (State.stops || [])
+    .map((stop, index) => ({ stop, index }))
+    .filter(({ stop }) => stopRouteKeyCandidates(stop).some((key) => keys.has(key)))
+    .sort((a, b) => stopSortValue(a.stop, a.index) - stopSortValue(b.stop, b.index))
+    .map(({ stop }) => normalizeLatLng(stop, { source: `fallback-path:${rid}` }))
+    .filter(Boolean);
+  return fallbackStops.length >= 2 ? fallbackStops : [];
 }
 
 const DynamicData = {
@@ -913,6 +942,17 @@ const MapModule = (() => {
     window.smartBusMap = map;
     window.map = map;
 
+    // Custom panes giữ đúng thứ tự lớp Leaflet: tile < tuyến < bến < xe < focus/GPS.
+    [
+      ["smartbusRoutePane", 420],
+      ["smartbusStopPane", 610],
+      ["smartbusVehiclePane", 650],
+      ["smartbusFocusPane", 700],
+    ].forEach(([paneName, zIndex]) => {
+      if (!map.getPane(paneName)) map.createPane(paneName);
+      map.getPane(paneName).style.zIndex = String(zIndex);
+    });
+
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
       subdomains: "abcd",
@@ -939,7 +979,8 @@ const MapModule = (() => {
   function routeVisible(route) {
     const f = State.mapFilters;
     if (f.routes === "none") return false;
-    if (f.routes === "selected") return Boolean(f.routeId) && route.id === f.routeId;
+    const sameRoute = Boolean(f.routeId) && routeKeyCandidates(route).includes(String(f.routeId));
+    if (f.routes === "selected") return sameRoute;
     if (f.province && route.provinceCode !== f.province) return false;
     if (f.routes === "province" && f.province && route.provinceCode !== f.province) return false;
     return true;
@@ -954,6 +995,7 @@ const MapModule = (() => {
       if (!pts || pts.length < 2 || !routeVisible(route)) return;
       const isRoadSnapped = State.geometryStatus[route.id] === "ok";
       const line = L.polyline(pts, {
+        pane: "smartbusRoutePane",
         color: route.color,
         weight: highlightedRouteId === route.id ? 8 : 4,
         opacity: highlightedRouteId && highlightedRouteId !== route.id ? 0.18 : 0.82,
@@ -1045,7 +1087,7 @@ const MapModule = (() => {
         if (m.isPopupOpen()) m.getPopup().setContent(buildBusPopup(bus, pos));
         if (visible.has(bus.uid)) { if (!map.hasLayer(m)) m.addTo(map); } else if (map.hasLayer(m)) m.remove();
       } else {
-        const m = L.marker(latlng, { icon: makeIcon(bus), zIndexOffset: 100 }).addTo(map);
+        const m = L.marker(latlng, { icon: makeIcon(bus), pane: "smartbusVehiclePane", zIndexOffset: 100 }).addTo(map);
         m.bindPopup(buildBusPopup(bus, pos), { maxWidth: 320, minWidth: 230 });
         m.on("click", () => Events.emit("bus:select", bus.uid));
         markers.set(bus.uid, m);
@@ -1071,10 +1113,10 @@ const MapModule = (() => {
     const label = canShowLabel ? `<span class="stop-label">${escapeHtml(stop.name)}${Number(stop.routeCount) ? ` · ${stop.routeCount} tuyến` : ""}</span>` : "";
     return L.divIcon({
       className: `stop-div-icon stop-${type.cls}`,
-      html: `<div class="stop-marker"><span class="stop-emoji">${type.emoji}</span>${label}</div>`,
-      iconSize: [28, 28],
-      iconAnchor: [14, 28],
-      popupAnchor: [0, -28],
+      html: `<div class="stop-marker"><span class="stop-emoji">${type.emoji}</span></div>${label}`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      popupAnchor: [0, -18],
     });
   }
 
@@ -1102,7 +1144,7 @@ const MapModule = (() => {
       if (!shouldShow) return false;
       if (majorOnly && !(s.isMajor || /đầu|cuối|bến|sân bay|ga|trung chuyển/i.test(`${s.stopType || ""} ${s.name || ""}`))) return false;
       if (provinceFilter && s.provinceCode !== provinceFilter) return false;
-      if (routeFilter && s.routeId !== routeFilter && !(s.routes || []).some((r) => r.id === routeFilter)) return false;
+      if (routeFilter && !stopRouteKeyCandidates(s).includes(routeFilter) && !(s.routes || []).some((r) => routeKeyCandidates(r).includes(routeFilter))) return false;
       return true;
     });
     const activeIds = new Set(allowed.map((s) => String(s.id || s.externalStopCode)));
@@ -1118,7 +1160,7 @@ const MapModule = (() => {
         if (m.isPopupOpen()) m.getPopup().setContent(buildStopPopup(stop));
         if (!map.hasLayer(m)) m.addTo(map);
       } else {
-        const m = L.marker(ll, { icon: makeStopIcon(stop), zIndexOffset: 70 }).addTo(map);
+        const m = L.marker(ll, { icon: makeStopIcon(stop), pane: "smartbusStopPane", zIndexOffset: 70 }).addTo(map);
         m.bindPopup(buildStopPopup(stop), { maxWidth: 320, minWidth: 230 });
         stopMarkers.set(id, m);
       }
@@ -1158,7 +1200,7 @@ const MapModule = (() => {
     drawRoutes();
     routeLines.forEach((line) => {
       const r = routeById(line._smartBusRouteId);
-      const active = line._smartBusRouteId === rid;
+      const active = routeKeyCandidates(r || { id: line._smartBusRouteId }).includes(rid);
       line.setStyle({ weight: active ? 8 : 3, opacity: active ? 1 : 0.16, color: r?.color || "var(--teal)" });
       if (active) { focused = line; line.bringToFront(); }
     });
@@ -1179,7 +1221,7 @@ const MapModule = (() => {
     State.userLocation = { lat: ll[0], lng: ll[1] };
     const icon = L.divIcon({ className: "user-location-icon", html: `<div class="user-location-dot"></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
     if (userLocationMarker) userLocationMarker.setLatLng(ll);
-    else userLocationMarker = L.marker(ll, { icon, zIndexOffset: 500 }).addTo(map);
+    else userLocationMarker = L.marker(ll, { icon, pane: "smartbusFocusPane", zIndexOffset: 500 }).addTo(map);
     if (userLocationCircle) userLocationCircle.setLatLng(ll);
     else userLocationCircle = L.circle(ll, { radius: 650, weight: 1, opacity: 0.7, fillOpacity: 0.08 }).addTo(map);
     userLocationMarker.bindPopup("Vị trí hiện tại của bạn");
@@ -1195,7 +1237,7 @@ const MapModule = (() => {
     map.flyTo(ll, 15, { duration: 1.1 });
     const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>📍</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
     if (nearestStopMarker) nearestStopMarker.setLatLng(ll);
-    else nearestStopMarker = L.marker(ll, { icon, zIndexOffset: 460 }).addTo(map);
+    else nearestStopMarker = L.marker(ll, { icon, pane: "smartbusFocusPane", zIndexOffset: 460 }).addTo(map);
     nearestStopMarker.bindPopup(`<b>${escapeHtml(place.name || "Địa điểm")}</b><br/>${escapeHtml(place.provinceName || place.province || "")}`);
     window.safeInvalidateSmartBusMap?.(300);
     setTimeout(() => nearestStopMarker?.openPopup(), 400);
@@ -1207,7 +1249,7 @@ const MapModule = (() => {
     if (!ll) return;
     const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>🚏</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
     if (nearestStopMarker) nearestStopMarker.setLatLng(ll);
-    else nearestStopMarker = L.marker(ll, { icon, zIndexOffset: 450 }).addTo(map);
+    else nearestStopMarker = L.marker(ll, { icon, pane: "smartbusFocusPane", zIndexOffset: 450 }).addTo(map);
     nearestStopMarker.bindPopup(`<b>${escapeHtml(stop.name || "Bến gần nhất")}</b><br/>${escapeHtml(stop.address || "Điểm đón gợi ý")}`);
     map.flyTo(ll, 15, { duration: 1.1 });
     window.safeInvalidateSmartBusMap?.(300);
@@ -2316,7 +2358,7 @@ const Nav = {
   _closeSidebar() {
     $("#sidebar")?.classList.remove("open", "active", "is-open");
     $("#overlay")?.classList.remove("show", "open", "active", "is-open");
-    document.body.classList.remove("sidebar-open", "menu-open");
+    document.body.classList.remove("sidebar-open", "menu-open", "open", "active", "is-open", "show");
     document.body.style.overflow = "";
     this._setMenuButtonState(false);
     window.safeInvalidateSmartBusMap?.(250);
@@ -2480,6 +2522,9 @@ const SearchFilter = {
       Toast.show(`Đang tải dữ liệu ${provinceMeta(province).name}...`, "info", 1200);
       await DynamicData.load(province);
       const meta = provinceMeta(province);
+      if (window.smartBusMap && meta?.center) {
+        try { window.smartBusMap.setView(meta.center, meta.zoom || CONFIG.MAP_ZOOM, { animate: false }); } catch {}
+      }
       MapModule.invalidate();
       MapModule.redrawRoutes();
       startRoadGeometryLoader();
