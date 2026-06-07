@@ -3763,3 +3763,74 @@ const SmartBusAssistant = (() => {
 document.addEventListener("DOMContentLoaded", () => {
   SmartBusAssistant.bind();
 });
+
+/* ==========================================================
+   SmartBus HOTFIX SIDEBAR SCROLL LOCK — 2026-06-07
+   Bắt wheel/touch trực tiếp trên menu để không bị map/body chặn cuộn.
+========================================================== */
+(function smartBusSidebarScrollHotfix() {
+  if (window.__SMARTBUS_SIDEBAR_SCROLL_HOTFIX__) return;
+  window.__SMARTBUS_SIDEBAR_SCROLL_HOTFIX__ = true;
+
+  function bind() {
+    const sidebar = document.getElementById("sidebar");
+    if (!sidebar || sidebar.dataset.scrollHotfixBound === "1") return;
+    sidebar.dataset.scrollHotfixBound = "1";
+
+    const getScroller = () => sidebar.querySelector(".sb-nav") || sidebar;
+
+    const canScroll = (el) => el && el.scrollHeight > el.clientHeight + 2;
+
+    sidebar.addEventListener(
+      "wheel",
+      (event) => {
+        if (!document.body.classList.contains("sidebar-open") && !sidebar.classList.contains("open")) return;
+        const scroller = getScroller();
+        if (!canScroll(scroller)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        scroller.scrollTop += event.deltaY;
+      },
+      { passive: false, capture: true },
+    );
+
+    let startY = 0;
+    let startScrollTop = 0;
+
+    sidebar.addEventListener(
+      "touchstart",
+      (event) => {
+        const scroller = getScroller();
+        if (!event.touches || !event.touches.length || !canScroll(scroller)) return;
+        startY = event.touches[0].clientY;
+        startScrollTop = scroller.scrollTop;
+      },
+      { passive: true, capture: true },
+    );
+
+    sidebar.addEventListener(
+      "touchmove",
+      (event) => {
+        if (!document.body.classList.contains("sidebar-open") && !sidebar.classList.contains("open")) return;
+        const scroller = getScroller();
+        if (!event.touches || !event.touches.length || !canScroll(scroller)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const currentY = event.touches[0].clientY;
+        scroller.scrollTop = startScrollTop + (startY - currentY);
+      },
+      { passive: false, capture: true },
+    );
+
+    document.addEventListener("click", () => {
+      if (document.body.classList.contains("sidebar-open")) {
+        sidebar.style.pointerEvents = "auto";
+        const scroller = getScroller();
+        scroller.style.overflowY = "scroll";
+      }
+    }, true);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
+  else bind();
+})();
