@@ -248,7 +248,7 @@ async function setStatus(id, status, moderator) {
 
 
 async function adminListCommunity(filters = {}) {
-  const allowedStatuses = ['pending', 'approved', 'approved_seed', 'hidden', 'all'];
+  const allowedStatuses = ['pending', 'approved', 'approved_seed', 'hidden', 'rejected', 'all'];
   const status = allowedStatuses.includes(String(filters.status || '').toLowerCase()) ? String(filters.status || '').toLowerCase() : 'all';
   const sort = ['newest', 'oldest', 'rating_desc'].includes(String(filters.sort || '').toLowerCase()) ? String(filters.sort || '').toLowerCase() : 'newest';
   const rs = await query(`
@@ -297,7 +297,7 @@ async function adminRemoveCommunity(id, admin) {
 
 
 async function adminListPlaceReviews(filters = {}) {
-  const allowedStatuses = ['pending', 'approved', 'hidden', 'all'];
+  const allowedStatuses = ['pending', 'approved', 'hidden', 'rejected', 'all'];
   const status = allowedStatuses.includes(String(filters.status || '').toLowerCase()) ? String(filters.status || '').toLowerCase() : 'pending';
   const sort = ['newest', 'oldest', 'rating_desc'].includes(String(filters.sort || '').toLowerCase()) ? String(filters.sort || '').toLowerCase() : 'newest';
   const rs = await query(`

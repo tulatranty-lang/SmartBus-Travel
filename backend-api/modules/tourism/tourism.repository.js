@@ -65,7 +65,8 @@ async function findPlaces(filters = {}) {
   const category = String(filters.category || '').trim();
   const limit = Math.max(1, Math.min(80, Number(filters.limit || filters.pageSize || 36) || 36));
   const page = Math.max(1, Number(filters.page || 1) || 1);
-  const offset = (page - 1) * limit;
+  const offsetRaw = Number(filters.offset);
+  const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? Math.floor(offsetRaw) : (page - 1) * limit;
 
   const rs = await query(`
     SELECT
@@ -285,31 +286,56 @@ async function reviews(placeId, includePending = false) {
 }
 
 async function favoritePlace(userId, placeId) {
+  const params = { userId: Number(userId), placeId: Number(placeId) };
   await query(`
-    IF NOT EXISTS (SELECT 1 FROM place_favorites WHERE user_id=@userId AND place_id=@placeId)
+    IF OBJECT_ID(N'dbo.favorites_places', N'U') IS NOT NULL
     BEGIN
-      INSERT INTO place_favorites(user_id, place_id) VALUES(@userId, @placeId)
+      IF NOT EXISTS (SELECT 1 FROM favorites_places WHERE user_id=@userId AND place_id=@placeId)
+        INSERT INTO favorites_places(user_id, place_id) VALUES(@userId, @placeId)
     END
-  `, { userId: Number(userId), placeId: Number(placeId) });
+    IF OBJECT_ID(N'dbo.place_favorites', N'U') IS NOT NULL
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM place_favorites WHERE user_id=@userId AND place_id=@placeId)
+        INSERT INTO place_favorites(user_id, place_id) VALUES(@userId, @placeId)
+    END
+  `, params);
   return { placeId: Number(placeId), favorited: true };
 }
 
 async function unfavoritePlace(userId, placeId) {
-  await query('DELETE FROM place_favorites WHERE user_id=@userId AND place_id=@placeId', { userId: Number(userId), placeId: Number(placeId) });
+  const params = { userId: Number(userId), placeId: Number(placeId) };
+  await query(`
+    IF OBJECT_ID(N'dbo.favorites_places', N'U') IS NOT NULL
+      DELETE FROM favorites_places WHERE user_id=@userId AND place_id=@placeId;
+    IF OBJECT_ID(N'dbo.place_favorites', N'U') IS NOT NULL
+      DELETE FROM place_favorites WHERE user_id=@userId AND place_id=@placeId;
+  `, params);
   return { placeId: Number(placeId), favorited: false };
 }
 
 async function myFavorites(userId) {
   const rs = await query(`
-    SELECT p.id, p.name, p.slug, p.description, p.province_code AS provinceCode, p.category_id AS categoryId, c.code AS category, c.name AS categoryName,
-           p.address, p.latitude, p.longitude, p.image_url AS thumbnailUrl, p.best_time AS bestTime, p.nearby_suggestions AS tips, p.tags, p.opening_hours AS openingHours,
+    WITH fav AS (
+      SELECT place_id, MAX(created_at) AS created_at FROM (
+        SELECT place_id, created_at FROM favorites_places WHERE user_id=@userId
+        UNION ALL
+        SELECT place_id, created_at FROM place_favorites WHERE user_id=@userId
+      ) x GROUP BY place_id
+    )
+    SELECT p.id, p.name, p.slug, p.description, p.short_description AS shortDescription,
+           p.province_code AS provinceCode, pr.name AS provinceName, p.category_id AS categoryId,
+           c.code AS category, c.name AS categoryName,
+           p.address, p.latitude, p.longitude, p.image_url AS thumbnailUrl, p.best_time AS bestTime,
+           p.nearby_suggestions AS tips, p.tags, p.opening_hours AS openingHours,
            p.suggested_duration_minutes AS suggestedDurationMinutes, p.min_budget AS minBudget, p.max_budget AS maxBudget,
-           p.average_rating AS averageRating, p.review_count AS reviewCount, p.is_active AS isActive, p.created_at AS createdAt, p.updated_at AS updatedAt
-    FROM place_favorites f
-    JOIN tourist_places p ON p.id = f.place_id
+           p.average_rating AS averageRating, p.review_count AS reviewCount, p.is_active AS isActive, p.created_at AS createdAt, p.updated_at AS updatedAt,
+           fav.created_at AS favoritedAt
+    FROM fav
+    JOIN tourist_places p ON p.id = fav.place_id
+    LEFT JOIN provinces pr ON pr.code = p.province_code
     LEFT JOIN tourist_categories c ON c.id = p.category_id
-    WHERE f.user_id=@userId AND COALESCE(p.is_active, 1) = 1
-    ORDER BY f.created_at DESC
+    WHERE COALESCE(p.is_active, 1) = 1
+    ORDER BY fav.created_at DESC
   `, { userId: Number(userId) });
   return rs.recordset.map(withCategory);
 }

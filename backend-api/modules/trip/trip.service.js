@@ -9,7 +9,7 @@ async function options() {
 async function generate(input, user = null, save = true) {
   const interests = inferInterests(input.interests);
   const categoryMap = { 'biển': 'beach', 'van hoa': 'culture', 'văn hóa': 'culture', 'check-in': 'checkin', 'mua sắm': 'shopping', 'vui chơi': 'entertainment', 'tâm linh': 'spiritual', 'tiết kiệm': '' };
-  let candidates = await tourism.recommended({ lat: input.lat, lng: input.lng, province: input.province || input.provinceCode || null, limit: 24, mood: interests.join(' '), time: input.timeAvailable });
+  let candidates = await tourism.recommended({ lat: input.lat, lng: input.lng, province: input.province || input.provinceCode || null, limit: 16, mood: interests.join(' '), time: input.timeAvailable });
   const wanted = interests.map((i) => categoryMap[i]).filter(Boolean);
   if (wanted.length) candidates = candidates.filter((p) => wanted.includes(p.category) || p.category === 'food').concat(candidates.filter((p) => !wanted.includes(p.category)));
   const balanced = [];
@@ -32,11 +32,23 @@ async function generate(input, user = null, save = true) {
     practicalNote: idx === 1 ? 'Ưu tiên ăn uống/nghỉ nhẹ, không nhồi thêm quá nhiều điểm.' : 'Sắp xếp theo cụm gần tuyến để giảm di chuyển vòng.',
     highlightReview: p.reviews?.[0]?.content || null,
   }));
-  const plan = { title: input.title || `Lịch trình ${input.timeAvailable || 'SmartBus'} cân bằng`, summary: 'Lịch trình cân bằng biển, check-in, văn hóa/ăn uống và nghỉ ngơi; tránh liệt kê quá nhiều bãi biển liên tục.', items };
+  const totalEstimatedTime = items.reduce((sum, item) => sum + Number(item.suggestedDurationMinutes || 90) + Number(item.walkingMinutes || 0), 0);
+  const plan = {
+    itineraryId: null,
+    title: input.title || `Lịch trình ${input.timeAvailable || 'SmartBus'} cân bằng`,
+    summary: 'Lịch trình cân bằng biển, check-in, văn hóa/ăn uống và nghỉ ngơi; tránh liệt kê quá nhiều bãi biển liên tục.',
+    totalEstimatedTime,
+    stops: items,
+    places: items,
+    nearestBusStop: items.find((item) => item.stopDown)?.stopDown || null,
+    routeSuggestion: items.find((item) => item.busRoute)?.busRoute || null,
+    note: 'Đã giới hạn ứng viên để phản hồi nhanh và không treo giao diện.',
+    items,
+  };
   if (save) {
     const saved = await repo.savePlan(user?.id || null, input, items);
     await activity.logActivity({ userId: user?.id || null, actionType: 'trip_plan_create', targetType: 'trip_plan', targetId: saved?.id, description: `Tạo lịch trình ${input.timeAvailable || 'SmartBus'}` });
-    return saved;
+    return { ...plan, ...saved, itineraryId: saved?.id || null, items };
   }
   return plan;
 }

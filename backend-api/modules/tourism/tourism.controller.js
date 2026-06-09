@@ -1,6 +1,5 @@
 const service = require('./tourism.service');
 const { ok, created, fail } = require('../../common/utils/response');
-const { paginateArray } = require('../../common/utils/pagination.util');
 
 function placeDto(p) {
   return {
@@ -19,9 +18,11 @@ function placeDto(p) {
 }
 async function categories(_req, res) { return ok(res, await service.categories()); }
 async function list(req, res) {
-  const places = (await service.search(req.query)).map(placeDto);
-  const { items, pagination } = paginateArray(places, req.query);
-  return ok(res, items, 'OK', pagination);
+  const places = (await service.search({ ...(req.query || {}), userId: req.user?.id || null })).map(placeDto);
+  const limit = Math.max(1, Math.min(80, Number(req.query.limit || req.query.pageSize || 36) || 36));
+  const page = Math.max(1, Number(req.query.page || 1) || 1);
+  const offset = Number.isFinite(Number(req.query.offset)) ? Math.max(0, Number(req.query.offset)) : (page - 1) * limit;
+  return ok(res, places, 'OK', { page, limit, offset, count: places.length, hasMore: places.length >= limit });
 }
 async function search(req, res) { return list(req, res); }
 async function recommended(req, res) { return ok(res, (await service.recommended(req.query)).map(placeDto)); }

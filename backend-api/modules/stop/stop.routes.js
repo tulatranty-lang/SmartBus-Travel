@@ -5,4 +5,6 @@ const validate = require('../../common/middleware/validate.middleware');
 const asyncHandler = require('../../common/utils/async-handler');
 router.get('/', asyncHandler(c.list));
 router.get('/nearest', v.nearest, validate, asyncHandler(c.nearest));
+router.get('/nearby', v.nearest, validate, asyncHandler(c.nearby));
+router.get('/near', v.nearest, validate, asyncHandler(c.nearby));
 module.exports = router;

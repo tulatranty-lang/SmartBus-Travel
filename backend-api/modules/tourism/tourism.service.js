@@ -24,8 +24,16 @@ async function detail(id, location) {
 }
 async function nearbyStops(id) { return repo.nearbyStops(id); }
 async function reviews(id) { return repo.reviews(id); }
-async function favorite(userId, id) { return repo.favoritePlace(userId, id); }
-async function unfavorite(userId, id) { return repo.unfavoritePlace(userId, id); }
+async function favorite(userId, id) {
+  const result = await repo.favoritePlace(userId, id);
+  await activity.logActivity({ userId, actionType: 'favorite_place_add', targetType: 'tourist_place', targetId: id, description: `Đã lưu địa điểm du lịch #${id}` });
+  return result;
+}
+async function unfavorite(userId, id) {
+  const result = await repo.unfavoritePlace(userId, id);
+  await activity.logActivity({ userId, actionType: 'favorite_place_remove', targetType: 'tourist_place', targetId: id, description: `Đã bỏ lưu địa điểm du lịch #${id}` });
+  return result;
+}
 async function favorites(userId) { return repo.myFavorites(userId); }
 async function savePlace(input) { return repo.upsertPlace(input); }
 async function deletePlace(id) { return repo.removePlace(id); }
