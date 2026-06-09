@@ -58,11 +58,13 @@ async function listCategories() {
   return rs.recordset;
 }
 
-async function findPlaces(filters = {}) {
+async function findPlacesPage(filters = {}) {
   const includeInactive = String(filters.includeInactive || '').toLowerCase() === 'true' || filters.includeInactive === true;
-  const q = String(filters.q || filters.keyword || '').trim();
-  const province = String(filters.provinceCode || filters.province || '').trim().toUpperCase();
+  const q = String(filters.q || filters.keyword || filters.search || '').trim();
+  const province = normalizeProvinceCode({ province: filters.provinceCode || filters.province }) || '';
   const category = String(filters.category || '').trim();
+  const routeId = String(filters.routeId || filters.routeCode || '').trim();
+  const userId = Number(filters.userId || 0) || null;
   const limit = Math.max(1, Math.min(80, Number(filters.limit || filters.pageSize || 36) || 36));
   const page = Math.max(1, Number(filters.page || 1) || 1);
   const offsetRaw = Number(filters.offset);
@@ -73,8 +75,8 @@ async function findPlaces(filters = {}) {
       p.id,
       p.name,
       p.slug,
-      COALESCE(p.description, p.short_description, N'') AS description,
-      p.short_description AS shortDescription,
+      COALESCE(p.short_description, LEFT(COALESCE(p.description, N''), 260)) AS shortDescription,
+      CASE WHEN LEN(COALESCE(p.description, N'')) > 420 THEN LEFT(p.description, 420) + N'...' ELSE COALESCE(p.description, p.short_description, N'') END AS description,
       p.province_code AS provinceCode,
       pr.name AS provinceName,
       p.category_id AS categoryId,
@@ -83,6 +85,7 @@ async function findPlaces(filters = {}) {
       p.address,
       p.latitude,
       p.longitude,
+      p.image_url AS imageUrl,
       p.image_url AS thumbnailUrl,
       p.opening_hours AS openingHours,
       p.suggested_duration_minutes AS suggestedDurationMinutes,
@@ -98,7 +101,8 @@ async function findPlaces(filters = {}) {
       p.review_count AS reviewCount,
       p.is_active AS isActive,
       p.created_at AS createdAt,
-      p.updated_at AS updatedAt
+      p.updated_at AS updatedAt,
+      COUNT(1) OVER() AS totalCount
     FROM tourist_places p
     LEFT JOIN tourist_categories c ON c.id = p.category_id
     LEFT JOIN provinces pr ON pr.code = p.province_code
@@ -106,6 +110,13 @@ async function findPlaces(filters = {}) {
       AND (@q IS NULL OR p.name LIKE '%' + @q + '%' OR p.description LIKE '%' + @q + '%' OR p.short_description LIKE '%' + @q + '%' OR p.address LIKE '%' + @q + '%' OR p.tags LIKE '%' + @q + '%' OR pr.name LIKE '%' + @q + '%')
       AND (@province IS NULL OR UPPER(p.province_code) = @province OR UPPER(pr.name) LIKE '%' + @province + '%')
       AND (@category IS NULL OR c.code = @category OR c.name = @category)
+      AND (@routeId IS NULL OR EXISTS (
+        SELECT 1
+        FROM place_nearby_stops ps
+        LEFT JOIN bus_routes br ON br.route_code = ps.route_code
+        WHERE ps.place_id = p.id
+          AND (ps.route_code = @routeId OR ps.route_display_code = @routeId OR br.route_number = @routeId)
+      ))
     ORDER BY p.average_rating DESC, p.review_count DESC, p.name
     OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
   `, {
@@ -113,23 +124,47 @@ async function findPlaces(filters = {}) {
     q: q || null,
     province: province || null,
     category: category || null,
+    routeId: routeId || null,
+    userId,
     offset,
     limit,
   });
 
-  let places = rs.recordset.map(withCategory).filter((p) => isValidLatLng(p.latitude, p.longitude, true));
-  if (filters.routeId || filters.routeCode) {
-    const rid = String(filters.routeId || filters.routeCode).trim();
-    const links = await query(`
-      SELECT ps.place_id AS placeId
-      FROM place_nearby_stops ps
-      LEFT JOIN bus_routes br ON br.route_code = ps.route_code
-      WHERE ps.route_code=@routeId OR ps.route_display_code=@routeId OR br.route_number=@routeId
-    `, { routeId: rid });
-    const ids = new Set(links.recordset.map((x) => Number(x.placeId)));
-    places = places.filter((p) => ids.has(Number(p.id)));
+  const items = rs.recordset.map(withCategory).filter((p) => isValidLatLng(p.latitude, p.longitude, true));
+  if (userId && items.length) {
+    const ids = items.map((p) => Number(p.id)).filter(Boolean);
+    const values = ids.map((id, index) => `(@pid${index})`).join(',');
+    const params = { userId, ...Object.fromEntries(ids.map((id, index) => [`pid${index}`, id])) };
+    try {
+      const favRs = await query(`
+        SELECT fp.place_id AS placeId
+        FROM favorite_places fp
+        JOIN (VALUES ${values}) AS wanted(place_id) ON wanted.place_id = fp.place_id
+        WHERE fp.user_id=@userId
+      `, params);
+      const saved = new Set(favRs.recordset.map((x) => Number(x.placeId)));
+      items.forEach((p) => { p.isSaved = saved.has(Number(p.id)); });
+    } catch (_err) {
+      try {
+        const favRs = await query(`
+          SELECT place_id AS placeId FROM favorites_places WHERE user_id=@userId AND place_id IN (${ids.join(',')})
+          UNION
+          SELECT place_id AS placeId FROM place_favorites WHERE user_id=@userId AND place_id IN (${ids.join(',')})
+        `, { userId });
+        const saved = new Set(favRs.recordset.map((x) => Number(x.placeId)));
+        items.forEach((p) => { p.isSaved = saved.has(Number(p.id)); });
+      } catch (_fallbackErr) {
+        items.forEach((p) => { p.isSaved = false; });
+      }
+    }
   }
-  return places;
+  const total = Number(rs.recordset[0]?.totalCount || 0);
+  return { items, total, page, limit, offset, totalPages: Math.max(1, Math.ceil(total / limit)) };
+}
+
+async function findPlaces(filters = {}) {
+  const page = await findPlacesPage(filters);
+  return page.items;
 }
 
 async function findById(id) {
@@ -140,6 +175,7 @@ async function findById(id) {
       p.slug,
       p.description,
       p.province_code AS provinceCode,
+      pr.name AS provinceName,
       p.category_id AS categoryId,
       c.code AS category,
       c.name AS categoryName,
@@ -161,6 +197,7 @@ async function findById(id) {
       p.updated_at AS updatedAt
     FROM tourist_places p
     LEFT JOIN tourist_categories c ON c.id = p.category_id
+    LEFT JOIN provinces pr ON pr.code = p.province_code
     WHERE p.id=@id AND COALESCE(p.is_active, 1) = 1
   `, { id: Number(id) });
   return rs.recordset[0] ? withCategory(rs.recordset[0]) : null;
@@ -287,55 +324,97 @@ async function reviews(placeId, includePending = false) {
 
 async function favoritePlace(userId, placeId) {
   const params = { userId: Number(userId), placeId: Number(placeId) };
-  await query(`
-    IF OBJECT_ID(N'dbo.favorites_places', N'U') IS NOT NULL
-    BEGIN
-      IF NOT EXISTS (SELECT 1 FROM favorites_places WHERE user_id=@userId AND place_id=@placeId)
-        INSERT INTO favorites_places(user_id, place_id) VALUES(@userId, @placeId)
-    END
-    IF OBJECT_ID(N'dbo.place_favorites', N'U') IS NOT NULL
-    BEGIN
-      IF NOT EXISTS (SELECT 1 FROM place_favorites WHERE user_id=@userId AND place_id=@placeId)
-        INSERT INTO place_favorites(user_id, place_id) VALUES(@userId, @placeId)
-    END
-  `, params);
-  return { placeId: Number(placeId), favorited: true };
+  const exists = await findById(placeId);
+  if (!exists) {
+    const err = new Error('Không tìm thấy địa điểm du lịch để lưu');
+    err.status = 404;
+    throw err;
+  }
+  try {
+    await query(`
+      IF NOT EXISTS (SELECT 1 FROM favorite_places WHERE user_id=@userId AND place_id=@placeId)
+        INSERT INTO favorite_places(user_id, place_id) VALUES(@userId, @placeId);
+
+      IF OBJECT_ID(N'dbo.favorites_places', N'U') IS NOT NULL
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM favorites_places WHERE user_id=@userId AND place_id=@placeId)
+          INSERT INTO favorites_places(user_id, place_id) VALUES(@userId, @placeId)
+      END
+      IF OBJECT_ID(N'dbo.place_favorites', N'U') IS NOT NULL
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM place_favorites WHERE user_id=@userId AND place_id=@placeId)
+          INSERT INTO place_favorites(user_id, place_id) VALUES(@userId, @placeId)
+      END
+    `, params);
+  } catch (_err) {
+    await query(`
+      IF OBJECT_ID(N'dbo.favorites_places', N'U') IS NOT NULL
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM favorites_places WHERE user_id=@userId AND place_id=@placeId)
+          INSERT INTO favorites_places(user_id, place_id) VALUES(@userId, @placeId)
+      END
+      IF OBJECT_ID(N'dbo.place_favorites', N'U') IS NOT NULL
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM place_favorites WHERE user_id=@userId AND place_id=@placeId)
+          INSERT INTO place_favorites(user_id, place_id) VALUES(@userId, @placeId)
+      END
+    `, params);
+  }
+  return { placeId: Number(placeId), isSaved: true, favorited: true };
 }
 
 async function unfavoritePlace(userId, placeId) {
   const params = { userId: Number(userId), placeId: Number(placeId) };
   await query(`
+    IF OBJECT_ID(N'dbo.favorite_places', N'U') IS NOT NULL
+      DELETE FROM favorite_places WHERE user_id=@userId AND place_id=@placeId;
     IF OBJECT_ID(N'dbo.favorites_places', N'U') IS NOT NULL
       DELETE FROM favorites_places WHERE user_id=@userId AND place_id=@placeId;
     IF OBJECT_ID(N'dbo.place_favorites', N'U') IS NOT NULL
       DELETE FROM place_favorites WHERE user_id=@userId AND place_id=@placeId;
   `, params);
-  return { placeId: Number(placeId), favorited: false };
+  return { placeId: Number(placeId), isSaved: false, favorited: false };
 }
 
 async function myFavorites(userId) {
   const rs = await query(`
+    CREATE TABLE #fav(place_id INT NOT NULL, created_at DATETIME2 NULL);
+
+    IF OBJECT_ID(N'dbo.favorite_places', N'U') IS NOT NULL
+      INSERT INTO #fav(place_id, created_at)
+      SELECT place_id, created_at FROM dbo.favorite_places WHERE user_id=@userId;
+
+    IF OBJECT_ID(N'dbo.favorites_places', N'U') IS NOT NULL
+      INSERT INTO #fav(place_id, created_at)
+      SELECT old.place_id, old.created_at
+      FROM dbo.favorites_places old
+      WHERE old.user_id=@userId
+        AND NOT EXISTS (SELECT 1 FROM #fav f WHERE f.place_id=old.place_id);
+
+    IF OBJECT_ID(N'dbo.place_favorites', N'U') IS NOT NULL
+      INSERT INTO #fav(place_id, created_at)
+      SELECT old.place_id, old.created_at
+      FROM dbo.place_favorites old
+      WHERE old.user_id=@userId
+        AND NOT EXISTS (SELECT 1 FROM #fav f WHERE f.place_id=old.place_id);
+
     WITH fav AS (
-      SELECT place_id, MAX(created_at) AS created_at FROM (
-        SELECT place_id, created_at FROM favorites_places WHERE user_id=@userId
-        UNION ALL
-        SELECT place_id, created_at FROM place_favorites WHERE user_id=@userId
-      ) x GROUP BY place_id
+      SELECT place_id, MAX(created_at) AS created_at FROM #fav GROUP BY place_id
     )
     SELECT p.id, p.name, p.slug, p.description, p.short_description AS shortDescription,
            p.province_code AS provinceCode, pr.name AS provinceName, p.category_id AS categoryId,
            c.code AS category, c.name AS categoryName,
-           p.address, p.latitude, p.longitude, p.image_url AS thumbnailUrl, p.best_time AS bestTime,
+           p.address, p.latitude, p.longitude, p.image_url AS imageUrl, p.image_url AS thumbnailUrl, p.best_time AS bestTime,
            p.nearby_suggestions AS tips, p.tags, p.opening_hours AS openingHours,
            p.suggested_duration_minutes AS suggestedDurationMinutes, p.min_budget AS minBudget, p.max_budget AS maxBudget,
            p.average_rating AS averageRating, p.review_count AS reviewCount, p.is_active AS isActive, p.created_at AS createdAt, p.updated_at AS updatedAt,
-           fav.created_at AS favoritedAt
+           fav.created_at AS favoritedAt, CAST(1 AS BIT) AS isSaved
     FROM fav
     JOIN tourist_places p ON p.id = fav.place_id
     LEFT JOIN provinces pr ON pr.code = p.province_code
     LEFT JOIN tourist_categories c ON c.id = p.category_id
     WHERE COALESCE(p.is_active, 1) = 1
-    ORDER BY fav.created_at DESC
+    ORDER BY fav.created_at DESC;
   `, { userId: Number(userId) });
   return rs.recordset.map(withCategory);
 }
@@ -417,6 +496,7 @@ async function removePlace(id) {
 module.exports = {
   listCategories,
   findPlaces,
+  findPlacesPage,
   findById,
   findByIdForAdmin,
   nearbyStops,

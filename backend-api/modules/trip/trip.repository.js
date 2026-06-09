@@ -1,33 +1,45 @@
-const { query } = require('../../config/db');
+const db = require('../../config/db');
+const { query } = db;
 
 async function savePlan(userId, input, items) {
-  const rs = await query(`
-    INSERT INTO trip_plans(user_id, title, time_available, interests, budget)
-    OUTPUT INSERTED.id, INSERTED.user_id AS userId, INSERTED.title, INSERTED.time_available AS timeAvailable,
-           INSERTED.interests, INSERTED.budget, INSERTED.created_at AS createdAt
-    VALUES(@userId, @title, @timeAvailable, @interests, @budget)
-  `, {
-    userId: userId || null,
-    title: input.title || 'Lịch trình SmartBus',
-    timeAvailable: input.timeAvailable || null,
-    interests: Array.isArray(input.interests) ? input.interests.join(',') : input.interests || null,
-    budget: input.budget || null,
-  });
-  const plan = rs.recordset[0];
-  for (const [idx, item] of items.entries()) {
-    await query(`
-      INSERT INTO trip_plan_items(trip_plan_id, sequence_no, place_id, route_code, stop_id, estimated_stay_minutes)
-      VALUES(@planId, @sequenceNo, @placeId, @routeId, @stopId, @estimatedStayMinutes)
-    `, {
-      planId: plan.id,
-      sequenceNo: idx + 1,
-      placeId: item.id || null,
-      routeId: item.recommendedRoute?.id || item.nearestStop?.routeId || null,
-      stopId: item.nearestStop?.stopId ? Number(item.nearestStop.stopId) : null,
-      estimatedStayMinutes: item.suggestedDurationMinutes || null,
-    });
+  const pool = await db.getPool();
+  const tx = new db.sql.Transaction(pool);
+  await tx.begin();
+  try {
+    const req = new db.sql.Request(tx);
+    req.input('userId', userId || null);
+    req.input('title', input.title || 'Lịch trình SmartBus');
+    req.input('timeAvailable', input.timeAvailable || input.duration || null);
+    req.input('interests', Array.isArray(input.interests) ? input.interests.join(',') : input.interests || null);
+    req.input('budget', input.budget || null);
+    const rs = await req.query(`
+      INSERT INTO trip_plans(user_id, title, time_available, interests, budget)
+      OUTPUT INSERTED.id, INSERTED.user_id AS userId, INSERTED.title, INSERTED.time_available AS timeAvailable,
+             INSERTED.interests, INSERTED.budget, INSERTED.created_at AS createdAt
+      VALUES(@userId, @title, @timeAvailable, @interests, @budget)
+    `);
+    const plan = rs.recordset[0];
+
+    for (const [idx, item] of items.entries()) {
+      const itemReq = new db.sql.Request(tx);
+      itemReq.input('planId', plan.id);
+      itemReq.input('sequenceNo', idx + 1);
+      itemReq.input('placeId', item.id || item.placeId || null);
+      itemReq.input('routeId', item.recommendedRoute?.id || item.busRoute?.id || item.nearestStop?.routeId || null);
+      itemReq.input('stopId', item.nearestStop?.stopId ? Number(item.nearestStop.stopId) : (item.stopDown?.id ? Number(item.stopDown.id) : null));
+      itemReq.input('estimatedStayMinutes', item.suggestedDurationMinutes || item.estimatedStayMinutes || null);
+      await itemReq.query(`
+        INSERT INTO trip_plan_items(trip_plan_id, sequence_no, place_id, route_code, stop_id, estimated_stay_minutes)
+        VALUES(@planId, @sequenceNo, @placeId, @routeId, @stopId, @estimatedStayMinutes)
+      `);
+    }
+
+    await tx.commit();
+    return { ...plan, items };
+  } catch (err) {
+    try { await tx.rollback(); } catch (_rollbackErr) {}
+    throw err;
   }
-  return { ...plan, items };
 }
 
 async function myPlans(userId) {

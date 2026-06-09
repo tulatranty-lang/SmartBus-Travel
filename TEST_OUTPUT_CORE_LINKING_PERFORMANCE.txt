@@ -1,0 +1,39 @@
+### Node syntax checks
+frontend/script.js exit=0
+docs/script.js exit=0
+backend-api/modules/stop/stop.repository.js exit=0
+backend-api/modules/stop/stop.service.js exit=0
+backend-api/modules/stop/stop.validator.js exit=0
+backend-api/modules/tourism/tourism.repository.js exit=0
+backend-api/modules/tourism/tourism.service.js exit=0
+backend-api/modules/tourism/tourism.controller.js exit=0
+backend-api/modules/trip/trip.repository.js exit=0
+backend-api/modules/trip/trip.service.js exit=0
+backend-api/modules/review/review.repository.js exit=0
+backend-api/modules/admin/admin.service.js exit=0
+backend-api/modules/stats/stats.repository.js exit=0
+### npm run check
+
+> smartbus-travel-connect-api@2.1.0 check
+> node --check server.js && node --check app.js && node --check config/env.js && node --check config/db.js && node --check common/utils/cache.util.js && node --check common/utils/gis-validator.util.js && node --check common/utils/pagination.util.js && node --check common/middleware/auth.middleware.js && node --check common/middleware/request-logger.middleware.js && node --check common/utils/sanitize.util.js && node --check common/middleware/role.middleware.js && node --check services/data.service.js && node --check modules/auth/auth.service.js && node --check modules/route/route.repository.js && node --check modules/stop/stop.repository.js && node --check modules/tourism/tourism.repository.js && node --check modules/map/map.routes.js && node --check modules/chat/chat.routes.js && node --check ../frontend/script.js && node --check ../frontend/js/performance.js && node --check ../frontend/js/api.js && node scripts/check.js && node --check scripts/import-smartbus-data.js
+
+✅ SmartBus static check passed: SQL Server config, frontend auth, no fake DB fallback.
+npm run check exit=0
+### package install/start status
+node_modules missing in sandbox; npm start/API live not executed here
+
+### npm ci
+Command: cd backend-api && npm ci --no-audit --no-fund --prefer-offline
+Result: installed 534 packages successfully in sandbox.
+
+### npm start + health checks
+Command: cd backend-api && npm start
+Result: backend started on http://localhost:5000/api/v1
+
+GET /api/v1/health/liveness:
+{"success":true,"status":"ok","service":"smartbus-backend","timestamp":"2026-06-09T17:33:51.640Z","uptime":2}
+
+GET /api/v1/health/readiness:
+{"success":false,"status":"not_ready","service":"smartbus-backend","database":{"connected":false,"name":"SmartBusDB","message":"Failed to connect to localhost:1433 - Could not connect (sequence)"}}
+
+Readiness failed only because sandbox does not have local SQL Server SmartBusDB running.

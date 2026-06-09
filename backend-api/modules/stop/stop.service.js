@@ -46,6 +46,13 @@ async function findNearby({ lat, lng, routeId, limit = 5, province, provinceCode
   const origin = normalizeOrigin({ lat, lng });
   if (!origin) return null;
   const max = normalizeLimit(limit, 5, 20);
+  try {
+    const rows = await repo.findNearby({ lat: origin.lat, lng: origin.lng, routeId, limit: max, province, provinceCode, q });
+    if (Array.isArray(rows) && rows.length) return rows.map((stop) => toNearbyDto(stop, origin));
+    if (Array.isArray(rows)) return [];
+  } catch (_err) {
+    // Fallback an toàn cho môi trường chưa chạy migration/index; không che lỗi validate lat/lng.
+  }
   const stops = await repo.findAll(routeId || null, { province, provinceCode, q });
   return stops
     .map((stop) => toNearbyDto(stop, origin))

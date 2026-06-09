@@ -2892,11 +2892,11 @@ const TravelUI = {
   _debouncedPlaces: debounce(function () { TravelUI.renderPlaces(); }, 450),
   _debouncedCommunity: debounce(function () { TravelUI.renderCommunity(); }, 450),
 
-  async _getGps(showToast = false, allowCache = true) {
+  async _getGps(showToast = false, allowCache = true, timeoutMs = 15000) {
     if (allowCache && this.gps) return this.gps;
     const gps = await SmartBusGeo.get({
       showToast,
-      timeoutMs: 15000,
+      timeoutMs,
       buttons: [$("#place-near-me"), $("#nearby-gps-btn")],
       allowCache,
     });
@@ -2967,8 +2967,9 @@ const TravelUI = {
     let source = places ? "Bộ nhớ tạm" : "SQL Server";
     try {
       if (!places) {
-        const data = await API.get(`/tourism/places?${cacheKey}`, { timeoutMs: 10000, skipAuth: true });
+        const data = await API.get(`/tourism/places?${cacheKey}`, { timeoutMs: 10000 });
         places = Array.isArray(data) ? data : data.places || data.items || [];
+        places.forEach((p) => { if (p.isSaved || p.favorited) this._placeFavoriteIds.add(Number(p.id)); });
         this._placesCache.set(cacheKey, places);
       }
     } catch (err) {
@@ -3011,7 +3012,7 @@ const TravelUI = {
       <div class="travel-meta"><span>⭐ ${p.averageRating || 0}</span><span>${p.reviewCount || 0} review</span>${distanceText ? `<span>${this._esc(distanceText)}</span>` : ""}</div>
       <div class="travel-meta">${route ? `<span>Bus ${this._esc(route.id || route.routeCode || route)}</span>` : ""}${stop ? `<span>Bến/hub: ${this._esc(stop.name)}</span>` : ""}${walkText ? `<span>Đi bộ/chuyển tiếp ${this._esc(walkText)} phút</span>` : ""}</div>
       ${(p.foodSuggestions || p.bestTime) ? `<p class="travel-small">${this._esc(p.bestTime || "")} ${p.foodSuggestions ? ` · Ẩm thực: ${this._esc(p.foodSuggestions)}` : ""}</p>` : ""}
-      <div class="travel-actions"><button class="btn-ghost" data-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-place-reviews="${this._esc(p.name)}">Xem review</button><button class="btn-ghost" data-place-map="${this._esc(p.id)}">Hiện trên bản đồ</button><button class="btn-ghost" data-place-fav="${this._esc(p.id)}">${this._placeFavoriteIds.has(Number(p.id)) ? '✅ Đã lưu' : '🔖 Lưu địa điểm'}</button></div>
+      <div class="travel-actions"><button class="btn-ghost" data-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-place-reviews="${this._esc(p.name)}">Xem review</button><button class="btn-ghost" data-place-map="${this._esc(p.id)}">Hiện trên bản đồ</button><button class="btn-ghost" data-place-fav="${this._esc(p.id)}">${(this._placeFavoriteIds.has(Number(p.id)) || p.isSaved || p.favorited) ? '✅ Đã lưu' : '🔖 Lưu địa điểm'}</button></div>
     </article>`;
   },
 
@@ -3027,14 +3028,17 @@ const TravelUI = {
     if (!box) return;
     box.innerHTML = this._loading("Đang tạo lịch trình... SmartBus đang lọc địa điểm/tuyến liên quan, vui lòng chờ vài giây.");
     if (submitBtn) { submitBtn.disabled = true; submitBtn.dataset.originalText = submitBtn.textContent; submitBtn.textContent = "Đang tạo..."; }
-    const gps = this.gps || await this._getGps(false);
+    const gps = this.gps || await this._getGps(false, true, 3000);
     const body = {
+      duration: $("#trip-time")?.value || "1 buổi",
       timeAvailable: $("#trip-time")?.value || "1 buổi",
       interests: ($("#trip-interests")?.value || "").split(",").map((x) => x.trim()).filter(Boolean),
       budget: $("#trip-budget")?.value || "low",
-      province: $("#place-province")?.value || "",
+      province: $("#place-province")?.value || CONFIG.DEFAULT_PROVINCE,
+      startLocation: gps ? { latitude: gps.lat, longitude: gps.lng } : null,
       lat: gps?.lat ?? null,
       lng: gps?.lng ?? null,
+      useBus: true,
     };
     try {
       const plan = await API.post("/trip-plans/generate", body, { timeoutMs: 18000 });
@@ -3052,7 +3056,7 @@ const TravelUI = {
     const box = $("#community-list");
     if (!box) return;
     this._bindCommunity();
-    box.innerHTML = this._loading("Đang tải review cộng đồng chờ duyệt...");
+    box.innerHTML = this._loading("Đang tải review cộng đồng đã duyệt...");
     const q = encodeURIComponent($("#community-search")?.value || "");
     const province = encodeURIComponent($("#community-province")?.value || "");
     const category = encodeURIComponent($("#community-category")?.value || "");
@@ -3257,7 +3261,7 @@ const TravelUI = {
   async _renderAdminReviews() {
     const box = this._adminContent();
     if (!box) return;
-    box.innerHTML = this._loading("Đang tải review cộng đồng chờ duyệt...");
+    box.innerHTML = this._loading("Đang tải review cộng đồng đã duyệt...");
     const q = encodeURIComponent($("#admin-review-q")?.value || "");
     const province = encodeURIComponent($("#admin-review-province")?.value || "");
     const category = encodeURIComponent($("#admin-review-category")?.value || "");
