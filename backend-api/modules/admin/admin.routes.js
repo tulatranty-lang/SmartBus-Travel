@@ -13,14 +13,20 @@ router.use(requireAuth, requireRole('admin'));
 router.get('/reviews', asyncHandler(c.reviews));
 router.get('/reviews/pending', asyncHandler(c.pendingReviews));
 router.put('/reviews/:id/approve', v.id, validate, asyncHandler(c.approveReview));
+router.post('/reviews/:id/approve', v.id, validate, asyncHandler(c.approveReview));
 router.put('/reviews/:id/hide', v.id, validate, asyncHandler(c.hideReview));
+router.post('/reviews/:id/reject', v.id, validate, asyncHandler(c.hideReview));
 router.delete('/reviews/:id', v.id, validate, asyncHandler(c.deleteReview));
 
 // Bài cộng đồng trong bảng community_posts.
 router.get('/community/pending', asyncHandler(c.pendingCommunity));
+router.get('/community-posts/pending', asyncHandler(c.pendingCommunity));
 router.put('/community/:id/approve', v.id, validate, asyncHandler(c.approveCommunity));
+router.post('/community-posts/:id/approve', v.id, validate, asyncHandler(c.approveCommunity));
 router.put('/community/:id/hide', v.id, validate, asyncHandler(c.hideCommunity));
+router.post('/community-posts/:id/reject', v.id, validate, asyncHandler(c.hideCommunity));
 router.delete('/community/:id', v.id, validate, asyncHandler(c.deleteCommunity));
+router.get('/stats/recent-activities', asyncHandler(c.recentActivities));
 
 // Địa điểm du lịch.
 router.get('/places', asyncHandler(c.places));

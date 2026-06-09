@@ -47,6 +47,10 @@ async function places(req, res) {
   return ok(res, await service.places(req.query || {}));
 }
 
+async function recentActivities(req, res) {
+  return ok(res, await service.recentActivities(req.query || {}));
+}
+
 async function createPlace(req, res) {
   return created(res, await service.createPlace(req.body), 'Đã tạo địa điểm');
 }
@@ -74,4 +78,5 @@ module.exports = {
   createPlace,
   updatePlace,
   deletePlace,
+  recentActivities,
 };

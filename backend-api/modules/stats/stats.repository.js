@@ -3,6 +3,7 @@ const routeRepo = require('../route/route.repository');
 const stopRepo = require('../stop/stop.repository');
 const tourismService = require('../tourism/tourism.service');
 const busRepo = require('../bus/bus.repository');
+const activity = require('../activity/activity.repository');
 
 async function scalar(sqlText, alias = 'total') {
   try {
@@ -47,4 +48,5 @@ async function overview() {
   };
 }
 
-module.exports = { overview };
+async function recentActivities(filters = {}) { return activity.recentActivities({ userId: filters.userId || null, limit: filters.limit || 20 }); }
+module.exports = { overview, recentActivities };

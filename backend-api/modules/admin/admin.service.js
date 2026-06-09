@@ -1,15 +1,23 @@
 const { reviewRepo, communityRepo, tourismRepo } = require('./admin.repository');
+const activity = require('../activity/activity.repository');
 
 async function reviews(filters = {}) {
+  // Trong UI gọi là 'Duyệt review địa điểm', nhưng dữ liệu cũ đang nằm ở community_reviews.
+  // Giữ endpoint cũ để không làm hỏng dữ liệu người dùng đã đăng; nếu cần review bảng reviews, dùng ?source=place.
+  if (String(filters.source || '').toLowerCase() === 'place') return reviewRepo.adminListPlaceReviews(filters);
   return reviewRepo.adminListCommunity(filters);
 }
 
 async function approveReview(id, user) {
-  return reviewRepo.adminSetCommunityStatus(id, 'approved', user);
+  const item = await reviewRepo.adminSetCommunityStatus(id, 'approved', user);
+  await activity.logActivity({ userId: user?.id || null, actionType: 'admin_moderate_review', targetType: 'community_review', targetId: id, description: `Admin duyệt review cộng đồng #${id}` });
+  return item;
 }
 
 async function hideReview(id, user) {
-  return reviewRepo.adminSetCommunityStatus(id, 'hidden', user);
+  const item = await reviewRepo.adminSetCommunityStatus(id, 'hidden', user);
+  await activity.logActivity({ userId: user?.id || null, actionType: 'admin_moderate_review', targetType: 'community_review', targetId: id, description: `Admin ẩn review cộng đồng #${id}` });
+  return item;
 }
 
 async function deleteReview(id, user) {
@@ -21,11 +29,15 @@ async function pendingCommunity() {
 }
 
 async function approveCommunity(id, user) {
-  return communityRepo.setStatus(id, 'approved', user);
+  const item = await communityRepo.setStatus(id, 'approved', user);
+  await activity.logActivity({ userId: user?.id || null, actionType: 'admin_moderate_post', targetType: 'community_post', targetId: id, description: `Admin duyệt bài cộng đồng #${id}` });
+  return item;
 }
 
 async function hideCommunity(id, user) {
-  return communityRepo.setStatus(id, 'hidden', user);
+  const item = await communityRepo.setStatus(id, 'hidden', user);
+  await activity.logActivity({ userId: user?.id || null, actionType: 'admin_moderate_post', targetType: 'community_post', targetId: id, description: `Admin ẩn bài cộng đồng #${id}` });
+  return item;
 }
 
 async function deleteCommunity(id, user) {
@@ -48,6 +60,10 @@ async function deletePlace(id) {
   return tourismRepo.removePlace(id);
 }
 
+async function recentActivities(filters = {}) {
+  return activity.recentActivities({ limit: filters.limit || 30 });
+}
+
 module.exports = {
   reviews,
   approveReview,
@@ -61,4 +77,5 @@ module.exports = {
   createPlace,
   updatePlace,
   deletePlace,
+  recentActivities,
 };

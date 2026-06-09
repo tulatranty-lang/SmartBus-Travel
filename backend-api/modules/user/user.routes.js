@@ -6,4 +6,6 @@ const { requireAuth } = require('../../common/middleware/auth.middleware');
 const asyncHandler = require('../../common/utils/async-handler');
 router.get('/me', requireAuth, asyncHandler(c.me));
 router.put('/me', requireAuth, v.updateMe, validate, asyncHandler(c.updateMe));
+router.get('/me/favorite-places', requireAuth, asyncHandler(c.favoritePlaces));
+router.get('/me/activity-history', requireAuth, asyncHandler(c.activityHistory));
 module.exports = router;

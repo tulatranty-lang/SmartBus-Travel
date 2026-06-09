@@ -15,6 +15,8 @@ router.get('/places/:id/nearby-stops', v.id, validate, asyncHandler(c.nearbyStop
 router.get('/places/:id/reviews', v.id, validate, asyncHandler(c.reviews));
 router.post('/places/:id/favorite', requireAuth, v.id, validate, asyncHandler(c.favorite));
 router.delete('/places/:id/favorite', requireAuth, v.id, validate, asyncHandler(c.unfavorite));
+router.post('/places/:id/save', requireAuth, v.id, validate, asyncHandler(c.favorite));
+router.delete('/places/:id/save', requireAuth, v.id, validate, asyncHandler(c.unfavorite));
 router.post('/favorites/places/:id', requireAuth, v.id, validate, asyncHandler(c.favorite));
 router.delete('/favorites/places/:id', requireAuth, v.id, validate, asyncHandler(c.unfavorite));
 router.get('/favorites/places', requireAuth, asyncHandler(c.favorites));

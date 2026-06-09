@@ -295,5 +295,51 @@ async function adminRemoveCommunity(id, admin) {
   return adminSetCommunityStatus(id, 'hidden', admin);
 }
 
-module.exports = { listByPlace, create, update, remove, vote, report, pending, setStatus, listCommunity, findCommunityById, createCommunity, adminListCommunity, adminSetCommunityStatus, adminRemoveCommunity };
+
+async function adminListPlaceReviews(filters = {}) {
+  const allowedStatuses = ['pending', 'approved', 'hidden', 'all'];
+  const status = allowedStatuses.includes(String(filters.status || '').toLowerCase()) ? String(filters.status || '').toLowerCase() : 'pending';
+  const sort = ['newest', 'oldest', 'rating_desc'].includes(String(filters.sort || '').toLowerCase()) ? String(filters.sort || '').toLowerCase() : 'newest';
+  const rs = await query(`
+    SELECT
+      r.id,
+      r.place_id AS placeId,
+      r.user_id AS userId,
+      COALESCE(u.full_name, u.email, N'Người dùng SmartBus') AS authorName,
+      COALESCE(p.name, N'Địa điểm chưa rõ') AS placeName,
+      COALESCE(pr.name, p.province_code, N'') AS province,
+      COALESCE(c.name, c.code, N'Review địa điểm') AS category,
+      r.rating,
+      COALESCE(r.content, r.comment) AS content,
+      LEFT(COALESCE(r.content, r.comment, N''), 130) AS shortCaption,
+      CONCAT(N'Review địa điểm #', r.id) AS title,
+      r.tags,
+      r.status,
+      CAST(0 AS BIT) AS isSeed,
+      r.created_at AS createdAt,
+      r.updated_at AS updatedAt
+    FROM reviews r
+    LEFT JOIN users u ON u.id = r.user_id
+    LEFT JOIN tourist_places p ON p.id = r.place_id
+    LEFT JOIN provinces pr ON pr.code = p.province_code
+    LEFT JOIN tourist_categories c ON c.id = p.category_id
+    WHERE (@status = 'all' OR r.status = @status)
+      AND (@q IS NULL OR COALESCE(r.content, r.comment, N'') LIKE '%' + @q + '%' OR p.name LIKE '%' + @q + '%' OR u.full_name LIKE '%' + @q + '%')
+      AND (@province IS NULL OR pr.name LIKE '%' + @province + '%' OR p.province_code LIKE '%' + @province + '%')
+      AND (@category IS NULL OR c.name LIKE '%' + @category + '%' OR c.code = @category)
+    ORDER BY
+      CASE WHEN @sort = 'oldest' THEN r.created_at END ASC,
+      CASE WHEN @sort = 'rating_desc' THEN r.rating END DESC,
+      r.created_at DESC
+  `, {
+    status,
+    sort,
+    q: filters.q || filters.search || null,
+    province: filters.province || null,
+    category: filters.category || null,
+  });
+  return rs.recordset.map(mapCommunityReview);
+}
+
+module.exports = { listByPlace, create, update, remove, vote, report, pending, setStatus, listCommunity, findCommunityById, createCommunity, adminListCommunity, adminListPlaceReviews, adminSetCommunityStatus, adminRemoveCommunity };
 

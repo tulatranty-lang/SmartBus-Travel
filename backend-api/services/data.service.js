@@ -1,5 +1,6 @@
 const { query } = require('../config/db');
 const { BUS_LIMIT_PER_PROVINCE } = require('../common/constants/app.constants');
+const activity = require('../modules/activity/activity.repository');
 
 function routeCode(value) {
   return String(value || '').trim();
@@ -272,6 +273,7 @@ async function addChatLog(log) {
       relatedRouteId: log.relatedRouteId || null,
     });
   } catch (_err) {}
+  await activity.logActivity({ userId: log.userId || null, actionType: 'chat_ask', targetType: 'chatbot', targetId: rs.recordset[0]?.id, description: String(log.message || '').slice(0, 300), metadata: { intent: log.intent || null, relatedPlaceId: log.relatedPlaceId || null, relatedRouteId: log.relatedRouteId || null } });
   return rs.recordset[0];
 }
 

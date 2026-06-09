@@ -1,5 +1,6 @@
 const data = require('../../services/data.service');
 const { query } = require('../../config/db');
+const activity = require('../activity/activity.repository');
 
 async function findByEmail(email) {
   return data.findUserByEmail(email);
@@ -43,4 +44,9 @@ async function updateProfile(id, patch) {
   return rs.recordset[0] || null;
 }
 
-module.exports = { findByEmail, createUser, findById, updateProfile };
+
+async function activityHistory(userId, filters = {}) {
+  return activity.recentActivities({ userId, limit: filters.limit || 50 });
+}
+
+module.exports = { findByEmail, createUser, findById, updateProfile, activityHistory };

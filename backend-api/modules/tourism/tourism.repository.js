@@ -60,57 +60,63 @@ async function listCategories() {
 
 async function findPlaces(filters = {}) {
   const includeInactive = String(filters.includeInactive || '').toLowerCase() === 'true' || filters.includeInactive === true;
-  const rows = await cache.remember(`tourism:places:${includeInactive ? 'all' : 'active'}`, 60_000, async () => {
-    const rs = await query(`
-      SELECT
-        p.id,
-        p.name,
-        p.slug,
-        COALESCE(p.description, p.short_description, N'') AS description,
-        p.short_description AS shortDescription,
-        p.province_code AS provinceCode,
-        pr.name AS provinceName,
-        p.category_id AS categoryId,
-        c.code AS category,
-        c.name AS categoryName,
-        p.address,
-        p.latitude,
-        p.longitude,
-        p.image_url AS thumbnailUrl,
-        p.opening_hours AS openingHours,
-        p.suggested_duration_minutes AS suggestedDurationMinutes,
-        p.min_budget AS minBudget,
-        p.max_budget AS maxBudget,
-        p.best_time AS bestTime,
-        p.weather_note AS weatherNote,
-        p.food_suggestions AS foodSuggestions,
-        p.nearby_suggestions AS nearbySuggestions,
-        p.nearby_suggestions AS tips,
-        p.tags,
-        p.average_rating AS averageRating,
-        p.review_count AS reviewCount,
-        p.is_active AS isActive,
-        p.created_at AS createdAt,
-        p.updated_at AS updatedAt
-      FROM tourist_places p
-      LEFT JOIN tourist_categories c ON c.id = p.category_id
-      LEFT JOIN provinces pr ON pr.code = p.province_code
-      WHERE (@includeInactive = 1 OR COALESCE(p.is_active, 1) = 1)
-      ORDER BY p.average_rating DESC, p.review_count DESC, p.name
-    `, { includeInactive: includeInactive ? 1 : 0 });
-    return rs.recordset.map(withCategory).filter((p) => isValidLatLng(p.latitude, p.longitude, true));
+  const q = String(filters.q || filters.keyword || '').trim();
+  const province = String(filters.provinceCode || filters.province || '').trim().toUpperCase();
+  const category = String(filters.category || '').trim();
+  const limit = Math.max(1, Math.min(80, Number(filters.limit || filters.pageSize || 36) || 36));
+  const page = Math.max(1, Number(filters.page || 1) || 1);
+  const offset = (page - 1) * limit;
+
+  const rs = await query(`
+    SELECT
+      p.id,
+      p.name,
+      p.slug,
+      COALESCE(p.description, p.short_description, N'') AS description,
+      p.short_description AS shortDescription,
+      p.province_code AS provinceCode,
+      pr.name AS provinceName,
+      p.category_id AS categoryId,
+      c.code AS category,
+      c.name AS categoryName,
+      p.address,
+      p.latitude,
+      p.longitude,
+      p.image_url AS thumbnailUrl,
+      p.opening_hours AS openingHours,
+      p.suggested_duration_minutes AS suggestedDurationMinutes,
+      p.min_budget AS minBudget,
+      p.max_budget AS maxBudget,
+      p.best_time AS bestTime,
+      p.weather_note AS weatherNote,
+      p.food_suggestions AS foodSuggestions,
+      p.nearby_suggestions AS nearbySuggestions,
+      p.nearby_suggestions AS tips,
+      p.tags,
+      p.average_rating AS averageRating,
+      p.review_count AS reviewCount,
+      p.is_active AS isActive,
+      p.created_at AS createdAt,
+      p.updated_at AS updatedAt
+    FROM tourist_places p
+    LEFT JOIN tourist_categories c ON c.id = p.category_id
+    LEFT JOIN provinces pr ON pr.code = p.province_code
+    WHERE (@includeInactive = 1 OR COALESCE(p.is_active, 1) = 1)
+      AND (@q IS NULL OR p.name LIKE '%' + @q + '%' OR p.description LIKE '%' + @q + '%' OR p.short_description LIKE '%' + @q + '%' OR p.address LIKE '%' + @q + '%' OR p.tags LIKE '%' + @q + '%' OR pr.name LIKE '%' + @q + '%')
+      AND (@province IS NULL OR UPPER(p.province_code) = @province OR UPPER(pr.name) LIKE '%' + @province + '%')
+      AND (@category IS NULL OR c.code = @category OR c.name = @category)
+    ORDER BY p.average_rating DESC, p.review_count DESC, p.name
+    OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+  `, {
+    includeInactive: includeInactive ? 1 : 0,
+    q: q || null,
+    province: province || null,
+    category: category || null,
+    offset,
+    limit,
   });
 
-  let places = rows;
-  if (filters.q || filters.keyword) {
-    const q = String(filters.q || filters.keyword).toLowerCase();
-    places = places.filter((p) => [p.name, p.description, p.shortDescription, p.address, p.categoryName, p.provinceCode, p.provinceName].join(' ').toLowerCase().includes(q));
-  }
-  if (filters.province || filters.provinceCode) {
-    const province = String(filters.provinceCode || filters.province).toUpperCase();
-    places = places.filter((p) => String(p.provinceCode || '').toUpperCase() === province || String(p.provinceName || '').toUpperCase().includes(province));
-  }
-  if (filters.category) places = places.filter((p) => String(p.category) === String(filters.category));
+  let places = rs.recordset.map(withCategory).filter((p) => isValidLatLng(p.latitude, p.longitude, true));
   if (filters.routeId || filters.routeCode) {
     const rid = String(filters.routeId || filters.routeCode).trim();
     const links = await query(`

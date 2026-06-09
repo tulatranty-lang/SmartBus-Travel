@@ -123,8 +123,10 @@ const API = {
   BASE: window.SMARTBUS_API_BASE || "https://smartbus-backend-xr34.onrender.com/api/v1",
 
   async request(path, options = {}) {
-    const { skipAuth = false, skipRefresh = false, ...fetchOptions } = options;
+    const { skipAuth = false, skipRefresh = false, timeoutMs = 15000, ...fetchOptions } = options;
     const headers = new Headers(fetchOptions.headers || {});
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
     if (fetchOptions.body && !(fetchOptions.body instanceof FormData) && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
@@ -137,11 +139,14 @@ const API = {
 
     let res;
     try {
-      res = await fetch(`${this.BASE}${path}`, { ...fetchOptions, headers });
+      res = await fetch(`${this.BASE}${path}`, { ...fetchOptions, headers, signal: controller?.signal || fetchOptions.signal });
     } catch (_err) {
       const err = new Error("Không kết nối được backend. Kiểm tra backend Render/Azure SQL đã sẵn sàng chưa.");
-      err.code = "NETWORK";
+      err.code = _err?.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK';
+      err.message = _err?.name === 'AbortError' ? 'Backend phản hồi quá lâu. Vui lòng thử lại hoặc thu hẹp bộ lọc.' : err.message;
       throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
 
     const payload = await res.json().catch(() => ({}));
@@ -1796,27 +1801,24 @@ const AnalyticsUI = {
       .join("");
   },
 
-  _renderActivityLog() {
+  async _renderActivityLog() {
     const el = $("#activity-log");
     if (!el) return;
+    try {
+      const rows = await API.get('/stats/recent-activities?limit=8', { skipAuth: true, timeoutMs: 7000 });
+      if (Array.isArray(rows) && rows.length) {
+        el.innerHTML = rows.map((a) => `<div class="tl-item"><div class="tl-dot" style="background:var(--teal)"></div><div class="tl-body"><div class="tl-title">${this._esc(a.description || a.label || a.actionType || 'Hoạt động')}</div><div class="tl-time">${this._esc(a.createdAt ? new Date(a.createdAt).toLocaleString('vi-VN') : '')}</div></div></div>`).join('');
+        return;
+      }
+    } catch (_err) {}
     const items = State.activityLog.slice(0, 8);
     if (!items.length) {
-      el.innerHTML = `<div class="txt3 small">Đang theo dõi hoạt động...</div>`;
+      el.innerHTML = `<div class="txt3 small">Chưa có hoạt động gần đây.</div>`;
       return;
     }
-    el.innerHTML = items
-      .map(
-        (a) =>
-          `<div class="tl-item">
-        <div class="tl-dot" style="background:${a.color}"></div>
-        <div class="tl-body">
-          <div class="tl-title">${a.text}</div>
-          <div class="tl-time">${a.time}</div>
-        </div>
-      </div>`,
-      )
-      .join("");
+    el.innerHTML = items.map((a) => `<div class="tl-item"><div class="tl-dot" style="background:${a.color}"></div><div class="tl-body"><div class="tl-title">${this._esc(a.text)}</div><div class="tl-time">${this._esc(a.time)}</div></div></div>`).join("");
   },
+
 
   _renderRouteTable() {
     const el = $("#analytics-route-table");
@@ -2794,6 +2796,8 @@ const SearchFilter = {
 const TravelUI = {
   gps: null,
   _placesLoaded: false,
+  _placesCache: new Map(),
+  _placeFavoriteIds: new Set(),
 
   init() {
     this._populateProvinceFilter();
@@ -2910,27 +2914,33 @@ const TravelUI = {
     this._bindTourism();
     state && (state.innerHTML = "Đang tải địa điểm từ SQL Server qua Backend API...");
     list.innerHTML = this._loading("Đang tải địa điểm du lịch...");
-    const qRaw = ($("#place-search")?.value || "").trim().toLowerCase();
+    const qRaw = ($("#place-search")?.value || "").trim();
     const provinceRaw = $("#place-province")?.value || "";
     const catRaw = $("#place-category")?.value || "";
     const routeRaw = $("#place-route")?.value || "";
     const gps = this.gps;
-    const qs = [`q=${encodeURIComponent(qRaw)}`, `province=${encodeURIComponent(provinceRaw)}`, `category=${encodeURIComponent(catRaw)}`, `routeId=${encodeURIComponent(routeRaw)}`];
-    if (gps) qs.push(`lat=${gps.lat}`, `lng=${gps.lng}`);
-    let places = [];
-    let source = "SQL Server";
+    const params = new URLSearchParams({ q: qRaw, province: provinceRaw, category: catRaw, routeId: routeRaw, limit: "36" });
+    if (gps) { params.set("lat", gps.lat); params.set("lng", gps.lng); }
+    const cacheKey = params.toString();
+    let places = this._placesCache.get(cacheKey);
+    let source = places ? "Bộ nhớ tạm" : "SQL Server";
     try {
-      const data = await API.get(`/tourism/places?${qs.join("&")}`);
-      places = Array.isArray(data) ? data : data.places || [];
-    } catch (_err) {
+      if (!places) {
+        const data = await API.get(`/tourism/places?${cacheKey}`, { timeoutMs: 10000, skipAuth: true });
+        places = Array.isArray(data) ? data : data.places || data.items || [];
+        this._placesCache.set(cacheKey, places);
+      }
+    } catch (err) {
       places = [];
-      source = "SQL Server/API lỗi";
+      source = err.code === "TIMEOUT" ? "API phản hồi quá lâu" : "SQL Server/API lỗi";
     }
-    state && (state.innerHTML = `${source} · ${places.length} địa điểm phù hợp`);
-    if (!places.length) { list.innerHTML = this._empty("Chưa có địa điểm phù hợp bộ lọc."); return; }
+    state && (state.innerHTML = `${source} · ${places.length} địa điểm phù hợp${places.length >= 36 ? " · đang giới hạn 36 kết quả đầu để tải nhanh" : ""}`);
+    if (!places.length) { list.innerHTML = this._empty("Chưa có địa điểm phù hợp bộ lọc hoặc backend đang phản hồi chậm."); return; }
     list.innerHTML = places.map((p) => this._placeCard(p)).join("");
-    $$("[data-place-chat]").forEach((btn) => btn.addEventListener("click", () => SmartBusAssistant.sendQuestion?.(`Tôi muốn đến ${btn.dataset.placeChat}`)));
-    $$("[data-place-reviews]").forEach((btn) => btn.addEventListener("click", () => { $("#community-search") && ($("#community-search").value = btn.dataset.placeReviews); Nav.go("reviews"); }));
+    $$('[data-place-chat]').forEach((btn) => btn.addEventListener('click', () => SmartBusAssistant.sendQuestion?.(`Tôi muốn đến ${btn.dataset.placeChat}`)));
+    $$('[data-place-reviews]').forEach((btn) => btn.addEventListener('click', () => { $("#community-search") && ($("#community-search").value = btn.dataset.placeReviews); Nav.go("reviews"); }));
+    $$('[data-place-map]').forEach((btn) => btn.addEventListener('click', () => this.showPlaceOnMap(btn.dataset.placeMap)));
+    $$('[data-place-fav]').forEach((btn) => btn.addEventListener('click', () => this.toggleFavoritePlace(btn.dataset.placeFav, true, btn)));
   },
 
   _filterLocalPlaces({ qRaw = "", provinceRaw = "", catRaw = "", routeRaw = "" } = {}) {
@@ -2960,7 +2970,7 @@ const TravelUI = {
       <div class="travel-meta"><span>⭐ ${p.averageRating || 0}</span><span>${p.reviewCount || 0} review</span>${distanceText ? `<span>${this._esc(distanceText)}</span>` : ""}</div>
       <div class="travel-meta">${route ? `<span>Bus ${this._esc(route.id || route.routeCode || route)}</span>` : ""}${stop ? `<span>Bến/hub: ${this._esc(stop.name)}</span>` : ""}${walkText ? `<span>Đi bộ/chuyển tiếp ${this._esc(walkText)} phút</span>` : ""}</div>
       ${(p.foodSuggestions || p.bestTime) ? `<p class="travel-small">${this._esc(p.bestTime || "")} ${p.foodSuggestions ? ` · Ẩm thực: ${this._esc(p.foodSuggestions)}` : ""}</p>` : ""}
-      <div class="travel-actions"><button class="btn-ghost" data-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-place-reviews="${this._esc(p.name)}">Xem review</button><button class="btn-ghost" data-place-map="${this._esc(p.id)}">Hiện trên bản đồ</button><button class="btn-ghost" data-place-fav="${this._esc(p.id)}">🔖 Lưu địa điểm</button></div>
+      <div class="travel-actions"><button class="btn-ghost" data-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-place-reviews="${this._esc(p.name)}">Xem review</button><button class="btn-ghost" data-place-map="${this._esc(p.id)}">Hiện trên bản đồ</button><button class="btn-ghost" data-place-fav="${this._esc(p.id)}">${this._placeFavoriteIds.has(Number(p.id)) ? '✅ Đã lưu' : '🔖 Lưu địa điểm'}</button></div>
     </article>`;
   },
 
@@ -2972,30 +2982,36 @@ const TravelUI = {
 
   async generateTrip() {
     const box = $("#trip-result");
+    const submitBtn = $("#trip-form button[type='submit']");
     if (!box) return;
-    box.innerHTML = this._loading("Đang tạo lịch trình...");
+    box.innerHTML = this._loading("Đang tạo lịch trình... SmartBus đang lọc địa điểm/tuyến liên quan, vui lòng chờ vài giây.");
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.dataset.originalText = submitBtn.textContent; submitBtn.textContent = "Đang tạo..."; }
     const gps = this.gps || await this._getGps(false);
     const body = {
       timeAvailable: $("#trip-time")?.value || "1 buổi",
       interests: ($("#trip-interests")?.value || "").split(",").map((x) => x.trim()).filter(Boolean),
       budget: $("#trip-budget")?.value || "low",
+      province: $("#place-province")?.value || "",
       lat: gps?.lat ?? null,
       lng: gps?.lng ?? null,
     };
     try {
-      const plan = await API.post("/trip-plans/generate", body);
+      const plan = await API.post("/trip-plans/generate", body, { timeoutMs: 18000 });
       const items = plan.items || [];
-      box.innerHTML = `<div class="travel-card wide"><div class="travel-kicker">${this._esc(plan.title || "Lịch trình")}</div><h4>${this._esc(plan.summary || "Gợi ý từ SmartBus")}</h4><div class="travel-actions"><button class="btn-ghost" onclick="Nav.go('dashboard')">Hiện lịch trình trên bản đồ</button><button class="btn-ghost" onclick="SmartBusAssistant.sendQuestion('Hỏi thêm về lịch trình này')">Hỏi chatbot về lịch trình này</button></div></div>` + items.map((it, i) => `<div class="travel-card"><div class="travel-kicker">${this._esc(it.timeBlock || `Buổi ${i + 1}`)} · ${this._esc(it.suggestedStart || "")}</div><h4>${this._esc(it.name)}</h4><p>${this._esc(it.description || "")}</p><div class="travel-meta"><span>Ở lại ${it.suggestedDurationMinutes || 90} phút</span>${it.busRoute ? `<span>Bus ${it.busRoute.id || it.busRoute.routeCode}</span>` : ""}${it.walkingMinutes ? `<span>Đi bộ ${it.walkingMinutes} phút</span>` : ""}</div><p class="travel-small">${this._esc(it.practicalNote || "Sắp xếp để di chuyển hợp lý, không nhồi quá nhiều điểm.")}</p></div>`).join("");
+      box.innerHTML = `<div class="travel-card wide"><div class="travel-kicker">${this._esc(plan.title || "Lịch trình")}</div><h4>${this._esc(plan.summary || "Gợi ý từ SmartBus")}</h4><div class="travel-actions"><button class="btn-ghost" onclick="Nav.go('dashboard')">Hiện lịch trình trên bản đồ</button><button class="btn-ghost" onclick="SmartBusAssistant.sendQuestion('Hỏi thêm về lịch trình này')">Hỏi chatbot về lịch trình này</button></div></div>` + items.map((it, i) => `<div class="travel-card"><div class="travel-kicker">${this._esc(it.timeBlock || `Điểm ${i + 1}`)} · ${this._esc(it.suggestedStart || "")}</div><h4>${this._esc(it.name || it.placeName || "Địa điểm")}</h4><p>${this._esc(it.description || it.practicalNote || "")}</p><div class="travel-meta"><span>Ở lại ${it.suggestedDurationMinutes || 90} phút</span>${it.busRoute ? `<span>Bus ${it.busRoute.id || it.busRoute.routeCode}</span>` : ""}${it.walkingMinutes ? `<span>Đi bộ ${it.walkingMinutes} phút</span>` : ""}</div><p class="travel-small">${this._esc(it.practicalNote || "Sắp xếp theo cụm gần tuyến để giảm thời gian di chuyển.")}</p></div>`).join("");
     } catch (err) {
-      box.innerHTML = this._empty("Không tạo được lịch trình từ backend. Hãy kiểm tra backend-api hoặc thử lại.");
+      box.innerHTML = this._empty(err.code === "TIMEOUT" ? "Tạo lịch trình quá lâu. Hãy chọn ít sở thích hơn hoặc chọn tỉnh cụ thể rồi thử lại." : "Không tạo được lịch trình từ backend. Hãy kiểm tra backend-api hoặc thử lại.");
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = submitBtn.dataset.originalText || "Tạo lịch trình"; }
     }
   },
+
 
   async renderCommunity() {
     const box = $("#community-list");
     if (!box) return;
     this._bindCommunity();
-    box.innerHTML = this._loading("Đang tải review cộng đồng...");
+    box.innerHTML = this._loading("Đang tải review địa điểm chờ duyệt...");
     const q = encodeURIComponent($("#community-search")?.value || "");
     const province = encodeURIComponent($("#community-province")?.value || "");
     const category = encodeURIComponent($("#community-category")?.value || "");
@@ -3049,17 +3065,48 @@ const TravelUI = {
     } catch (err) { Toast.show(err.message || 'Không thao tác được tuyến yêu thích', 'error'); }
   },
 
-  async toggleFavoritePlace(placeId, add = true) {
+  async toggleFavoritePlace(placeId, add = true, button = null) {
     if (!TokenStore.getAccessToken()) { Auth.showLogin?.("Bạn cần đăng nhập để lưu địa điểm yêu thích."); return; }
+    const originalText = button?.textContent;
+    if (button) { button.disabled = true; button.textContent = add ? "Đang lưu..." : "Đang bỏ..."; }
     try {
-      if (add) await API.post('/favorite-places', { placeId }); else await API.request(`/favorite-places/${encodeURIComponent(placeId)}`, { method: 'DELETE' });
+      if (add) {
+        try { await API.post(`/tourism/places/${encodeURIComponent(placeId)}/save`, {}); }
+        catch (_err) { await API.post('/favorite-places', { placeId }); }
+        this._placeFavoriteIds.add(Number(placeId));
+      } else {
+        try { await API.request(`/tourism/places/${encodeURIComponent(placeId)}/save`, { method: 'DELETE' }); }
+        catch (_err) { await API.request(`/favorite-places/${encodeURIComponent(placeId)}`, { method: 'DELETE' }); }
+        this._placeFavoriteIds.delete(Number(placeId));
+      }
       Toast.show(add ? 'Đã lưu địa điểm yêu thích' : 'Đã bỏ lưu địa điểm', 'success', 2200);
+      if (button) button.textContent = add ? '✅ Đã lưu' : '🔖 Lưu địa điểm';
       if ($('.view.active')?.id === 'view-favorite-places') this.renderFavoritePlaces();
-    } catch (err) { Toast.show(err.message || 'Không thao tác được địa điểm yêu thích', 'error'); }
+    } catch (err) {
+      if (button) button.textContent = originalText || (add ? '🔖 Lưu địa điểm' : 'Bỏ yêu thích');
+      Toast.show(err.message || 'Không thao tác được địa điểm yêu thích', 'error');
+    } finally {
+      if (button) button.disabled = false;
+    }
   },
 
+
   async _fetchPlace(placeId) {
-    try { return await API.get(`/tourism/places/${placeId}`, { skipAuth: true }); } catch { return null; }
+    try { return await API.get(`/tourism/places/${placeId}`, { skipAuth: true, timeoutMs: 10000 }); } catch { return null; }
+  },
+
+  async showPlaceOnMap(placeId) {
+    const place = await this._fetchPlace(placeId);
+    if (!place) { Toast.show('Không tải được thông tin địa điểm.', 'error'); return; }
+    const lat = Number(place.latitude ?? place.lat);
+    const lng = Number(place.longitude ?? place.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) { Toast.show('Địa điểm này chưa có tọa độ.', 'warning'); return; }
+    try { MapModule.clearTravelPlan?.(); MapModule.clearRouteHighlight?.(); } catch {}
+    Nav.go('dashboard');
+    setTimeout(() => {
+      try { MapModule.focusPlace?.({ ...place, lat, lng, latitude: lat, longitude: lng }); }
+      catch (_err) { Toast.show('Không focus được bản đồ địa điểm.', 'error'); }
+    }, 350);
   },
 
   async renderFavoriteRoutes() {
@@ -3079,7 +3126,8 @@ const TravelUI = {
     if (!box) return;
     box.innerHTML = this._loading("Đang tải địa điểm yêu thích...");
     try {
-      const places = await API.get("/favorite-places");
+      let places;
+      try { places = await API.get("/users/me/favorite-places"); } catch (_e) { places = await API.get("/favorite-places"); }
       if (!places.length) { box.innerHTML = this._empty("Bạn chưa lưu địa điểm nào. Vào trang Địa điểm du lịch để bấm “Lưu địa điểm”."); return; }
       box.innerHTML = places.map((p) => `<div class="travel-card"><div class="travel-kicker">${this._esc(p.categoryName || p.category || 'Du lịch')} · ${this._esc(p.provinceName || p.provinceCode || '')}</div><h4>${this._esc(p.name || 'Địa điểm không còn tồn tại')}</h4><p>${this._esc(p.shortDescription || p.description || '')}</p><div class="travel-meta"><span>⭐ ${this._esc(p.averageRating || 0)}</span><span>${this._esc(p.reviewCount || 0)} review</span></div><div class="travel-actions"><button class="btn-ghost" data-fav-place-map="${this._esc(p.id)}">Xem trên bản đồ</button><button class="btn-ghost" data-fav-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-fav-place-remove="${this._esc(p.id)}">Bỏ yêu thích</button></div></div>`).join("");
       $$('[data-fav-place-map]').forEach((btn) => btn.addEventListener('click', async () => { const p = await this._fetchPlace(btn.dataset.favPlaceMap); if (p) { Nav.go('dashboard'); setTimeout(() => MapModule.focusPlace?.(p), 250); } }));
@@ -3090,15 +3138,23 @@ const TravelUI = {
   async renderChatHistory() {
     const box = $("#chat-history-list");
     if (!box) return;
-    box.innerHTML = this._loading("Đang tải lịch sử chat...");
+    box.innerHTML = this._loading("Đang tải lịch sử chat và hoạt động cộng đồng...");
     try {
-      const rows = await API.get("/chat/history");
-      if (!rows.length) { box.innerHTML = this._empty("Chưa có lịch sử chat."); return; }
-      box.innerHTML = rows.slice(0, 20).map((r) => `<div class="travel-card"><div class="travel-kicker">${this._esc(r.createdAt ? new Date(r.createdAt).toLocaleString('vi-VN') : '')} · ${this._esc(r.intent || "chat")}</div><h4>${this._esc(r.message)}</h4><p>${this._esc(r.reply || r.botResponse || '')}</p><div class="travel-actions">${r.relatedPlaceId ? `<button class="btn-ghost" data-history-review="${this._esc(r.relatedPlaceName || '')}">Xem review cộng đồng</button>` : ''}${r.relatedRouteId ? `<button class="btn-ghost" data-history-route="${this._esc(r.relatedRouteId)}">Xem tuyến</button>` : ''}</div></div>`).join("");
+      const [chatRows, activityRows] = await Promise.all([
+        API.get("/chat/history").catch(() => []),
+        API.get("/users/me/activity-history?limit=40").catch(() => []),
+      ]);
+      const cards = [];
+      (chatRows || []).slice(0, 20).forEach((r) => cards.push({ kind: 'chatbot', createdAt: r.createdAt, title: r.message, body: r.reply || r.botResponse || '', intent: r.intent, relatedPlaceName: r.relatedPlaceName, relatedRouteId: r.relatedRouteId }));
+      (activityRows || []).slice(0, 30).forEach((r) => cards.push({ kind: r.actionType || r.type || 'activity', createdAt: r.createdAt, title: r.label || r.actionType || 'Hoạt động', body: r.description || '', targetType: r.targetType, targetId: r.targetId }));
+      cards.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      if (!cards.length) { box.innerHTML = this._empty("Chưa có lịch sử chat hoặc hoạt động cộng đồng."); return; }
+      box.innerHTML = cards.slice(0, 40).map((r) => `<div class="travel-card"><div class="travel-kicker">${this._esc(r.createdAt ? new Date(r.createdAt).toLocaleString('vi-VN') : '')} · ${this._esc(r.kind === 'chatbot' ? 'Chat với chatbot' : 'Hoạt động cộng đồng/tài khoản')}</div><h4>${this._esc(r.title || '')}</h4><p>${this._esc(r.body || '')}</p><div class="travel-actions">${r.relatedPlaceName ? `<button class="btn-ghost" data-history-review="${this._esc(r.relatedPlaceName)}">Xem review cộng đồng</button>` : ''}${r.relatedRouteId ? `<button class="btn-ghost" data-history-route="${this._esc(r.relatedRouteId)}">Xem tuyến</button>` : ''}</div></div>`).join("");
       $$('[data-history-review]').forEach((btn) => btn.addEventListener('click', () => { $('#community-search') && ($('#community-search').value = btn.dataset.historyReview); Nav.go('reviews'); }));
       $$('[data-history-route]').forEach((btn) => btn.addEventListener('click', () => { Nav.go('dashboard'); setTimeout(() => MapModule.highlightRoute(btn.dataset.historyRoute), 250); }));
-    } catch { box.innerHTML = this._empty("Bạn cần đăng nhập để xem lịch sử chat cá nhân."); }
+    } catch { box.innerHTML = this._empty("Bạn cần đăng nhập để xem lịch sử cá nhân."); }
   },
+
   _adminTab: "reviews",
   _adminReviews: [],
   _adminPosts: [],
@@ -3118,12 +3174,12 @@ const TravelUI = {
           <div>
             <div class="travel-kicker">Khu vực Admin</div>
             <h4>Quản trị nội dung SmartBus</h4>
-            <p>Duyệt review cộng đồng, duyệt bài cộng đồng và quản lý địa điểm du lịch.</p>
+            <p>Phân biệt rõ review địa điểm, bài cộng đồng và quản lý địa điểm du lịch.</p>
           </div>
           <button class="btn-ghost" id="admin-refresh-btn">Làm mới dữ liệu</button>
         </div>
         <div class="admin-tabs" role="tablist">
-          <button class="admin-tab" data-admin-tab="reviews">Duyệt review cộng đồng</button>
+          <button class="admin-tab" data-admin-tab="reviews">Duyệt review địa điểm</button>
           <button class="admin-tab" data-admin-tab="community">Duyệt bài cộng đồng</button>
           <button class="admin-tab" data-admin-tab="places">Quản lý địa điểm du lịch</button>
         </div>
@@ -3153,7 +3209,7 @@ const TravelUI = {
   async _renderAdminReviews() {
     const box = this._adminContent();
     if (!box) return;
-    box.innerHTML = this._loading("Đang tải review cộng đồng...");
+    box.innerHTML = this._loading("Đang tải review địa điểm chờ duyệt...");
     const q = encodeURIComponent($("#admin-review-q")?.value || "");
     const province = encodeURIComponent($("#admin-review-province")?.value || "");
     const category = encodeURIComponent($("#admin-review-category")?.value || "");
@@ -3171,7 +3227,7 @@ const TravelUI = {
           <select id="admin-review-sort" class="travel-input"><option value="newest">Mới nhất</option><option value="oldest">Cũ nhất</option><option value="rating_desc">Rating cao</option></select>
           <button class="btn-primary mini" id="admin-review-filter-btn">Lọc</button>
         </div>
-        ${this._adminReviews.length ? this._reviewTable(this._adminReviews) : this._empty("Hiện chưa có review nào chờ duyệt hoặc phù hợp bộ lọc.")}`;
+        ${this._adminReviews.length ? this._reviewTable(this._adminReviews) : this._empty("Hiện chưa có review địa điểm nào chờ duyệt hoặc phù hợp bộ lọc.")}`;
       this._setSelectValue("#admin-review-status", decodeURIComponent(status));
       this._setSelectValue("#admin-review-sort", decodeURIComponent(sort));
       $("#admin-review-filter-btn")?.addEventListener("click", () => this._renderAdminReviews());
@@ -3196,14 +3252,14 @@ const TravelUI = {
   _showReviewAdminDetail(id) {
     const r = this._adminReviews.find((x) => String(x.id) === String(id));
     if (!r) return Toast.show('Không tìm thấy review', 'error');
-    this._showModal('Chi tiết review cộng đồng', `<div class="admin-detail"><h3>${this._esc(r.title)}</h3><p><b>Người đăng:</b> ${this._esc(r.authorName)} · <b>Địa điểm:</b> ${this._esc(r.placeName)}</p><p><b>Tỉnh:</b> ${this._esc(r.province)} · <b>Nhóm:</b> ${this._esc(r.category)} · <b>Rating:</b> ${this._esc(r.rating)}/5</p>${r.imageUrl ? `<img class="admin-detail-img" src="${this._esc(r.imageUrl)}" alt="Ảnh review">` : ''}<p><b>Nội dung:</b></p><p>${this._esc(r.content || '')}</p><p><b>Tips:</b> ${this._esc(r.tips || '')}</p><p><b>Tags:</b> ${this._esc(r.tags || '')}</p><p><b>Trạng thái:</b> ${this._esc(r.status)} ${r.isSeed ? '· Bài seed/demo' : ''}</p><p><b>Tạo lúc:</b> ${this._date(r.createdAt)}</p></div>`);
+    this._showModal('Chi tiết review địa điểm', `<div class="admin-detail"><h3>${this._esc(r.title)}</h3><p><b>Người đăng:</b> ${this._esc(r.authorName)} · <b>Địa điểm:</b> ${this._esc(r.placeName)}</p><p><b>Tỉnh:</b> ${this._esc(r.province)} · <b>Nhóm:</b> ${this._esc(r.category)} · <b>Rating:</b> ${this._esc(r.rating)}/5</p>${r.imageUrl ? `<img class="admin-detail-img" src="${this._esc(r.imageUrl)}" alt="Ảnh review">` : ''}<p><b>Nội dung:</b></p><p>${this._esc(r.content || '')}</p><p><b>Tips:</b> ${this._esc(r.tips || '')}</p><p><b>Tags:</b> ${this._esc(r.tags || '')}</p><p><b>Trạng thái:</b> ${this._esc(r.status)} ${r.isSeed ? '· Bài seed/demo' : ''}</p><p><b>Tạo lúc:</b> ${this._date(r.createdAt)}</p></div>`);
   },
 
   async _adminReviewStatus(id, action) {
     const path = action === 'approve' ? `/admin/reviews/${id}/approve` : `/admin/reviews/${id}/hide`;
     try {
       await API.request(path, { method: 'PUT' });
-      Toast.show(action === 'approve' ? 'Đã duyệt review thành công' : 'Đã ẩn review', 'success');
+      Toast.show(action === 'approve' ? 'Đã duyệt review thành công' : 'Đã ẩn/từ chối review', 'success');
       await this._renderAdminReviews();
     } catch (err) { this._handleAdminError(err, 'Thao tác thất bại, vui lòng thử lại'); }
   },
@@ -3225,7 +3281,7 @@ const TravelUI = {
     if (!box) return;
     box.innerHTML = this._loading('Đang tải bài cộng đồng chờ duyệt...');
     try {
-      const rows = await API.get('/admin/community/pending');
+      const rows = await API.get('/admin/community-posts/pending');
       this._adminPosts = Array.isArray(rows) ? rows : [];
       box.innerHTML = this._adminPosts.length ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>ID</th><th>Tiêu đề</th><th>Người gửi</th><th>Loại</th><th>Trạng thái</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody>${this._adminPosts.map((p) => `<tr><td>${this._esc(p.id)}</td><td>${this._esc(p.title || p.content || '')}</td><td>${this._esc(p.userName || '')}</td><td>${this._esc(p.topic || 'community')}</td><td>${this._statusBadge(p.status)}</td><td>${this._date(p.createdAt)}</td><td><div class="admin-actions"><button class="btn-ghost mini" data-admin-post-detail="${this._esc(p.id)}">Xem</button><button class="btn-ghost mini" data-admin-post-approve="${this._esc(p.id)}">Duyệt</button><button class="btn-ghost mini" data-admin-post-hide="${this._esc(p.id)}">Ẩn</button><button class="btn-ghost mini danger" data-admin-post-delete="${this._esc(p.id)}">Xóa</button></div></td></tr>`).join('')}</tbody></table></div>` : this._empty('Hiện chưa có bài cộng đồng nào chờ duyệt.');
       this._bindAdminPostActions();
@@ -3248,9 +3304,9 @@ const TravelUI = {
   },
 
   async _adminPostStatus(id, action) {
-    const path = action === 'approve' ? `/admin/community/${id}/approve` : `/admin/community/${id}/hide`;
+    const path = action === 'approve' ? `/admin/community-posts/${id}/approve` : `/admin/community-posts/${id}/reject`;
     try {
-      await API.request(path, { method: 'PUT' });
+      await API.request(path, { method: 'POST' });
       Toast.show(action === 'approve' ? 'Đã duyệt bài cộng đồng' : 'Đã ẩn bài cộng đồng', 'success');
       await this._renderAdminCommunity();
     } catch (err) { this._handleAdminError(err, 'Thao tác thất bại, vui lòng thử lại'); }
@@ -3379,7 +3435,7 @@ const TravelUI = {
 
   _statusBadge(status, isSeed = false) {
     const s = String(status || '').toLowerCase();
-    const label = { pending: 'Chờ duyệt', approved: 'Đã duyệt', approved_seed: 'Bài mẫu', hidden: 'Đã ẩn', active: 'Đang hoạt động', inactive: 'Đã ẩn' }[s] || status || 'Không rõ';
+    const label = { pending: 'Chờ duyệt', approved: 'Đã duyệt', approved_seed: 'Bài mẫu', hidden: 'Đã ẩn/Từ chối', rejected: 'Từ chối', active: 'Đang hoạt động', inactive: 'Đã ẩn' }[s] || status || 'Không rõ';
     return `<span class="admin-status admin-status-${this._esc(s || 'unknown')}">${this._esc(label)}${isSeed ? ' · Seed' : ''}</span>`;
   },
 

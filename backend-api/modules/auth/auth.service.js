@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const env = require('../../config/env');
 const repo = require('./auth.repository');
+const activity = require('../activity/activity.repository');
 
 function sanitizeUser(user) {
   return {
@@ -82,7 +83,9 @@ async function register({ fullName = 'SmartBus User', email, password }) {
   }
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await repo.createUser({ fullName, email: normalizedEmail, passwordHash, role: 'user' });
-  return { user: sanitizeUser(user), ...(await issueTokens(user)) };
+  const result = { user: sanitizeUser(user), ...(await issueTokens(user)) };
+  await activity.logActivity({ userId: user.id, actionType: 'register', targetType: 'user', targetId: user.id, description: 'Tạo tài khoản SmartBus mới' });
+  return result;
 }
 
 async function login({ email, password }) {
@@ -96,7 +99,9 @@ async function login({ email, password }) {
   const ok = await bcrypt.compare(String(password || ''), account.passwordHash);
   if (!ok) throw unauthorized();
 
-  return { user: sanitizeUser(account), ...(await issueTokens(account)) };
+  const result = { user: sanitizeUser(account), ...(await issueTokens(account)) };
+  await activity.logActivity({ userId: account.id, actionType: 'login', targetType: 'user', targetId: account.id, description: 'Đăng nhập vào SmartBus Travel' });
+  return result;
 }
 
 async function refresh(refreshToken) {

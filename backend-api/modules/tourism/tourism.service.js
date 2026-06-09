@@ -1,4 +1,5 @@
 const repo = require('./tourism.repository');
+const activity = require('../activity/activity.repository');
 const { enrichPlace, matchesMood } = require('./tourism-recommendation.service');
 
 async function categories() { return repo.listCategories(); }
