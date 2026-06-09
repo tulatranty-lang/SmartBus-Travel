@@ -4,201 +4,232 @@ const data = require('../../services/data.service');
 const cache = require('../../common/utils/cache.util');
 const { isValidLatLng } = require('../../common/utils/gis-validator.util');
 const { query } = require('../../config/db');
+const { haversineMeters } = require('../../common/utils/distance.util');
 
+const FALLBACK_BUS_DATA_PATH = path.join(__dirname, '../../data/import/smartbus-bus-data.normalized.json');
+let fallbackBusData = null;
+let fallbackStopsCache = null;
 
-const STATIC_BUS_DATA_PATH = path.join(__dirname, '../../data/import/smartbus-bus-data.normalized.json');
-let staticBusCache = null;
-
-function loadStaticBusData() {
-  if (staticBusCache) return staticBusCache;
-  try {
-    const raw = fs.readFileSync(STATIC_BUS_DATA_PATH, 'utf8');
-    const parsed = JSON.parse(raw);
-    const routes = Array.isArray(parsed.routes) ? parsed.routes : [];
-    const stops = Array.isArray(parsed.stops) ? parsed.stops : [];
-    const routeStops = Array.isArray(parsed.routeStops) ? parsed.routeStops : [];
-    const routeByCode = new Map(routes.map((r) => [String(r.routeCode || r.id || '').trim(), r]));
-    const linksByStopCode = new Map();
-    routeStops.forEach((link) => {
-      const stopCode = String(link.externalStopCode || '').trim();
-      const routeCode = String(link.routeCode || link.routeNumber || '').trim();
-      if (!stopCode || !routeCode) return;
-      const route = routeByCode.get(routeCode) || {};
-      const current = linksByStopCode.get(stopCode) || [];
-      if (!current.some((x) => String(x.id) === routeCode)) {
-        current.push({
-          id: routeCode,
-          displayCode: route.displayCode || link.routeNumber || routeCode,
-          name: route.name || link.routeName || routeCode,
-          color: route.color || '#2563eb',
-        });
-      }
-      linksByStopCode.set(stopCode, current);
-    });
-    staticBusCache = { stops, routes, routeByCode, linksByStopCode };
-  } catch (_err) {
-    staticBusCache = { stops: [], routes: [], routeByCode: new Map(), linksByStopCode: new Map() };
-  }
-  return staticBusCache;
+function numberOrNull(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
-function staticStopDto(stop, index = 0) {
-  const bundle = loadStaticBusData();
-  const externalStopCode = stop.externalStopCode || stop.code || stop.id || `STATIC_STOP_${index + 1}`;
-  const routes = bundle.linksByStopCode.get(String(externalStopCode)) || [];
-  const primaryRoute = routes[0] || null;
+function text(value) {
+  return String(value || '').trim();
+}
+
+function parseRoutesJson(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try { return JSON.parse(value); } catch { return []; }
+}
+
+function loadFallbackBusData() {
+  if (fallbackBusData) return fallbackBusData;
+  const raw = fs.readFileSync(FALLBACK_BUS_DATA_PATH, 'utf8');
+  fallbackBusData = JSON.parse(raw);
+  return fallbackBusData;
+}
+
+function buildFallbackStops() {
+  if (fallbackStopsCache) return fallbackStopsCache;
+  const json = loadFallbackBusData();
+  const routes = Array.isArray(json.routes) ? json.routes : [];
+  const routeStops = Array.isArray(json.routeStops) ? json.routeStops : [];
+  const stops = Array.isArray(json.stops) ? json.stops : [];
+
+  const routeByCode = new Map(routes.map((route) => [text(route.routeCode || route.id || route.displayCode), route]));
+  const routesByStop = new Map();
+  routeStops.forEach((item) => {
+    const stopKey = text(item.externalStopCode || item.stopCode || item.stopId || item.stopName);
+    const routeCode = text(item.routeCode || item.routeNumber || item.routeId);
+    if (!stopKey || !routeCode) return;
+    const route = routeByCode.get(routeCode) || { routeCode, displayCode: routeCode, name: routeCode };
+    const value = {
+      id: text(route.routeCode || route.id || routeCode),
+      routeCode: text(route.routeCode || routeCode),
+      displayCode: text(route.displayCode || route.routeNumber || routeCode),
+      name: text(route.name || routeCode),
+      color: route.color || '#2563eb',
+    };
+    const list = routesByStop.get(stopKey) || [];
+    if (!list.some((r) => r.id === value.id)) list.push(value);
+    routesByStop.set(stopKey, list);
+  });
+
+  fallbackStopsCache = stops.map((stop, index) => {
+    const stopKey = text(stop.externalStopCode || stop.id || stop.name);
+    const linkedRoutes = routesByStop.get(stopKey) || [];
+    const firstRoute = linkedRoutes[0] || null;
+    return {
+      id: stop.id || stop.externalStopCode || `fallback-stop-${index + 1}`,
+      externalStopCode: stop.externalStopCode || stop.id || `fallback-stop-${index + 1}`,
+      routeId: firstRoute?.id || null,
+      routeDisplayCode: firstRoute?.displayCode || firstRoute?.routeCode || null,
+      provinceCode: stop.provinceCode || stop.province_code || null,
+      provinceName: stop.provinceName || stop.province || null,
+      name: stop.name,
+      address: stop.address || stop.nearbyLandmark || '',
+      stopType: stop.stopType || stop.stop_type || null,
+      lat: numberOrNull(stop.lat ?? stop.latitude),
+      lng: numberOrNull(stop.lng ?? stop.longitude),
+      latitude: numberOrNull(stop.lat ?? stop.latitude),
+      longitude: numberOrNull(stop.lng ?? stop.longitude),
+      isMajor: Boolean(stop.isMajor),
+      nearbyLandmark: stop.nearbyLandmark || '',
+      sequence: Number(stop.sequence || stop.sequenceNo || index + 1),
+      routeCount: linkedRoutes.length,
+      routes: linkedRoutes,
+      source: 'local-normalized-json-fallback',
+    };
+  }).filter((stop) => isValidLatLng(stop.lat, stop.lng, true));
+  return fallbackStopsCache;
+}
+
+function filterStops(stops, filters = {}) {
+  let rows = Array.isArray(stops) ? stops : [];
+  if (filters.province || filters.provinceCode) {
+    const code = String(filters.provinceCode || filters.province).toUpperCase();
+    rows = rows.filter((s) => String(s.provinceCode || '').toUpperCase() === code || String(s.provinceName || '').toUpperCase().includes(code));
+  }
+  if (filters.q || filters.keyword || filters.search) {
+    const q = String(filters.q || filters.keyword || filters.search).toLowerCase();
+    rows = rows.filter((s) => [s.name, s.address, s.nearbyLandmark, s.provinceName, s.routeDisplayCode, ...(s.routes || []).map((r) => `${r.displayCode || ''} ${r.name || ''}`)].join(' ').toLowerCase().includes(q));
+  }
+  return rows;
+}
+
+function filterRoute(stops, routeId = null) {
+  if (!routeId) return stops;
+  const rid = String(routeId).trim().toUpperCase();
+  return stops.filter((stop) => {
+    if (String(stop.routeId || '').toUpperCase() === rid) return true;
+    if (String(stop.routeDisplayCode || '').toUpperCase() === rid) return true;
+    return (stop.routes || []).some((r) => [r.id, r.routeCode, r.displayCode].some((v) => String(v || '').toUpperCase() === rid));
+  });
+}
+
+function withDistance(stop, origin) {
+  const distanceMeters = haversineMeters(origin, stop);
   return {
-    id: externalStopCode,
-    externalStopCode,
-    routeId: primaryRoute?.id || null,
-    routeDisplayCode: primaryRoute?.displayCode || primaryRoute?.id || null,
-    provinceCode: stop.provinceCode || stop.province || null,
-    provinceName: stop.provinceName || null,
-    name: stop.name,
-    address: stop.address || stop.nearbyLandmark || '',
-    stopType: stop.stopType || null,
-    lat: Number(stop.lat ?? stop.latitude),
-    lng: Number(stop.lng ?? stop.longitude),
-    latitude: Number(stop.lat ?? stop.latitude),
-    longitude: Number(stop.lng ?? stop.longitude),
-    isMajor: Boolean(Number(stop.isMajor || 0)),
-    nearbyLandmark: stop.nearbyLandmark || '',
-    sequence: Number(stop.sequenceNo || stop.sequence || 99999),
-    routeCount: routes.length,
-    routes,
-    dataSource: 'static-import-fallback',
+    ...stop,
+    distanceMeters,
+    distanceKm: Number(((distanceMeters || 0) / 1000).toFixed(2)),
   };
 }
 
-function staticFindAll(routeId = null, filters = {}) {
-  const bundle = loadStaticBusData();
-  const routeFilter = routeId ? String(routeId).trim() : null;
-  const provinceFilter = String(filters.provinceCode || filters.province || '').trim().toUpperCase() || null;
-  const keyword = String(filters.q || filters.keyword || '').trim().toLowerCase() || null;
-  return bundle.stops
-    .map(staticStopDto)
-    .filter((s) => isValidLatLng(s.lat, s.lng, true))
-    .filter((s) => !provinceFilter || String(s.provinceCode || '').toUpperCase() === provinceFilter || String(s.provinceName || '').toUpperCase().includes(provinceFilter))
-    .filter((s) => !routeFilter || String(s.routeId || '') === routeFilter || (s.routes || []).some((r) => String(r.id) === routeFilter || String(r.displayCode) === routeFilter))
-    .filter((s) => !keyword || [s.name, s.address, s.nearbyLandmark, s.provinceName, s.routeDisplayCode].join(' ').toLowerCase().includes(keyword));
-}
-
-function normalizeLimit(value, fallback = 20, max = 100) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(1, Math.min(max, Math.floor(n)));
+function normalizeDbStop(row) {
+  return {
+    id: row.id,
+    externalStopCode: row.externalStopCode,
+    code: row.externalStopCode || row.id,
+    routeId: row.routeId,
+    routeDisplayCode: row.routeDisplayCode,
+    routeCode: row.routeDisplayCode || row.routeId,
+    routeName: row.routeName || null,
+    provinceCode: row.provinceCode,
+    provinceName: row.provinceName,
+    name: row.name,
+    address: row.address || row.nearbyLandmark || '',
+    stopType: row.stopType,
+    lat: numberOrNull(row.lat ?? row.latitude),
+    lng: numberOrNull(row.lng ?? row.longitude),
+    latitude: numberOrNull(row.lat ?? row.latitude),
+    longitude: numberOrNull(row.lng ?? row.longitude),
+    isMajor: Boolean(row.isMajor),
+    nearbyLandmark: row.nearbyLandmark,
+    sequence: row.sequence,
+    routeCount: row.routeCount,
+    routes: parseRoutesJson(row.routesJson || row.routes),
+    distanceMeters: Number.isFinite(Number(row.distanceMeters)) ? Math.round(Number(row.distanceMeters)) : null,
+    distanceKm: Number.isFinite(Number(row.distanceKm)) ? Number(Number(row.distanceKm).toFixed(2)) : null,
+    source: 'sql-server',
+  };
 }
 
 async function findAll(routeId = null, filters = {}) {
   let stops;
   try {
     stops = await cache.remember(`stops:${routeId || 'all'}`, 60_000, () => data.getStops(routeId || null));
-  } catch (_err) {
-    stops = staticFindAll(routeId, filters);
+  } catch (err) {
+    console.warn('[SmartBus] SQL getStops failed; using normalized JSON fallback:', err.message);
+    stops = filterRoute(buildFallbackStops(), routeId);
   }
   stops = stops.filter((s) => isValidLatLng(s.lat ?? s.latitude, s.lng ?? s.longitude, true));
-  if (filters.province || filters.provinceCode) {
-    const code = String(filters.provinceCode || filters.province).toUpperCase();
-    stops = stops.filter((s) => String(s.provinceCode || '').toUpperCase() === code || String(s.provinceName || '').toUpperCase().includes(code));
-  }
-  if (filters.q || filters.keyword) {
-    const q = String(filters.q || filters.keyword).toLowerCase();
-    stops = stops.filter((s) => [s.name, s.address, s.nearbyLandmark, s.provinceName, s.routeDisplayCode].join(' ').toLowerCase().includes(q));
-  }
-  return stops;
+  return filterStops(stops, filters);
 }
 
-async function findNearby({ lat, lng, limit = 5, routeId = null, province = null, provinceCode = null, q = null } = {}) {
-  const latitude = Number(lat);
-  const longitude = Number(lng);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
-  const max = normalizeLimit(limit, 5, 20);
-  const provinceFilter = String(provinceCode || province || '').trim() || null;
-  const routeFilter = routeId ? String(routeId).trim() : null;
-  const keyword = String(q || '').trim() || null;
+async function findNearby({ lat, lng, routeId = null, limit = 5, province, provinceCode, q, keyword } = {}) {
+  const origin = { lat: Number(lat), lng: Number(lng) };
+  const max = Math.max(1, Math.min(20, Number(limit) || 5));
+  if (!Number.isFinite(origin.lat) || !Number.isFinite(origin.lng)) return [];
 
-  const rs = await query(`
-    ;WITH scored AS (
-      SELECT
-        s.id,
+  try {
+    const rs = await query(`
+      SELECT TOP (@limit)
+        CAST(s.id AS NVARCHAR(30)) AS id,
         s.external_stop_code AS externalStopCode,
+        COALESCE(rs.route_code, r.route_code) AS routeId,
+        COALESCE(r.route_number, COALESCE(rs.route_code, r.route_code)) AS routeDisplayCode,
+        r.name AS routeName,
+        s.province_code AS provinceCode,
+        p.name AS provinceName,
         s.name,
         s.address,
         s.stop_type AS stopType,
-        s.province_code AS provinceCode,
-        p.name AS provinceName,
         s.latitude AS lat,
         s.longitude AS lng,
         s.is_major AS isMajor,
         s.nearby_landmark AS nearbyLandmark,
-        primary_route.route_code AS routeId,
-        COALESCE(primary_route.route_number, primary_route.route_code) AS routeDisplayCode,
-        CAST((6371.0 * 2.0 * ASIN(
-          CASE
-            WHEN SQRT(
-              POWER(SIN(RADIANS((s.latitude - @lat) / 2.0)), 2) +
-              COS(RADIANS(@lat)) * COS(RADIANS(s.latitude)) * POWER(SIN(RADIANS((s.longitude - @lng) / 2.0)), 2)
-            ) > 1 THEN 1
-            ELSE SQRT(
-              POWER(SIN(RADIANS((s.latitude - @lat) / 2.0)), 2) +
-              COS(RADIANS(@lat)) * COS(RADIANS(s.latitude)) * POWER(SIN(RADIANS((s.longitude - @lng) / 2.0)), 2)
-            )
-          END
-        )) AS FLOAT) AS distanceKm
+        COALESCE(rs.sequence_no, 99999) AS sequence,
+        (
+          SELECT COUNT(DISTINCT rsx.route_code)
+          FROM route_stops rsx
+          WHERE rsx.stop_id = s.id
+        ) AS routeCount,
+        COALESCE((
+          SELECT DISTINCT br.route_code AS id, COALESCE(br.route_number, br.route_code) AS displayCode, br.name, br.color
+          FROM route_stops rs3
+          JOIN bus_routes br ON br.route_code = rs3.route_code
+          WHERE rs3.stop_id = s.id
+          FOR JSON PATH
+        ), '[]') AS routesJson,
+        (
+          6371000.0 * 2.0 * ASIN(SQRT(
+            POWER(SIN(RADIANS((s.latitude - @lat) / 2.0)), 2) +
+            COS(RADIANS(@lat)) * COS(RADIANS(s.latitude)) * POWER(SIN(RADIANS((s.longitude - @lng) / 2.0)), 2)
+          ))
+        ) AS distanceMeters
       FROM bus_stops s
       LEFT JOIN provinces p ON p.code = s.province_code
-      OUTER APPLY (
-        SELECT TOP 1 rs.route_code, br.route_number, br.name, br.color
-        FROM route_stops rs
-        LEFT JOIN bus_routes br ON br.route_code = rs.route_code
-        WHERE rs.stop_id = s.id
-        ORDER BY COALESCE(rs.sequence_no, 99999), rs.route_code
-      ) primary_route
-      WHERE s.latitude IS NOT NULL AND s.longitude IS NOT NULL
+      LEFT JOIN route_stops rs ON rs.stop_id = s.id AND (@routeId IS NULL OR rs.route_code = @routeId)
+      LEFT JOIN bus_routes r ON r.route_code = rs.route_code
+      WHERE s.latitude IS NOT NULL
+        AND s.longitude IS NOT NULL
         AND s.latitude BETWEEN -90 AND 90
         AND s.longitude BETWEEN -180 AND 180
-        AND (@province IS NULL OR UPPER(s.province_code) = UPPER(@province) OR UPPER(p.name) LIKE '%' + UPPER(@province) + '%')
-        AND (@keyword IS NULL OR s.name LIKE '%' + @keyword + '%' OR s.address LIKE '%' + @keyword + '%' OR s.nearby_landmark LIKE '%' + @keyword + '%')
-        AND (@routeId IS NULL OR EXISTS (
-          SELECT 1
-          FROM route_stops rsf
-          LEFT JOIN bus_routes brf ON brf.route_code = rsf.route_code
-          WHERE rsf.stop_id = s.id
-            AND (rsf.route_code = @routeId OR brf.route_number = @routeId)
-        ))
-    )
-    SELECT TOP (@limit)
-      CAST(scored.id AS NVARCHAR(30)) AS id,
-      scored.externalStopCode,
-      scored.name,
-      scored.address,
-      scored.stopType,
-      scored.provinceCode,
-      scored.provinceName,
-      scored.lat,
-      scored.lng,
-      scored.isMajor,
-      scored.nearbyLandmark,
-      scored.routeId,
-      scored.routeDisplayCode,
-      CAST(ROUND(scored.distanceKm * 1000.0, 0) AS INT) AS distanceMeters,
-      scored.distanceKm,
-      COALESCE((
-        SELECT DISTINCT br.route_code AS id, COALESCE(br.route_number, br.route_code) AS displayCode, br.name, br.color
-        FROM route_stops rs3
-        JOIN bus_routes br ON br.route_code = rs3.route_code
-        WHERE rs3.stop_id = TRY_CONVERT(INT, scored.id)
-        FOR JSON PATH
-      ), '[]') AS routesJson
-    FROM scored
-    ORDER BY scored.distanceKm ASC, scored.name ASC
-  `, { lat: latitude, lng: longitude, limit: max, province: provinceFilter, routeId: routeFilter, keyword });
-
-  return (rs.recordset || []).map((row) => {
-    let routes = [];
-    try { routes = row.routesJson ? JSON.parse(row.routesJson) : []; } catch { routes = []; }
-    return { ...row, routes, routesJson: undefined };
-  });
+        AND (@routeId IS NULL OR rs.route_code = @routeId OR r.route_number = @routeId)
+        AND (@province IS NULL OR s.province_code = @province OR p.name LIKE N'%' + @province + N'%')
+        AND (@q IS NULL OR s.name LIKE N'%' + @q + N'%' OR s.address LIKE N'%' + @q + N'%' OR s.nearby_landmark LIKE N'%' + @q + N'%')
+      ORDER BY distanceMeters ASC, s.name ASC
+    `, {
+      lat: origin.lat,
+      lng: origin.lng,
+      limit: max,
+      routeId: routeId || null,
+      province: provinceCode || province || null,
+      q: q || keyword || null,
+    });
+    return rs.recordset.map(normalizeDbStop).filter((s) => isValidLatLng(s.lat, s.lng, true));
+  } catch (err) {
+    console.warn('[SmartBus] SQL nearby stops failed; using normalized JSON fallback:', err.message);
+    return filterStops(filterRoute(buildFallbackStops(), routeId), { province, provinceCode, q, keyword })
+      .map((stop) => withDistance(stop, origin))
+      .filter((stop) => Number.isFinite(stop.distanceMeters))
+      .sort((a, b) => a.distanceMeters - b.distanceMeters)
+      .slice(0, max);
+  }
 }
 
 module.exports = { findAll, findNearby };

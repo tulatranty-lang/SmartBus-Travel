@@ -3,20 +3,12 @@ const activity = require('../activity/activity.repository');
 const { enrichPlace, matchesMood } = require('./tourism-recommendation.service');
 
 async function categories() { return repo.listCategories(); }
-async function enrichPlaces(places, filters = {}) {
+async function search(filters = {}) {
+  const places = await repo.findPlaces(filters);
   const nearbyMap = await repo.nearbyStopsForPlaces(places.map((p) => p.id));
   const enriched = [];
   for (const p of places) enriched.push(await enrichPlace(p, filters, nearbyMap.get(Number(p.id)) || []));
   return enriched.sort((a, b) => (b.score || 0) - (a.score || 0));
-}
-async function search(filters = {}) {
-  const places = await repo.findPlaces(filters);
-  return enrichPlaces(places, filters);
-}
-async function searchPage(filters = {}) {
-  const page = await repo.findPlacesPage(filters);
-  const items = await enrichPlaces(page.items, filters);
-  return { ...page, items };
 }
 async function recommended(filters) {
   const all = await search(filters);
@@ -45,4 +37,4 @@ async function unfavorite(userId, id) {
 async function favorites(userId) { return repo.myFavorites(userId); }
 async function savePlace(input) { return repo.upsertPlace(input); }
 async function deletePlace(id) { return repo.removePlace(id); }
-module.exports = { categories, search, searchPage, recommended, detail, nearbyStops, reviews, favorite, unfavorite, favorites, savePlace, deletePlace };
+module.exports = { categories, search, recommended, detail, nearbyStops, reviews, favorite, unfavorite, favorites, savePlace, deletePlace };

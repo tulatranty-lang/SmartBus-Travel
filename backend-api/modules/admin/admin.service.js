@@ -15,7 +15,7 @@ async function approveReview(id, user) {
 }
 
 async function hideReview(id, user) {
-  const item = await reviewRepo.adminSetCommunityStatus(id, 'rejected', user, 'Admin từ chối review cộng đồng');
+  const item = await reviewRepo.adminSetCommunityStatus(id, 'rejected', user);
   await activity.logActivity({ userId: user?.id || null, actionType: 'admin_moderate_review', targetType: 'community_review', targetId: id, description: `Admin từ chối review cộng đồng #${id}` });
   return item;
 }

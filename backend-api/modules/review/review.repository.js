@@ -196,18 +196,6 @@ async function findCommunityById(id) {
   return rs.recordset[0] ? mapCommunityReview(rs.recordset[0]) : null;
 }
 
-async function findCommunityByIdForAdmin(id) {
-  const rs = await query(`
-    SELECT TOP 1 id, review_id AS reviewId, slug, user_id AS userId, author_name AS authorName,
-           province, place_name AS placeName, category, rating, title, short_caption AS shortCaption,
-           content, tips, tags, source_ref AS sourceRef, image_url AS imageUrl,
-           status, is_seed AS isSeed, created_at AS createdAt, updated_at AS updatedAt
-    FROM community_reviews
-    WHERE id=@id
-  `, { id: Number(id) });
-  return rs.recordset[0] ? mapCommunityReview(rs.recordset[0]) : null;
-}
-
 async function createCommunity(user, input) {
   const content = normalizePlainText(input.content || '', 5000);
   const title = normalizePlainText(input.title || '', 200);
@@ -287,19 +275,20 @@ async function adminListCommunity(filters = {}) {
   return rs.recordset.map(mapCommunityReview);
 }
 
-async function adminSetCommunityStatus(id, status, admin, moderationNote = null) {
+async function adminSetCommunityStatus(id, status, admin) {
   const nowStatus = status === 'approved_seed' ? 'approved' : status;
-  await query(`
-    DECLARE @sql NVARCHAR(MAX) = N'UPDATE community_reviews SET status=@status, updated_at=SYSDATETIME()';
-    IF COL_LENGTH('dbo.community_reviews', 'moderated_by') IS NOT NULL SET @sql = @sql + N', moderated_by=@adminId';
-    IF COL_LENGTH('dbo.community_reviews', 'moderated_at') IS NOT NULL SET @sql = @sql + N', moderated_at=SYSDATETIME()';
-    IF COL_LENGTH('dbo.community_reviews', 'moderation_note') IS NOT NULL SET @sql = @sql + N', moderation_note=@moderationNote';
-    SET @sql = @sql + N' WHERE id=@id';
-    EXEC sp_executesql @sql,
-      N'@status NVARCHAR(30), @adminId INT, @moderationNote NVARCHAR(500), @id INT',
-      @status=@status, @adminId=@adminId, @moderationNote=@moderationNote, @id=@id;
-  `, { id: Number(id), status: nowStatus, adminId: Number(admin?.id || 0) || null, moderationNote });
-  return findCommunityByIdForAdmin(id);
+  const rs = await query(`
+    UPDATE community_reviews
+    SET status=@status, updated_at=SYSDATETIME()
+    OUTPUT INSERTED.id, INSERTED.review_id AS reviewId, INSERTED.slug, INSERTED.user_id AS userId,
+           INSERTED.author_name AS authorName, INSERTED.province, INSERTED.place_name AS placeName,
+           INSERTED.category, INSERTED.rating, INSERTED.title, INSERTED.short_caption AS shortCaption,
+           INSERTED.content, INSERTED.tips, INSERTED.tags, INSERTED.source_ref AS sourceRef,
+           INSERTED.image_url AS imageUrl, INSERTED.status, INSERTED.is_seed AS isSeed,
+           INSERTED.created_at AS createdAt, INSERTED.updated_at AS updatedAt
+    WHERE id=@id
+  `, { id: Number(id), status: nowStatus, adminId: Number(admin?.id || 0) || null });
+  return rs.recordset[0] ? mapCommunityReview(rs.recordset[0]) : null;
 }
 
 async function adminRemoveCommunity(id, admin) {
