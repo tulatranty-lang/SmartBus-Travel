@@ -1,7 +1,87 @@
+const fs = require('fs');
+const path = require('path');
 const data = require('../../services/data.service');
 const cache = require('../../common/utils/cache.util');
 const { isValidLatLng } = require('../../common/utils/gis-validator.util');
 const { query } = require('../../config/db');
+
+
+const STATIC_BUS_DATA_PATH = path.join(__dirname, '../../data/import/smartbus-bus-data.normalized.json');
+let staticBusCache = null;
+
+function loadStaticBusData() {
+  if (staticBusCache) return staticBusCache;
+  try {
+    const raw = fs.readFileSync(STATIC_BUS_DATA_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    const routes = Array.isArray(parsed.routes) ? parsed.routes : [];
+    const stops = Array.isArray(parsed.stops) ? parsed.stops : [];
+    const routeStops = Array.isArray(parsed.routeStops) ? parsed.routeStops : [];
+    const routeByCode = new Map(routes.map((r) => [String(r.routeCode || r.id || '').trim(), r]));
+    const linksByStopCode = new Map();
+    routeStops.forEach((link) => {
+      const stopCode = String(link.externalStopCode || '').trim();
+      const routeCode = String(link.routeCode || link.routeNumber || '').trim();
+      if (!stopCode || !routeCode) return;
+      const route = routeByCode.get(routeCode) || {};
+      const current = linksByStopCode.get(stopCode) || [];
+      if (!current.some((x) => String(x.id) === routeCode)) {
+        current.push({
+          id: routeCode,
+          displayCode: route.displayCode || link.routeNumber || routeCode,
+          name: route.name || link.routeName || routeCode,
+          color: route.color || '#2563eb',
+        });
+      }
+      linksByStopCode.set(stopCode, current);
+    });
+    staticBusCache = { stops, routes, routeByCode, linksByStopCode };
+  } catch (_err) {
+    staticBusCache = { stops: [], routes: [], routeByCode: new Map(), linksByStopCode: new Map() };
+  }
+  return staticBusCache;
+}
+
+function staticStopDto(stop, index = 0) {
+  const bundle = loadStaticBusData();
+  const externalStopCode = stop.externalStopCode || stop.code || stop.id || `STATIC_STOP_${index + 1}`;
+  const routes = bundle.linksByStopCode.get(String(externalStopCode)) || [];
+  const primaryRoute = routes[0] || null;
+  return {
+    id: externalStopCode,
+    externalStopCode,
+    routeId: primaryRoute?.id || null,
+    routeDisplayCode: primaryRoute?.displayCode || primaryRoute?.id || null,
+    provinceCode: stop.provinceCode || stop.province || null,
+    provinceName: stop.provinceName || null,
+    name: stop.name,
+    address: stop.address || stop.nearbyLandmark || '',
+    stopType: stop.stopType || null,
+    lat: Number(stop.lat ?? stop.latitude),
+    lng: Number(stop.lng ?? stop.longitude),
+    latitude: Number(stop.lat ?? stop.latitude),
+    longitude: Number(stop.lng ?? stop.longitude),
+    isMajor: Boolean(Number(stop.isMajor || 0)),
+    nearbyLandmark: stop.nearbyLandmark || '',
+    sequence: Number(stop.sequenceNo || stop.sequence || 99999),
+    routeCount: routes.length,
+    routes,
+    dataSource: 'static-import-fallback',
+  };
+}
+
+function staticFindAll(routeId = null, filters = {}) {
+  const bundle = loadStaticBusData();
+  const routeFilter = routeId ? String(routeId).trim() : null;
+  const provinceFilter = String(filters.provinceCode || filters.province || '').trim().toUpperCase() || null;
+  const keyword = String(filters.q || filters.keyword || '').trim().toLowerCase() || null;
+  return bundle.stops
+    .map(staticStopDto)
+    .filter((s) => isValidLatLng(s.lat, s.lng, true))
+    .filter((s) => !provinceFilter || String(s.provinceCode || '').toUpperCase() === provinceFilter || String(s.provinceName || '').toUpperCase().includes(provinceFilter))
+    .filter((s) => !routeFilter || String(s.routeId || '') === routeFilter || (s.routes || []).some((r) => String(r.id) === routeFilter || String(r.displayCode) === routeFilter))
+    .filter((s) => !keyword || [s.name, s.address, s.nearbyLandmark, s.provinceName, s.routeDisplayCode].join(' ').toLowerCase().includes(keyword));
+}
 
 function normalizeLimit(value, fallback = 20, max = 100) {
   const n = Number(value);
@@ -10,7 +90,12 @@ function normalizeLimit(value, fallback = 20, max = 100) {
 }
 
 async function findAll(routeId = null, filters = {}) {
-  let stops = await cache.remember(`stops:${routeId || 'all'}`, 60_000, () => data.getStops(routeId || null));
+  let stops;
+  try {
+    stops = await cache.remember(`stops:${routeId || 'all'}`, 60_000, () => data.getStops(routeId || null));
+  } catch (_err) {
+    stops = staticFindAll(routeId, filters);
+  }
   stops = stops.filter((s) => isValidLatLng(s.lat ?? s.latitude, s.lng ?? s.longitude, true));
   if (filters.province || filters.provinceCode) {
     const code = String(filters.provinceCode || filters.province).toUpperCase();
