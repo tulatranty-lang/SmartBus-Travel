@@ -1315,22 +1315,32 @@ const MapModule = (() => {
   }
 
   function markUserLocation(lat, lng) {
-    if (!map || lat == null || lng == null) return;
+    if (!map || !window.L) return false;
     const ll = normalizeLatLng({ lat, lng }, { allowOutsideCentral: true, source: "user-location" });
-    if (!ll) return;
-    State.userLocation = { lat: ll[0], lng: ll[1] };
-    const icon = L.divIcon({ className: "user-location-icon", html: `<div class="user-location-dot"></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
-    if (userLocationMarker) userLocationMarker.setLatLng(ll);
-    else userLocationMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 500 }).addTo(map);
-    if (userLocationCircle) userLocationCircle.setLatLng(ll);
-    else userLocationCircle = L.circle(ll, { radius: 650, weight: 1, opacity: 0.7, fillOpacity: 0.08 }).addTo(map);
-    userLocationMarker.bindPopup("📍 Vị trí hiện tại của bạn");
-    // FIX: Pan map đến vị trí THẬT của user – không để focusStop override mất
-    map.flyTo(ll, Math.max(map.getZoom(), 15), { duration: 1.0 });
-    setTimeout(() => userLocationMarker?.openPopup(), 900);
-    updateMarkers(State.buses);
-    drawStops();
-    window.safeInvalidateSmartBusMap?.(200);
+    if (!ll || !Number.isFinite(Number(ll[0])) || !Number.isFinite(Number(ll[1]))) {
+      console.warn("[SmartBus] Bỏ qua GPS không hợp lệ:", lat, lng);
+      return false;
+    }
+    try {
+      State.userLocation = { lat: Number(ll[0]), lng: Number(ll[1]) };
+      const icon = L.divIcon({ className: "user-location-icon", html: `<div class="user-location-dot"></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
+      if (userLocationMarker) userLocationMarker.setLatLng(ll);
+      else userLocationMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 500 }).addTo(map);
+      if (userLocationCircle) userLocationCircle.setLatLng(ll);
+      else userLocationCircle = L.circle(ll, { radius: 650, weight: 1, opacity: 0.7, fillOpacity: 0.08 }).addTo(map);
+      userLocationMarker.bindPopup("Vị trí hiện tại của bạn");
+      map.flyTo(ll, 15, { duration: 1.0 });
+      setTimeout(() => {
+        try { userLocationMarker?.openPopup?.(); } catch {}
+      }, 800);
+      updateMarkers(State.buses);
+      drawStops();
+      window.safeInvalidateSmartBusMap?.(200);
+      return true;
+    } catch (err) {
+      console.warn("[SmartBus] Không thể đánh dấu vị trí người dùng:", err?.message || err);
+      return false;
+    }
   }
 
   function clearTravelPlan() {
@@ -1974,7 +1984,7 @@ const SmartBusGeo = (() => {
           gps.lng = gpsPoint[1];
           lastPosition = gps;
           if (statusEl) statusEl.textContent = `Đã có GPS – độ chính xác khoảng ${Math.round(gps.accuracy || 0)}m`;
-          MapModule.markUserLocation?.(gps.lat, gps.lng);
+          if (normalizeLatLng(gps, { allowOutsideCentral: true, source: "manual-gps" })) MapModule.markUserLocation?.(gps.lat ?? gps.latitude ?? gps.coords?.latitude, gps.lng ?? gps.longitude ?? gps.coords?.longitude);
           State.userLocation = gps;
           window.smartBusUserLocation = gps;
           window.safeInvalidateSmartBusMap?.(200);
@@ -2788,7 +2798,10 @@ const SearchFilter = {
       });
       if (!gps) {
         Toast.show("Không lấy được GPS. Hãy bật quyền Location cho trình duyệt rồi thử lại.", "warning", 4500);
+        return;
       }
+      if (normalizeLatLng(gps, { allowOutsideCentral: true, source: "manual-gps" })) MapModule.markUserLocation?.(gps.lat ?? gps.latitude ?? gps.coords?.latitude, gps.lng ?? gps.longitude ?? gps.coords?.longitude);
+      window.safeInvalidateSmartBusMap?.(300);
     });
 
     $("#refresh-btn")?.addEventListener("click", () => {
@@ -2907,12 +2920,32 @@ const TravelUI = {
     return gps;
   },
 
+  _defaultNearbyGps() {
+    return { lat: 16.0544, lng: 108.2022, accuracy: null, isFallback: true, label: "Trung tâm Đà Nẵng" };
+  },
+
+  _safeNearbyGps(gps) {
+    const candidate = gps?.coords
+      ? { lat: gps.coords.latitude, lng: gps.coords.longitude, accuracy: gps.coords.accuracy }
+      : gps;
+    const ll = normalizeLatLng(candidate, { allowOutsideCentral: true, source: "nearby-user-gps" });
+    if (!ll) return null;
+    return {
+      ...(typeof candidate === "object" && candidate ? candidate : {}),
+      lat: Number(ll[0]),
+      lng: Number(ll[1]),
+      accuracy: candidate?.accuracy ?? gps?.accuracy ?? gps?.coords?.accuracy ?? null,
+      isFallback: Boolean(candidate?.isFallback || gps?.isFallback),
+    };
+  },
+
   _normalizeNearbyStop(stop, gps, index = 0) {
     const ll = normalizeLatLng(stop, { source: `nearby-local:${stop?.id || stop?.externalStopCode || index}` });
     if (!ll) return null;
+    const safeGps = this._safeNearbyGps(gps) || this._defaultNearbyGps();
     const distanceMeters = Number.isFinite(Number(stop.distanceMeters))
       ? Math.round(Number(stop.distanceMeters))
-      : Math.round(getDistanceMeters([Number(gps.lat), Number(gps.lng)], ll));
+      : Math.round(getDistanceMeters([safeGps.lat, safeGps.lng], ll));
     if (!Number.isFinite(distanceMeters)) return null;
     const routes = Array.isArray(stop.routes) ? stop.routes : [];
     const primaryRoute = routes[0] || null;
@@ -2948,146 +2981,184 @@ const TravelUI = {
   },
 
   async _nearbyFromStaticBusJson(gps, limit = 5) {
-    if (!this._nearbyStaticStops) {
-      // FIX: Thêm path GitHub Pages + path tuyệt đối để không bị 404
-      const candidates = [
-        'data/import/smartbus-bus-data.normalized.json',
-        './data/import/smartbus-bus-data.normalized.json',
-        '/SmartBus-Travel/data/import/smartbus-bus-data.normalized.json',
-        '../data/import/smartbus-bus-data.normalized.json',
-        '../backend-api/data/import/smartbus-bus-data.normalized.json',
-      ];
-      let payload = null;
-      let lastError = null;
-      for (const url of candidates) {
-        try {
-          const res = await fetchWithTimeout(url, { cache: 'force-cache' }, 6000);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          payload = await res.json();
-          break;
-        } catch (err) {
-          lastError = err;
+    try {
+      if (!this._nearbyStaticStops) {
+        const candidates = [
+          '/SmartBus-Travel/data/import/smartbus-bus-data.normalized.json',
+          './data/import/smartbus-bus-data.normalized.json',
+          'data/import/smartbus-bus-data.normalized.json',
+          '../data/import/smartbus-bus-data.normalized.json',
+          '../backend-api/data/import/smartbus-bus-data.normalized.json',
+        ];
+        let payload = null;
+        let lastError = null;
+        for (const url of candidates) {
+          try {
+            const res = await fetchWithTimeout(url, { cache: 'force-cache' }, 6000);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            payload = await res.json();
+            break;
+          } catch (err) {
+            lastError = err;
+            console.warn(`Không đọc được dữ liệu bến local từ ${url}:`, err);
+          }
         }
+        if (!payload) {
+          console.warn('[SmartBus] Không đọc được JSON tĩnh:', lastError?.message || lastError);
+          return [];
+        }
+        const routes = Array.isArray(payload.routes) ? payload.routes : [];
+        const routeStops = Array.isArray(payload.routeStops) ? payload.routeStops : [];
+        const stops = Array.isArray(payload.stops) ? payload.stops : [];
+        const routeByCode = new Map(routes.map((route) => [String(route.routeCode || route.id || route.displayCode || '').trim(), route]));
+        const routesByStop = new Map();
+        routeStops.forEach((item) => {
+          const stopKey = String(item.externalStopCode || item.stopCode || item.stopId || item.stopName || '').trim();
+          const routeCode = String(item.routeCode || item.routeNumber || item.routeId || '').trim();
+          if (!stopKey || !routeCode) return;
+          const route = routeByCode.get(routeCode) || { routeCode, displayCode: routeCode, name: routeCode };
+          const value = {
+            id: route.routeCode || route.id || routeCode,
+            routeCode: route.routeCode || routeCode,
+            displayCode: route.displayCode || route.routeNumber || routeCode,
+            name: route.name || routeCode,
+            color: route.color || '#2563eb',
+          };
+          const list = routesByStop.get(stopKey) || [];
+          if (!list.some((r) => String(r.id) === String(value.id))) list.push(value);
+          routesByStop.set(stopKey, list);
+        });
+        this._nearbyStaticStops = stops.map((stop, index) => {
+          const stopKey = String(stop.externalStopCode || stop.id || stop.name || '').trim();
+          const linkedRoutes = routesByStop.get(stopKey) || [];
+          const firstRoute = linkedRoutes[0] || null;
+          return {
+            ...stop,
+            id: stop.id || stop.externalStopCode || `static-stop-${index + 1}`,
+            code: stop.externalStopCode || stop.id || `STOP-${index + 1}`,
+            routeId: firstRoute?.id || null,
+            routeCode: firstRoute?.displayCode || firstRoute?.routeCode || null,
+            routeName: firstRoute?.name || null,
+            routes: linkedRoutes,
+            province: stop.provinceName || stop.province || '',
+            latitude: stop.lat ?? stop.latitude,
+            longitude: stop.lng ?? stop.longitude,
+          };
+        });
       }
-      // FIX: Không throw – trả [] để tầng gọi tiếp tục xuống hardcoded fallback
-      if (!payload) {
-        console.warn('[SmartBus] Không đọc được JSON tĩnh bến xe:', lastError?.message || lastError);
-        return [];
-      }
-      const routes = Array.isArray(payload.routes) ? payload.routes : [];
-      const routeStops = Array.isArray(payload.routeStops) ? payload.routeStops : [];
-      const stops = Array.isArray(payload.stops) ? payload.stops : [];
-      const routeByCode = new Map(routes.map((route) => [String(route.routeCode || route.id || route.displayCode || '').trim(), route]));
-      const routesByStop = new Map();
-      routeStops.forEach((item) => {
-        const stopKey = String(item.externalStopCode || item.stopCode || item.stopId || item.stopName || '').trim();
-        const routeCode = String(item.routeCode || item.routeNumber || item.routeId || '').trim();
-        if (!stopKey || !routeCode) return;
-        const route = routeByCode.get(routeCode) || { routeCode, displayCode: routeCode, name: routeCode };
-        const value = {
-          id: route.routeCode || route.id || routeCode,
-          routeCode: route.routeCode || routeCode,
-          displayCode: route.displayCode || route.routeNumber || routeCode,
-          name: route.name || routeCode,
-          color: route.color || '#2563eb',
-        };
-        const list = routesByStop.get(stopKey) || [];
-        if (!list.some((r) => String(r.id) === String(value.id))) list.push(value);
-        routesByStop.set(stopKey, list);
-      });
-      this._nearbyStaticStops = stops.map((stop, index) => {
-        const stopKey = String(stop.externalStopCode || stop.id || stop.name || '').trim();
-        const linkedRoutes = routesByStop.get(stopKey) || [];
-        const firstRoute = linkedRoutes[0] || null;
-        return {
-          ...stop,
-          id: stop.id || stop.externalStopCode || `static-stop-${index + 1}`,
-          code: stop.externalStopCode || stop.id || `STOP-${index + 1}`,
-          routeId: firstRoute?.id || null,
-          routeCode: firstRoute?.displayCode || firstRoute?.routeCode || null,
-          routeName: firstRoute?.name || null,
-          routes: linkedRoutes,
-          province: stop.provinceName || stop.province || '',
-          latitude: stop.lat ?? stop.latitude,
-          longitude: stop.lng ?? stop.longitude,
-        };
-      });
-    }
-    return this._nearbyStaticStops
-      .map((stop, index) => this._normalizeNearbyStop(stop, gps, index))
-      .filter(Boolean)
-      .sort((a, b) => a.distanceMeters - b.distanceMeters)
-      .slice(0, limit);
-  },
-
-  async _getNearbyStopsTrietDe(gps, limit = 5) {
-    // Tầng 1: Backend API (Render cold start có thể mất 30-50s, tăng timeout)
-    try {
-      const rows = await API.get(`/stops/nearby?lat=${encodeURIComponent(gps.lat)}&lng=${encodeURIComponent(gps.lng)}&limit=${limit}`, { timeoutMs: 25000, skipAuth: true });
-      const stops = Array.isArray(rows) ? rows : (rows.nearestStops || rows.data || []);
-      if (stops.length) return { stops: stops.map((stop, i) => this._normalizeNearbyStop(stop, gps, i)).filter(Boolean), source: 'Backend SQL Server' };
-    } catch (err) {
-      console.warn('[SmartBus] /stops/nearby fail (Render cold start?), thử dữ liệu local:', err.message || err);
-    }
-
-    // Tầng 2: State.stops đã tải vào bộ nhớ (nếu DynamicData.load đã chạy xong)
-    try {
-      const loaded = this._nearbyFromLoadedMapData(gps, limit);
-      if (loaded.length) return { stops: loaded, source: 'Dữ liệu bản đồ đã tải' };
-    } catch (_e) { /* bỏ qua */ }
-
-    // Tầng 3: Fetch file JSON tĩnh (bọc trong try/catch riêng – không để throw lên trên)
-    try {
-      const local = await this._nearbyFromStaticBusJson(gps, limit);
-      if (local.length) return { stops: local, source: 'Dữ liệu bến local (243 bến)' };
-    } catch (err) {
-      console.warn('[SmartBus] _nearbyFromStaticBusJson lỗi:', err.message || err);
-    }
-
-    // Tầng 4: Hardcoded fallback – 20 bến Đà Nẵng nhúng thẳng, không cần fetch hay backend
-    try {
-      const hc = this._getHardcodedStops();
-      const sorted = hc
-        .map((s, i) => this._normalizeNearbyStop(s, gps, i))
+      return (this._nearbyStaticStops || [])
+        .map((stop, index) => this._normalizeNearbyStop(stop, gps, index))
         .filter(Boolean)
         .sort((a, b) => a.distanceMeters - b.distanceMeters)
         .slice(0, limit);
-      if (sorted.length) return { stops: sorted, source: 'Dữ liệu bến Đà Nẵng (offline)' };
-    } catch (_e) { /* bỏ qua */ }
+    } catch (err) {
+      console.warn('Không thể xử lý dữ liệu bến local dự phòng:', err);
+      return [];
+    }
+  },
 
-    // Tất cả tầng fail – trả rỗng, KHÔNG throw
+  async _getNearbyStopsTrietDe(gps, limit = 5) {
+    const safeGps = this._safeNearbyGps(gps) || this._defaultNearbyGps();
+
+    // Tầng 1: Backend API - Render có thể cold start nên timeout phải đủ dài
+    try {
+      const rows = await API.get(
+        `/stops/nearby?lat=${encodeURIComponent(safeGps.lat)}&lng=${encodeURIComponent(safeGps.lng)}&limit=${limit}`,
+        { timeoutMs: 25000, skipAuth: true }
+      );
+
+      const stops = Array.isArray(rows) ? rows : (rows.nearestStops || rows.data || []);
+      const normalized = stops
+        .map((stop, i) => this._normalizeNearbyStop(stop, safeGps, i))
+        .filter(Boolean);
+      if (normalized.length) {
+        return { stops: normalized, source: 'Backend SQL Server' };
+      }
+    } catch (err) {
+      console.warn('[SmartBus] API /stops/nearby fail, thử dữ liệu local:', err?.message || err);
+    }
+
+    // Tầng 2: Dữ liệu bến đã load trong State.stops
+    try {
+      const loaded = this._nearbyFromLoadedMapData(safeGps, limit);
+      if (loaded.length) return { stops: loaded, source: 'Dữ liệu bản đồ đã tải' };
+    } catch (err) {
+      console.warn('[SmartBus] State.stops fallback fail:', err?.message || err);
+    }
+
+    // Tầng 3: Fetch file JSON tĩnh, không cho lỗi JSON làm chết UI
+    try {
+      const local = await this._nearbyFromStaticBusJson(safeGps, limit);
+      if (local.length) return { stops: local, source: 'Dữ liệu bến local (243 bến)' };
+    } catch (err) {
+      console.warn('[SmartBus] Fetch JSON tĩnh fail:', err?.message || err);
+    }
+
+    // Tầng 4: Hardcoded fallback — 20 bến Đà Nẵng nhúng thẳng vào code
+    try {
+      const hardcoded = this._getHardcodedStops();
+      if (hardcoded.length) {
+        const sorted = hardcoded
+          .map((s, i) => this._normalizeNearbyStop(s, safeGps, i))
+          .filter(Boolean)
+          .sort((a, b) => a.distanceMeters - b.distanceMeters)
+          .slice(0, limit);
+        if (sorted.length) return { stops: sorted, source: 'Dữ liệu bến Đà Nẵng (offline)' };
+      }
+    } catch (err) {
+      console.warn('[SmartBus] Hardcoded fallback fail:', err?.message || err);
+    }
+
     return { stops: [], source: 'Không tìm thấy dữ liệu bến' };
   },
 
-  // Tầng 4 hardcoded: 20 bến chính Đà Nẵng + lân cận
-  // Luôn hoạt động dù backend và fetch đều fail hoàn toàn
   _getHardcodedStops() {
-    return [
-      { id: 'DN_BEN_XE_TRUNG_TAM',   name: 'Bến xe Trung tâm Đà Nẵng',  provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0739, lng: 108.1537, address: 'Bến xe Trung tâm Đà Nẵng' },
-      { id: 'DN_NAM_TRAN',            name: 'Nam Trân',                    provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0750, lng: 108.1700, address: 'Nam Trân, Đà Nẵng' },
-      { id: 'DN_LY_THAI_TONG',        name: 'Lý Thái Tông Đà Nẵng',       provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0840, lng: 108.1700, address: 'Lý Thái Tông, Đà Nẵng' },
-      { id: 'DN_CAU_THUAN_PHUOC',     name: 'Cầu Thuận Phước',             provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0910, lng: 108.2240, address: 'Cầu Thuận Phước, Đà Nẵng' },
-      { id: 'DN_HOANG_SA',            name: 'Hoàng Sa',                    provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0980, lng: 108.2590, address: 'Đường Hoàng Sa, Đà Nẵng' },
-      { id: 'DN_MY_KHE',              name: 'Bãi biển Mỹ Khê',             provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0670, lng: 108.2470, address: 'Mỹ Khê, Đà Nẵng' },
-      { id: 'DN_CAU_RONG',            name: 'Cầu Rồng',                    provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0610, lng: 108.2280, address: 'Cầu Rồng, Đà Nẵng' },
-      { id: 'DN_NGU_HANH_SON',        name: 'Ngũ Hành Sơn',                provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0030, lng: 108.2630, address: 'Ngũ Hành Sơn, Đà Nẵng' },
-      { id: 'DN_SON_TRA',             name: 'Bán đảo Sơn Trà',             provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.1050, lng: 108.2680, address: 'Sơn Trà, Đà Nẵng' },
-      { id: 'DN_AIRPORT',             name: 'Sân bay Đà Nẵng',             provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0440, lng: 108.1990, address: 'Sân bay Quốc tế Đà Nẵng' },
-      { id: 'DN_CHO_CON',             name: 'Chợ Cồn',                     provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0680, lng: 108.2200, address: 'Chợ Cồn, Đà Nẵng' },
-      { id: 'DN_BACH_DANG',           name: 'Bạch Đằng',                   provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0670, lng: 108.2250, address: 'Đường Bạch Đằng, Đà Nẵng' },
-      { id: 'DN_HAI_CHAU',            name: 'Hải Châu',                    provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0600, lng: 108.2180, address: 'Quận Hải Châu, Đà Nẵng' },
-      { id: 'DN_THANH_KHE',           name: 'Thanh Khê',                   provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0800, lng: 108.1900, address: 'Quận Thanh Khê, Đà Nẵng' },
-      { id: 'DN_CAM_LE',              name: 'Cẩm Lệ',                      provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0200, lng: 108.2050, address: 'Quận Cẩm Lệ, Đà Nẵng' },
-      { id: 'DN_LIEN_CHIEU',          name: 'Liên Chiểu',                   provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.1200, lng: 108.1600, address: 'Quận Liên Chiểu, Đà Nẵng' },
-      { id: 'DN_HOA_VANG',            name: 'Hòa Vang',                    provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 15.9800, lng: 108.1400, address: 'Huyện Hòa Vang, Đà Nẵng' },
-      { id: 'DN_VINCOM',              name: 'Vincom Đà Nẵng',              provinceCode: 'DN',    provinceName: 'Đà Nẵng',  lat: 16.0550, lng: 108.2100, address: 'Vincom Center Đà Nẵng' },
-      { id: 'QN_BEN_XE_HOI_AN',      name: 'Bến xe Hội An',               provinceCode: 'QN_CU', provinceName: 'Hội An',   lat: 15.8750, lng: 108.3300, address: 'Bến xe Hội An, Quảng Nam' },
-      { id: 'HUE_BEN_XE_PHIA_NAM',   name: 'Bến xe phía Nam Huế',         provinceCode: 'HUE',   provinceName: 'Huế',      lat: 16.4450, lng: 107.5960, address: 'Bến xe phía Nam, TP Huế' },
-    ];
-  },
+  return [
+    { id: 'DN_BEN_XE_TRUNG_TAM', name: 'Bến xe Trung tâm Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0739, lng: 108.1537, address: 'Bến xe Trung tâm Đà Nẵng' },
+    { id: 'DN_NAM_TRAN', name: 'Nam Trân', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0750, lng: 108.1700, address: 'Nam Trân, Đà Nẵng' },
+    { id: 'DN_LY_THAI_TONG', name: 'Lý Thái Tông Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0840, lng: 108.1700, address: 'Lý Thái Tông, Đà Nẵng' },
+    { id: 'DN_CAU_THUAN_PHUOC', name: 'Cầu Thuận Phước', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0910, lng: 108.2240, address: 'Cầu Thuận Phước, Đà Nẵng' },
+    { id: 'DN_HOANG_SA', name: 'Hoàng Sa', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0980, lng: 108.2590, address: 'Hoàng Sa, Đà Nẵng' },
+    { id: 'DN_MY_KHE', name: 'Bãi biển Mỹ Khê', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0670, lng: 108.2470, address: 'Mỹ Khê, Đà Nẵng' },
+    { id: 'DN_CAU_RONG', name: 'Cầu Rồng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0610, lng: 108.2280, address: 'Cầu Rồng, Đà Nẵng' },
+    { id: 'DN_NGU_HANH_SON', name: 'Ngũ Hành Sơn', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0030, lng: 108.2630, address: 'Ngũ Hành Sơn, Đà Nẵng' },
+    { id: 'DN_SON_TRA', name: 'Bán đảo Sơn Trà', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.1050, lng: 108.2680, address: 'Sơn Trà, Đà Nẵng' },
+    { id: 'DN_HOI_AN_BUS', name: 'Bến xe Hội An', provinceCode: 'QN_CU', provinceName: 'Hội An', lat: 15.8750, lng: 108.3300, address: 'Bến xe Hội An, Quảng Nam' },
+    { id: 'DN_AIRPORT', name: 'Sân bay Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0440, lng: 108.1990, address: 'Sân bay Quốc tế Đà Nẵng' },
+    { id: 'DN_CHO_CON', name: 'Chợ Cồn', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0680, lng: 108.2200, address: 'Chợ Cồn, Đà Nẵng' },
+    { id: 'DN_BACH_DANG', name: 'Bạch Đằng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0670, lng: 108.2250, address: 'Đường Bạch Đằng, Đà Nẵng' },
+    { id: 'DN_HAI_CHAU', name: 'Hải Châu', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0600, lng: 108.2180, address: 'Quận Hải Châu, Đà Nẵng' },
+    { id: 'DN_THANH_KHE', name: 'Thanh Khê', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0800, lng: 108.1900, address: 'Quận Thanh Khê, Đà Nẵng' },
+    { id: 'DN_CAM_LE', name: 'Cẩm Lệ', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0200, lng: 108.2050, address: 'Quận Cẩm Lệ, Đà Nẵng' },
+    { id: 'DN_LIEN_CHIEU', name: 'Liên Chiểu', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.1200, lng: 108.1600, address: 'Quận Liên Chiểu, Đà Nẵng' },
+    { id: 'DN_HOA_VANG', name: 'Hòa Vang', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 15.9800, lng: 108.1400, address: 'Huyện Hòa Vang, Đà Nẵng' },
+    { id: 'DN_VINCOM', name: 'Vincom Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0550, lng: 108.2100, address: 'Vincom Center Đà Nẵng' },
+    { id: 'DN_BIG_C', name: 'Big C Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0580, lng: 108.2020, address: 'Big C Đà Nẵng' }
+  ];
+},
 
   _renderNearbyStops(box, stops, gps, source = 'Backend SQL Server') {
-    box.innerHTML = `<div class="travel-card wide success-state"><div class="travel-kicker">Đã lấy vị trí của bạn</div><p>Nguồn: ${this._esc(source)} · lat ${Number(gps.lat).toFixed(5)}, lng ${Number(gps.lng).toFixed(5)}</p></div>` + stops.map((stop, idx) => {
+    const safeGps = this._safeNearbyGps(gps) || this._defaultNearbyGps();
+    const gpsText = safeGps.isFallback
+      ? 'Đang dùng vị trí dự phòng: Trung tâm Đà Nẵng'
+      : `lat ${Number(safeGps.lat).toFixed(5)}, lng ${Number(safeGps.lng).toFixed(5)}`;
+    const cleanStops = (Array.isArray(stops) ? stops : [])
+      .map((stop, index) => this._normalizeNearbyStop(stop, safeGps, index))
+      .filter(Boolean)
+      .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+    if (!cleanStops.length) {
+      box.innerHTML = `
+        <div class="travel-card wide empty-state">
+          <h4>Không tìm thấy bến gần vị trí hiện tại</h4>
+          <p>Dữ liệu bến đang được cập nhật. Vui lòng thử lại sau.</p>
+          <button class="btn-ghost" onclick="TravelUI.renderNearestStop(true)" style="margin-top:12px">🔄 Thử lại</button>
+        </div>
+      `;
+      return;
+    }
+
+    box.innerHTML = `<div class="travel-card wide success-state"><div class="travel-kicker">Đã lấy vị trí của bạn</div><p>Nguồn: ${this._esc(source)} · ${this._esc(gpsText)}</p></div>` + cleanStops.map((stop, idx) => {
       const meters = Number(stop.distanceMeters || 0);
       const distance = meters >= 1000 ? `${(meters / 1000).toFixed(1)}km` : `${Math.max(1, Math.round(meters))}m`;
       const routeText = stop.routeName ? `Tuyến ${this._esc(stop.routeCode || stop.routeId || '')} · ${this._esc(stop.routeName)}` : (stop.routeCode || stop.routeId ? `Tuyến ${this._esc(stop.routeCode || stop.routeId)}` : 'Tuyến liên quan đang cập nhật');
@@ -3099,11 +3170,9 @@ const TravelUI = {
         <div class="travel-actions"><button class="btn-ghost" data-nearby-stop-map="${this._esc(stop.id)}">Xem trên bản đồ</button></div>
       </article>`;
     }).join('');
-    this._nearbyStops = stops;
-    // FIX: markUserLocation flyTo vị trí user trước, sau 2s mới focusStop bến gần nhất
-    // Tránh map pan đến trung tâm làm user tưởng GPS sai
-    MapModule.markUserLocation?.(gps.lat, gps.lng);
-    setTimeout(() => MapModule.focusStop?.(stops[0]), 2000);
+    this._nearbyStops = cleanStops;
+    if (!safeGps.isFallback) MapModule.markUserLocation?.(safeGps.lat, safeGps.lng);
+    setTimeout(() => MapModule.focusStop?.(cleanStops[0]), safeGps.isFallback ? 300 : 1500);
     $$('[data-nearby-stop-map]').forEach((btn) => btn.addEventListener('click', () => {
       const stop = (this._nearbyStops || []).find((item) => String(item.id) === String(btn.dataset.nearbyStopMap));
       if (!stop) return;
@@ -3117,34 +3186,56 @@ const TravelUI = {
     if (!box) return;
     showLoading(box, forceGps ? "Đang lấy vị trí và tìm bến gần nhất..." : "Đang tìm bến gần nhất...");
     if (forceGps) this.gps = null;
-    const gps = forceGps ? await this._getGps(true, false) : this.gps || await this._getGps(false, true);
-    if (!gps) {
-      showEmpty(box, "Bạn cần bật quyền vị trí trong trình duyệt để tìm bến gần nhất.");
-      return;
-    }
+
+    let gps = null;
     try {
-      const { stops, source } = await this._getNearbyStopsTrietDe(gps, 5);
+      const rawGps = forceGps ? await this._getGps(true, false) : this.gps || await this._getGps(false, true);
+      gps = this._safeNearbyGps(rawGps);
+      if (gps) this.gps = gps;
+    } catch (err) {
+      console.warn('[SmartBus] Không lấy được GPS hợp lệ, dùng vị trí dự phòng để tránh lỗi:', err?.message || err);
+    }
+
+    if (!gps) {
+      gps = this._defaultNearbyGps();
+      this.gps = gps;
+    }
+
+    try {
+      const result = await this._getNearbyStopsTrietDe(gps, 5);
+      const stops = Array.isArray(result?.stops) ? result.stops : [];
+      const source = result?.source || 'Không tìm thấy dữ liệu bến';
       if (!stops.length) {
-        box.innerHTML = `<div class="travel-card wide empty-state"><h4>Không tìm thấy bến gần đây</h4><p>Dữ liệu bến đang được cập nhật hoặc chưa có bến trong khu vực của bạn.</p><button class="btn-ghost" onclick="TravelUI.renderNearestStop(true)" style="margin-top:12px">🔄 Thử lại</button></div>`;
+        box.innerHTML = `
+          <div class="travel-card wide empty-state">
+            <h4>Không tìm thấy bến gần vị trí hiện tại</h4>
+            <p>Dữ liệu bến đang được cập nhật. Vui lòng thử lại sau.</p>
+            <button class="btn-ghost" onclick="TravelUI.renderNearestStop(true)" style="margin-top:12px">🔄 Thử lại</button>
+          </div>
+        `;
         return;
       }
       this._renderNearbyStops(box, stops, gps, source);
     } catch (err) {
       console.error('[SmartBus] Bến gần tôi lỗi không mong đợi:', err);
-      // Fallback cuối: thử hardcoded trước khi hiện lỗi
       try {
+        const safeGps = this._safeNearbyGps(gps) || this._defaultNearbyGps();
         const hc = this._getHardcodedStops();
         const fallback = hc
-          .map((s, i) => this._normalizeNearbyStop(s, gps, i))
+          .map((s, i) => this._normalizeNearbyStop(s, safeGps, i))
           .filter(Boolean)
           .sort((a, b) => a.distanceMeters - b.distanceMeters)
           .slice(0, 5);
         if (fallback.length) {
-          this._renderNearbyStops(box, fallback, gps, 'Dữ liệu bến Đà Nẵng (dự phòng)');
+          this._renderNearbyStops(box, fallback, safeGps, 'Dữ liệu bến Đà Nẵng (dự phòng)');
           return;
         }
-      } catch (_e) { /* bỏ qua */ }
-      box.innerHTML = `<div class="travel-card wide empty-state error-state"><h4>Không tải được dữ liệu bến</h4><p>Vui lòng kiểm tra kết nối mạng và thử lại.</p><button class="btn-ghost" onclick="TravelUI.renderNearestStop(true)" style="margin-top:12px">🔄 Thử lại</button></div>`;
+      } catch (_e) {}
+      box.innerHTML = `<div class="travel-card wide empty-state">
+        <h4>Không tìm thấy bến gần đây</h4>
+        <p>Dữ liệu bến đang được cập nhật. Vui lòng thử lại sau.</p>
+        <button class="btn-ghost" onclick="TravelUI.renderNearestStop(true)" style="margin-top:12px">🔄 Thử lại</button>
+      </div>`;
     }
   },
 
