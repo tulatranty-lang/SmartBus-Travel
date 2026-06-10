@@ -494,6 +494,78 @@ function normalizeLatLng(item, options = {}) {
   return point;
 }
 
+function safeLeafletLatLng(point, options = {}) {
+  const { allowOutsideCentral = false, source = "leaflet" } = options;
+  if (!window.L) return null;
+  const ll = normalizeLatLng(point, { allowOutsideCentral, source });
+  if (!ll) return null;
+  const lat = toSmartBusNumber(ll[0]);
+  const lng = toSmartBusNumber(ll[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  try {
+    const leafletPoint = L.latLng(lat, lng);
+    if (!Number.isFinite(leafletPoint.lat) || !Number.isFinite(leafletPoint.lng)) return null;
+    return leafletPoint;
+  } catch (err) {
+    console.warn("[SmartBus] Bỏ qua LatLng không hợp lệ:", source, err?.message || err, point);
+    return null;
+  }
+}
+
+function safeMarkerSetLatLng(marker, point, options = {}) {
+  const ll = point && typeof point.lat === "number" && typeof point.lng === "number"
+    ? point
+    : safeLeafletLatLng(point, options);
+  if (!marker || !ll) return false;
+  try {
+    marker.setLatLng(ll);
+    return true;
+  } catch (err) {
+    console.warn("[SmartBus] Không thể setLatLng an toàn:", options.source || "marker", err?.message || err);
+    return false;
+  }
+}
+
+function safeMapFlyTo(mapInstance, point, zoom = 15, options = {}, meta = {}) {
+  const ll = point && typeof point.lat === "number" && typeof point.lng === "number"
+    ? point
+    : safeLeafletLatLng(point, { allowOutsideCentral: meta.allowOutsideCentral, source: meta.source || "map-flyTo" });
+  if (!mapInstance || !ll) return false;
+  try {
+    mapInstance.flyTo(ll, zoom, options);
+    return true;
+  } catch (err) {
+    console.warn("[SmartBus] map.flyTo bị bỏ qua:", meta.source || "map-flyTo", err?.message || err);
+    try {
+      mapInstance.setView(ll, zoom);
+      return true;
+    } catch (err2) {
+      console.warn("[SmartBus] map.setView bị bỏ qua:", meta.source || "map-setView", err2?.message || err2);
+      return false;
+    }
+  }
+}
+
+(function installSmartBusLeafletErrorGuard() {
+  if (typeof window === "undefined" || window.__smartBusLeafletErrorGuardInstalled) return;
+  window.__smartBusLeafletErrorGuardInstalled = true;
+  const isLatLngError = (value) => /Invalid LatLng object/i.test(String(value?.message || value || ""));
+  window.addEventListener("error", (event) => {
+    if (!isLatLngError(event.error || event.message)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation?.();
+    console.warn("[SmartBus] Đã chặn lỗi tọa độ Leaflet không hợp lệ:", event.message || event.error?.message);
+    return true;
+  }, true);
+  window.addEventListener("unhandledrejection", (event) => {
+    if (!isLatLngError(event.reason)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation?.();
+    console.warn("[SmartBus] Đã chặn promise lỗi tọa độ Leaflet không hợp lệ:", event.reason?.message || event.reason);
+    return true;
+  }, true);
+})();
+
 function normalizePathPoints(points, options = {}) {
   // Accept Leaflet [lat,lng] arrays, GeoJSON LineString/MultiLineString/Feature,
   // and SQL/API objects that expose geometry/coordinates. This prevents mobile map
@@ -1039,7 +1111,10 @@ const MapModule = (() => {
     }
 
     const meta = provinceMeta(State.mapFilters.province || CONFIG.DEFAULT_PROVINCE);
-    map = L.map("map", { zoomControl: false, scrollWheelZoom: true, preferCanvas: false }).setView(meta.center || CONFIG.MAP_CENTER, meta.zoom || CONFIG.MAP_ZOOM);
+    map = L.map("map", { zoomControl: false, scrollWheelZoom: true, preferCanvas: false });
+    const initialCenter = safeLeafletLatLng(meta.center || CONFIG.MAP_CENTER, { allowOutsideCentral: true, source: "map-initial-center" }) || safeLeafletLatLng(CONFIG.MAP_CENTER, { allowOutsideCentral: true, source: "map-default-center" });
+    if (initialCenter) map.setView(initialCenter, meta.zoom || CONFIG.MAP_ZOOM);
+    else map.setView([16.0544, 108.2022], meta.zoom || CONFIG.MAP_ZOOM);
     window.smartBusMap = map;
     window.map = map;
 
@@ -1182,12 +1257,14 @@ const MapModule = (() => {
       const latlng = [pos[0], pos[1]];
       if (markers.has(bus.uid)) {
         const m = markers.get(bus.uid);
-        m.setLatLng(latlng);
+        if (!safeMarkerSetLatLng(m, latlng, { source: `bus-marker-update:${bus.uid}` })) return;
         m.setIcon(makeIcon(bus));
         if (m.isPopupOpen()) m.getPopup().setContent(buildBusPopup(bus, pos));
         if (visible.has(bus.uid)) { if (!map.hasLayer(m)) m.addTo(map); } else if (map.hasLayer(m)) m.remove();
       } else {
-        const m = L.marker(latlng, { icon: makeIcon(bus), pane: "vehiclePane", zIndexOffset: 100 }).addTo(map);
+        const safePoint = safeLeafletLatLng(latlng, { source: `bus-marker-create:${bus.uid}` });
+        if (!safePoint) return;
+        const m = L.marker(safePoint, { icon: makeIcon(bus), pane: "vehiclePane", zIndexOffset: 100 }).addTo(map);
         m.bindPopup(buildBusPopup(bus, pos), { maxWidth: 320, minWidth: 230 });
         m.on("click", () => Events.emit("bus:select", bus.uid));
         markers.set(bus.uid, m);
@@ -1255,12 +1332,14 @@ const MapModule = (() => {
       if (!ll) return;
       if (stopMarkers.has(id)) {
         const m = stopMarkers.get(id);
-        m.setLatLng(ll);
+        if (!safeMarkerSetLatLng(m, ll, { source: `draw-stop-update:${id}` })) return;
         m.setIcon(makeStopIcon(stop));
         if (m.isPopupOpen()) m.getPopup().setContent(buildStopPopup(stop));
         if (!map.hasLayer(m)) m.addTo(map);
       } else {
-        const m = L.marker(ll, { icon: makeStopIcon(stop), pane: "stopPane", zIndexOffset: 70 }).addTo(map);
+        const safePoint = safeLeafletLatLng(ll, { source: `draw-stop-create:${id}` });
+        if (!safePoint) return;
+        const m = L.marker(safePoint, { icon: makeStopIcon(stop), pane: "stopPane", zIndexOffset: 70 }).addTo(map);
         m.bindPopup(buildStopPopup(stop), { maxWidth: 320, minWidth: 230 });
         stopMarkers.set(id, m);
       }
@@ -1284,7 +1363,7 @@ const MapModule = (() => {
     if (!bus || !map) return;
     const pos = getSafeBusPosition(bus);
     if (!isLatLngInValidRange(pos)) return;
-    map.flyTo([pos[0], pos[1]], 15, { duration: 1.2 });
+    safeMapFlyTo(map, pos, 15, { duration: 1.2 }, { source: "focus-bus" });
     window.safeInvalidateSmartBusMap?.(300);
     const m = markers.get(uid);
     if (m) setTimeout(() => m.openPopup(), 400);
@@ -1316,25 +1395,33 @@ const MapModule = (() => {
 
   function markUserLocation(lat, lng) {
     if (!map || !window.L) return false;
-    const ll = normalizeLatLng({ lat, lng }, { allowOutsideCentral: true, source: "user-location" });
-    if (!ll || !Number.isFinite(Number(ll[0])) || !Number.isFinite(Number(ll[1]))) {
+    const leafletPoint = safeLeafletLatLng({ lat, lng }, { allowOutsideCentral: true, source: "user-location" });
+    if (!leafletPoint) {
       console.warn("[SmartBus] Bỏ qua GPS không hợp lệ:", lat, lng);
       return false;
     }
+
     try {
-      State.userLocation = { lat: Number(ll[0]), lng: Number(ll[1]) };
+      State.userLocation = { lat: leafletPoint.lat, lng: leafletPoint.lng };
+      window.smartBusUserLocation = State.userLocation;
       const icon = L.divIcon({ className: "user-location-icon", html: `<div class="user-location-dot"></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
-      if (userLocationMarker) userLocationMarker.setLatLng(ll);
-      else userLocationMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 500 }).addTo(map);
-      if (userLocationCircle) userLocationCircle.setLatLng(ll);
-      else userLocationCircle = L.circle(ll, { radius: 650, weight: 1, opacity: 0.7, fillOpacity: 0.08 }).addTo(map);
+      if (userLocationMarker) {
+        if (!safeMarkerSetLatLng(userLocationMarker, leafletPoint, { allowOutsideCentral: true, source: "user-location-marker-update" })) return false;
+      } else {
+        userLocationMarker = L.marker(leafletPoint, { icon, pane: "focusPane", zIndexOffset: 500 }).addTo(map);
+      }
+      if (userLocationCircle) {
+        if (!safeMarkerSetLatLng(userLocationCircle, leafletPoint, { allowOutsideCentral: true, source: "user-location-circle-update" })) return false;
+      } else {
+        userLocationCircle = L.circle(leafletPoint, { radius: 650, weight: 1, opacity: 0.7, fillOpacity: 0.08 }).addTo(map);
+      }
       userLocationMarker.bindPopup("Vị trí hiện tại của bạn");
-      map.flyTo(ll, 15, { duration: 1.0 });
+      safeMapFlyTo(map, leafletPoint, 15, { duration: 1.0 }, { allowOutsideCentral: true, source: "user-location-flyTo" });
       setTimeout(() => {
         try { userLocationMarker?.openPopup?.(); } catch {}
       }, 800);
-      updateMarkers(State.buses);
-      drawStops();
+      try { updateMarkers(State.buses); } catch (err) { console.warn("[SmartBus] updateMarkers sau GPS bị bỏ qua:", err?.message || err); }
+      try { drawStops(); } catch (err) { console.warn("[SmartBus] drawStops sau GPS bị bỏ qua:", err?.message || err); }
       window.safeInvalidateSmartBusMap?.(200);
       return true;
     } catch (err) {
@@ -1361,10 +1448,10 @@ const MapModule = (() => {
   }
 
   function addPlanMarker(point, label, emoji, cls) {
-    const ll = normalizeLatLng(point, { allowOutsideCentral: true, source: `travel-plan:${label}` });
+    const ll = safeLeafletLatLng(point, { allowOutsideCentral: true, source: `travel-plan:${label}` });
     if (!ll) return null;
     const marker = L.marker(ll, { icon: planIcon(emoji, cls), pane: "focusPane", zIndexOffset: 900 }).addTo(map);
-    marker.bindPopup(`<b>${escapeHtml(label)}</b><br/>${Number(ll[0]).toFixed(5)}, ${Number(ll[1]).toFixed(5)}`);
+    marker.bindPopup(`<b>${escapeHtml(label)}</b><br/>${Number(ll.lat).toFixed(5)}, ${Number(ll.lng).toFixed(5)}`);
     planMarkers.push(marker);
     return marker;
   }
@@ -1407,28 +1494,42 @@ const MapModule = (() => {
 
   function focusPlace(place) {
     if (!map || !place) return;
-    const ll = normalizeLatLng(place, { source: `focus-place:${place?.id || place?.name || "?"}` });
+    const ll = safeLeafletLatLng(place, { source: `focus-place:${place?.id || place?.name || "?"}` });
     if (!ll) return;
-    map.flyTo(ll, 15, { duration: 1.1 });
     const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>📍</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
-    if (nearestStopMarker) nearestStopMarker.setLatLng(ll);
-    else nearestStopMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 460 }).addTo(map);
-    nearestStopMarker.bindPopup(`<b>${escapeHtml(place.name || "Địa điểm")}</b><br/>${escapeHtml(place.provinceName || place.province || "")}`);
-    window.safeInvalidateSmartBusMap?.(300);
-    setTimeout(() => nearestStopMarker?.openPopup(), 400);
+    try {
+      if (nearestStopMarker) {
+        if (!safeMarkerSetLatLng(nearestStopMarker, ll, { source: `focus-place-marker:${place?.id || place?.name || "?"}` })) return;
+      } else {
+        nearestStopMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 460 }).addTo(map);
+      }
+      nearestStopMarker.bindPopup(`<b>${escapeHtml(place.name || "Địa điểm")}</b><br/>${escapeHtml(place.provinceName || place.province || "")}`);
+      safeMapFlyTo(map, ll, 15, { duration: 1.1 }, { source: `focus-place:${place?.id || place?.name || "?"}` });
+      window.safeInvalidateSmartBusMap?.(300);
+      setTimeout(() => { try { nearestStopMarker?.openPopup?.(); } catch {} }, 400);
+    } catch (err) {
+      console.warn("[SmartBus] Không thể focus địa điểm:", err?.message || err);
+    }
   }
 
   function focusStop(stop) {
     if (!map || !stop) return;
-    const ll = normalizeLatLng(stop, { source: `focus-stop:${stop?.id || stop?.name || "?"}` });
+    const ll = safeLeafletLatLng(stop, { source: `focus-stop:${stop?.id || stop?.name || "?"}` });
     if (!ll) return;
     const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>🚏</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
-    if (nearestStopMarker) nearestStopMarker.setLatLng(ll);
-    else nearestStopMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 450 }).addTo(map);
-    nearestStopMarker.bindPopup(`<b>${escapeHtml(stop.name || "Bến gần nhất")}</b><br/>${escapeHtml(stop.address || "Điểm đón gợi ý")}`);
-    map.flyTo(ll, 15, { duration: 1.1 });
-    window.safeInvalidateSmartBusMap?.(300);
-    setTimeout(() => nearestStopMarker?.openPopup(), 450);
+    try {
+      if (nearestStopMarker) {
+        if (!safeMarkerSetLatLng(nearestStopMarker, ll, { source: `focus-stop-marker:${stop?.id || stop?.name || "?"}` })) return;
+      } else {
+        nearestStopMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 450 }).addTo(map);
+      }
+      nearestStopMarker.bindPopup(`<b>${escapeHtml(stop.name || "Bến gần nhất")}</b><br/>${escapeHtml(stop.address || "Điểm đón gợi ý")}`);
+      safeMapFlyTo(map, ll, 15, { duration: 1.1 }, { source: `focus-stop:${stop?.id || stop?.name || "?"}` });
+      window.safeInvalidateSmartBusMap?.(300);
+      setTimeout(() => { try { nearestStopMarker?.openPopup?.(); } catch {} }, 450);
+    } catch (err) {
+      console.warn("[SmartBus] Không thể focus bến:", err?.message || err);
+    }
   }
 
   function redrawRoutes(shouldFit = true) {
@@ -2862,7 +2963,15 @@ const TravelUI = {
     if (nearBtn && !nearBtn.dataset.bound) {
       nearBtn.dataset.bound = "1";
       nearBtn.addEventListener("click", async () => {
-        await this._getGps(true);
+        const rawGps = await this._getGps(true, false);
+        const safeGps = this._safeNearbyGps(rawGps);
+        if (safeGps) {
+          this.gps = safeGps;
+          State.userLocation = { lat: safeGps.lat, lng: safeGps.lng };
+        } else {
+          this.gps = null;
+          Toast.show("Không lấy được GPS hợp lệ. SmartBus vẫn hiển thị địa điểm theo dữ liệu local.", "warning", 3500);
+        }
         this.renderPlaces();
       });
     }
@@ -2916,8 +3025,9 @@ const TravelUI = {
       buttons: [$("#place-near-me"), $("#nearby-gps-btn")],
       allowCache,
     });
-    this.gps = gps;
-    return gps;
+    const safeGps = this._safeNearbyGps(gps);
+    this.gps = safeGps;
+    return safeGps;
   },
 
   _defaultNearbyGps() {
@@ -3244,35 +3354,194 @@ const TravelUI = {
     const state = $("#place-state");
     if (!list) return;
     this._bindTourism();
-    state && (state.innerHTML = "Đang tải địa điểm từ SQL Server qua Backend API...");
+    state && (state.innerHTML = "Đang tải địa điểm từ Backend API...");
     list.innerHTML = this._loading("Đang tải địa điểm du lịch...");
+
     const qRaw = ($("#place-search")?.value || "").trim();
     const provinceRaw = $("#place-province")?.value || "";
     const catRaw = $("#place-category")?.value || "";
     const routeRaw = $("#place-route")?.value || "";
-    const gps = this.gps;
+    const safeGps = this._safeNearbyGps(this.gps);
+    if (safeGps) this.gps = safeGps;
+
     const params = new URLSearchParams({ q: qRaw, province: provinceRaw, category: catRaw, routeId: routeRaw, limit: "24", offset: "0" });
-    if (gps) { params.set("lat", gps.lat); params.set("lng", gps.lng); }
-    const cacheKey = params.toString();
+    if (safeGps) {
+      params.set("lat", safeGps.lat);
+      params.set("lng", safeGps.lng);
+    }
+
+    const cacheKey = `tourism:${params.toString()}`;
     let places = this._placesCache.get(cacheKey);
-    let source = places ? "Bộ nhớ tạm" : "SQL Server";
+    let source = places ? "Bộ nhớ tạm" : "Backend API";
+
     try {
       if (!places) {
-        const data = await API.get(`/tourism/places?${cacheKey}`, { timeoutMs: 10000, skipAuth: true });
-        places = Array.isArray(data) ? data : data.places || data.items || [];
+        const data = await API.get(`/tourism/places?${params.toString()}`, { timeoutMs: 12000, skipAuth: true, skipRefresh: true });
+        places = this._extractPlaceRows(data)
+          .map((place, index) => this._normalizeTourismPlace(place, index, safeGps))
+          .filter(Boolean);
+        if (!places.length) throw new Error("Backend trả 0 địa điểm");
         this._placesCache.set(cacheKey, places);
       }
     } catch (err) {
-      places = [];
-      source = err.code === "TIMEOUT" ? "API phản hồi quá lâu" : "SQL Server/API lỗi";
+      console.warn("[SmartBus] Tourism API lỗi/chậm, dùng dữ liệu local:", err?.message || err);
+      source = err?.code === "TIMEOUT" ? "API phản hồi quá lâu → dùng dữ liệu local" : "Dữ liệu local GitHub Pages";
+      places = await this._filterTourismPlaces({ qRaw, provinceRaw, catRaw, routeRaw, gps: safeGps, limit: 24 });
+      this._placesCache.set(cacheKey, places);
     }
-    state && (state.innerHTML = `${source} · ${places.length} địa điểm phù hợp${places.length >= 24 ? " · đang giới hạn 24 kết quả đầu để tải nhanh" : ""}`);
-    if (!places.length) { list.innerHTML = this._empty("Chưa có địa điểm phù hợp bộ lọc hoặc backend đang phản hồi chậm."); return; }
+
+    places = (Array.isArray(places) ? places : [])
+      .map((place, index) => this._normalizeTourismPlace(place, index, safeGps))
+      .filter(Boolean);
+
+    state && (state.innerHTML = `${source} · ${places.length} địa điểm phù hợp${safeGps ? " · đã sắp xếp theo vị trí gần bạn" : ""}${places.length >= 24 ? " · đang giới hạn 24 kết quả đầu để tải nhanh" : ""}`);
+    if (!places.length) {
+      list.innerHTML = `<div class="travel-card wide empty-state">
+        <h4>Chưa có địa điểm phù hợp</h4>
+        <p>Không tìm thấy địa điểm theo bộ lọc hiện tại. Hãy đổi tỉnh/danh mục hoặc bấm Thử lại.</p>
+        <button class="btn-ghost" onclick="TravelUI.renderPlaces()" style="margin-top:12px">🔄 Thử lại</button>
+      </div>`;
+      return;
+    }
+
     list.innerHTML = places.map((p) => this._placeCard(p)).join("");
     $$('[data-place-chat]').forEach((btn) => btn.addEventListener('click', () => SmartBusAssistant.sendQuestion?.(`Tôi muốn đến ${btn.dataset.placeChat}`)));
     $$('[data-place-reviews]').forEach((btn) => btn.addEventListener('click', () => { $("#community-search") && ($("#community-search").value = btn.dataset.placeReviews); Nav.go("reviews"); }));
     $$('[data-place-map]').forEach((btn) => btn.addEventListener('click', () => this.showPlaceOnMap(btn.dataset.placeMap)));
-    $$('[data-place-fav]').forEach((btn) => btn.addEventListener('click', () => { const id = Number(btn.dataset.placeFav); this.toggleFavoritePlace(btn.dataset.placeFav, !this._placeFavoriteIds.has(id), btn); }));
+    $$('[data-place-fav]').forEach((btn) => btn.addEventListener('click', () => {
+      const id = btn.dataset.placeFav;
+      const key = Number.isFinite(Number(id)) ? Number(id) : String(id);
+      this.toggleFavoritePlace(id, !this._placeFavoriteIds.has(key), btn);
+    }));
+  },
+
+  _extractPlaceRows(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.places)) return payload.places;
+    if (Array.isArray(payload?.items)) return payload.items;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.places)) return payload.data.places;
+    if (Array.isArray(payload?.data?.items)) return payload.data.items;
+    if (Array.isArray(payload?.result)) return payload.result;
+    return [];
+  },
+
+  _normalizeTourismPlace(place, index = 0, gps = null) {
+    if (!place || typeof place !== "object") return null;
+    const ll = normalizeLatLng(place, { allowOutsideCentral: true, source: `tourism-place:${place.id || place.externalPlaceCode || place.name || index}` });
+    const safeGps = this._safeNearbyGps(gps);
+    const id = place.id || place.placeId || place.externalPlaceCode || place.code || place.slug || `local-tourism-${index + 1}`;
+    const normalized = {
+      ...place,
+      id,
+      placeId: place.placeId || place.id || id,
+      externalPlaceCode: place.externalPlaceCode || place.code || id,
+      name: place.name || place.placeName || "Địa điểm du lịch",
+      description: place.shortDescription || place.description || place.summary || "Đang cập nhật mô tả.",
+      shortDescription: place.shortDescription || place.description || place.summary || "",
+      provinceCode: place.provinceCode || place.province_code || place.province || "",
+      provinceName: place.provinceName || place.province_name || place.province || "",
+      categoryCode: place.categoryCode || place.category_code || place.category || "general",
+      categoryName: place.categoryName || place.categoryRaw || place.category || place.categoryCode || "Du lịch",
+      category: place.category || place.categoryRaw || place.categoryName || place.categoryCode || "Du lịch",
+      averageRating: place.averageRating || place.rating || 4.6,
+      reviewCount: place.reviewCount || place.reviewsCount || 0,
+      imageUrl: place.imageUrl || place.image || place.thumbnail || "",
+      nearestStopName: place.nearestStopName || place.nearestStop?.name || place.nearestStop?.stop?.name || "",
+      nearestRouteCode: place.nearestRouteCode || place.routeCode || place.recommendedRoute?.id || place.nearestStop?.route?.id || "",
+      nearestRouteName: place.nearestRouteName || place.routeName || place.recommendedRoute?.name || "",
+      walkingMinutes: place.walkingMinutes || place.nearestStop?.walkingMinutes || null,
+    };
+    if (ll) {
+      normalized.lat = ll[0];
+      normalized.lng = ll[1];
+      normalized.latitude = ll[0];
+      normalized.longitude = ll[1];
+      if (safeGps) {
+        const meters = Math.round(getDistanceMeters([safeGps.lat, safeGps.lng], ll));
+        if (Number.isFinite(meters)) {
+          normalized.distanceMeters = meters;
+          normalized.distanceKm = Number((meters / 1000).toFixed(2));
+        }
+      }
+    }
+    if (!normalized.nearestStop && normalized.nearestStopName) {
+      normalized.nearestStop = {
+        name: normalized.nearestStopName,
+        walkingMinutes: normalized.walkingMinutes,
+        route: normalized.nearestRouteCode ? { id: normalized.nearestRouteCode, name: normalized.nearestRouteName } : null,
+      };
+    }
+    return normalized;
+  },
+
+  async _loadStaticTourismPlaces() {
+    if (this._tourismStaticPlaces) return this._tourismStaticPlaces;
+    const candidates = [
+      '/SmartBus-Travel/data/import/smartbus-tourism-data.normalized.json',
+      './data/import/smartbus-tourism-data.normalized.json',
+      'data/import/smartbus-tourism-data.normalized.json',
+      '../data/import/smartbus-tourism-data.normalized.json',
+      '../backend-api/data/import/smartbus-tourism-data.normalized.json',
+    ];
+    let lastError = null;
+    for (const url of candidates) {
+      try {
+        const res = await fetchWithTimeout(url, { cache: 'no-store' }, 8000);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const payload = await res.json();
+        const rows = this._extractPlaceRows(payload);
+        if (rows.length) {
+          this._tourismStaticPlaces = rows.map((place, index) => this._normalizeTourismPlace(place, index, null)).filter(Boolean);
+          return this._tourismStaticPlaces;
+        }
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    console.warn('[SmartBus] Không đọc được tourism JSON tĩnh:', lastError?.message || lastError);
+    this._tourismStaticPlaces = [];
+    return [];
+  },
+
+  _getHardcodedTourismPlaces() {
+    return [
+      { id: 'DN-MY-KHE', name: 'Biển Mỹ Khê', provinceCode: 'DN', provinceName: 'Đà Nẵng', categoryCode: 'beach', categoryName: 'Biển', description: 'Bãi biển nổi tiếng gần trung tâm Đà Nẵng, thuận tiện check-in và tắm biển.', lat: 16.067, lng: 108.247, nearestRouteCode: 'DN-01', nearestStopName: 'Mỹ Khê', walkingMinutes: 8, averageRating: 4.8, reviewCount: 32, bestTime: 'Sáng sớm hoặc chiều mát', foodSuggestions: 'Hải sản Mỹ Khê' },
+      { id: 'DN-CAU-RONG', name: 'Cầu Rồng', provinceCode: 'DN', provinceName: 'Đà Nẵng', categoryCode: 'checkin', categoryName: 'Check-in', description: 'Biểu tượng trung tâm Đà Nẵng, đẹp về đêm và cuối tuần có trình diễn.', lat: 16.061, lng: 108.228, nearestRouteCode: 'DN-02', nearestStopName: 'Cầu Rồng', walkingMinutes: 5, averageRating: 4.7, reviewCount: 26, bestTime: 'Buổi tối', foodSuggestions: 'Ăn vặt Sơn Trà, Hải Châu' },
+      { id: 'DN-NGU-HANH-SON', name: 'Ngũ Hành Sơn', provinceCode: 'DN', provinceName: 'Đà Nẵng', categoryCode: 'culture', categoryName: 'Văn hóa', description: 'Cụm núi đá vôi, chùa và hang động nổi tiếng phía Nam Đà Nẵng.', lat: 16.003, lng: 108.263, nearestRouteCode: 'DN-04', nearestStopName: 'Ngũ Hành Sơn', walkingMinutes: 10, averageRating: 4.6, reviewCount: 19, bestTime: 'Sáng hoặc chiều mát', foodSuggestions: 'Mì Quảng, hải sản Non Nước' },
+      { id: 'QN-HOI-AN', name: 'Phố cổ Hội An', provinceCode: 'QN_CU', provinceName: 'Quảng Nam cũ / Hội An', categoryCode: 'culture', categoryName: 'Di sản', description: 'Khu phố cổ nổi tiếng với đèn lồng, ẩm thực và kiến trúc di sản.', lat: 15.8801, lng: 108.338, nearestRouteCode: 'QN-01', nearestStopName: 'Bến xe Hội An', walkingMinutes: 12, averageRating: 4.9, reviewCount: 45, bestTime: 'Chiều tối', foodSuggestions: 'Cao lầu, mì Quảng, bánh mì Hội An' },
+      { id: 'HUE-DAI-NOI', name: 'Đại Nội Huế', provinceCode: 'HUE', provinceName: 'Huế', categoryCode: 'culture', categoryName: 'Di tích', description: 'Quần thể di tích Cố đô Huế, phù hợp tham quan văn hóa lịch sử.', lat: 16.469, lng: 107.577, nearestRouteCode: 'HUE-01', nearestStopName: 'Đại Nội', walkingMinutes: 6, averageRating: 4.8, reviewCount: 38, bestTime: 'Sáng sớm', foodSuggestions: 'Bún bò Huế, chè Huế' },
+      { id: 'QNG-LY-SON', name: 'Đảo Lý Sơn', provinceCode: 'QNG', provinceName: 'Quảng Ngãi', categoryCode: 'island', categoryName: 'Đảo biển', description: 'Điểm đến biển đảo nổi bật của Quảng Ngãi, cần kết hợp tàu ra đảo.', lat: 15.383, lng: 109.116, nearestRouteCode: 'QNG-01', nearestStopName: 'Cảng Sa Kỳ', walkingMinutes: 20, averageRating: 4.7, reviewCount: 24, bestTime: 'Tháng 3-8', foodSuggestions: 'Hải sản, gỏi tỏi Lý Sơn' },
+    ];
+  },
+
+  async _filterTourismPlaces({ qRaw = "", provinceRaw = "", catRaw = "", routeRaw = "", gps = null, limit = 24 } = {}) {
+    let rows = await this._loadStaticTourismPlaces();
+    if (!rows.length) rows = this._getHardcodedTourismPlaces().map((place, index) => this._normalizeTourismPlace(place, index, gps)).filter(Boolean);
+    const safeGps = this._safeNearbyGps(gps);
+    const q = this._norm(qRaw);
+    const province = this._norm(provinceRaw);
+    const cat = this._norm(catRaw);
+    const route = this._norm(routeRaw);
+    const filtered = rows
+      .map((place, index) => this._normalizeTourismPlace(place, index, safeGps))
+      .filter(Boolean)
+      .filter((p) => {
+        const text = this._norm(`${p.name} ${p.provinceName} ${p.provinceCode} ${p.description} ${p.shortDescription} ${p.nearestRouteCode || ""} ${p.categoryName || ""} ${p.categoryCode || ""} ${p.foodSuggestions || ""}`);
+        if (q && !text.includes(q)) return false;
+        if (province && this._norm(`${p.provinceCode} ${p.provinceName}`).indexOf(province) === -1) return false;
+        if (cat && this._norm(`${p.categoryCode} ${p.categoryName} ${p.category}`).indexOf(cat) === -1) return false;
+        if (route && this._norm(`${p.nearestRouteCode || ""} ${p.nearestRouteName || ""} ${p.routeId || ""}`).indexOf(route) === -1) return false;
+        return true;
+      });
+    if (safeGps) {
+      filtered.sort((a, b) => {
+        const da = Number.isFinite(Number(a.distanceMeters)) ? Number(a.distanceMeters) : Number.POSITIVE_INFINITY;
+        const db = Number.isFinite(Number(b.distanceMeters)) ? Number(b.distanceMeters) : Number.POSITIVE_INFINITY;
+        return da - db;
+      });
+    }
+    return filtered.slice(0, limit);
   },
 
   _filterLocalPlaces({ qRaw = "", provinceRaw = "", catRaw = "", routeRaw = "" } = {}) {
@@ -3424,7 +3693,17 @@ const TravelUI = {
 
 
   async _fetchPlace(placeId) {
-    try { return await API.get(`/tourism/places/${placeId}`, { skipAuth: true, timeoutMs: 10000 }); } catch { return null; }
+    const key = String(placeId || "");
+    const cached = Array.from(this._placesCache.values()).flat().find((p) =>
+      String(p?.id) === key || String(p?.placeId) === key || String(p?.externalPlaceCode) === key || String(p?.slug) === key
+    );
+    if (cached) return cached;
+    try {
+      const local = await this._loadStaticTourismPlaces();
+      const found = local.find((p) => String(p?.id) === key || String(p?.placeId) === key || String(p?.externalPlaceCode) === key || String(p?.slug) === key);
+      if (found) return found;
+    } catch {}
+    try { return await API.get(`/tourism/places/${encodeURIComponent(placeId)}`, { skipAuth: true, timeoutMs: 10000 }); } catch { return null; }
   },
 
   async showPlaceOnMap(placeId) {
