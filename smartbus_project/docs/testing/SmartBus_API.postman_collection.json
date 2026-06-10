@@ -1,0 +1,109 @@
+{
+  "info": {
+    "name": "SmartBus API Smoke Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://smartbus-backend-xr34.onrender.com/api/v1"
+    },
+    { "key": "accessToken", "value": "" },
+    { "key": "adminAccessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "DB Health",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health/db" }
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@smartbus.vn\",\n  \"password\": \"change_me\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "Routes",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/routes?page=1&limit=20"
+      }
+    },
+    {
+      "name": "Stops nearest",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/stops/nearest?lat=16.047&lng=108.206"
+      }
+    },
+    {
+      "name": "Tourism places",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/tourism/places?page=1&limit=20"
+      }
+    },
+    {
+      "name": "Ask chatbot",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"Tôi muốn đến Hội An\"\n}"
+        },
+        "url": "{{baseUrl}}/chatbot/ask"
+      }
+    },
+    {
+      "name": "Chat history with token",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/chat/history"
+      }
+    },
+    {
+      "name": "Reports admin",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+        ],
+        "url": "{{baseUrl}}/reports"
+      }
+    },
+    {
+      "name": "Analytics admin",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+        ],
+        "url": "{{baseUrl}}/analytics/summary"
+      }
+    },
+    {
+      "name": "Import history admin",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+        ],
+        "url": "{{baseUrl}}/import/history"
+      }
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+/* Map UX: keep controls tappable and popups readable. */
+#map,.map-panel,.leaflet-container{touch-action:pan-x pan-y}.leaflet-popup-content{line-height:1.45;max-width:min(320px,80vw);word-break:break-word}.map-missing{padding:20px;text-align:center}

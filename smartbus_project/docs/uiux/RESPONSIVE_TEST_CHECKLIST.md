@@ -1,0 +1,22 @@
+# Responsive Test Checklist
+
+- [ ] 360px
+- [ ] 390px
+- [ ] 430px
+- [ ] 768px
+- [ ] 1024px
+- [ ] 1366px
+- [ ] 1920px
+- [ ] Header
+- [ ] Sidebar/menu
+- [ ] Map
+- [ ] Chatbot
+- [ ] Tourism cards
+- [ ] Route cards
+- [ ] Forms
+- [ ] Popups
+- [ ] No horizontal scroll
+- [ ] Button touch target
+- [ ] Text readability
+- [ ] Filter panel
+- [ ] Empty/error/loading state

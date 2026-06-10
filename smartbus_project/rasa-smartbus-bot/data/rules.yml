@@ -1,0 +1,58 @@
+version: "3.1"
+rules:
+- rule: greet
+  steps:
+    - intent: greet
+    - action: utter_greet
+- rule: goodbye
+  steps:
+    - intent: goodbye
+    - action: utter_goodbye
+- rule: route
+  steps:
+    - intent: ask_route
+    - action: action_find_best_route
+- rule: nearest stop
+  steps:
+    - intent: ask_nearest_stop
+    - action: action_find_nearest_stop
+- rule: eta
+  steps:
+    - intent: ask_bus_eta
+    - action: action_estimate_bus_eta
+- rule: fare
+  steps:
+    - intent: ask_fare
+    - action: action_show_fare
+- rule: schedule
+  steps:
+    - intent: ask_schedule
+    - action: action_show_schedule
+- rule: tourism
+  steps:
+    - intent: ask_tourist_place
+    - action: action_find_tourist_places
+- rule: place near me
+  steps:
+    - intent: ask_place_near_me
+    - action: action_find_tourist_places
+- rule: place by category
+  steps:
+    - intent: ask_place_by_category
+    - action: action_find_tourist_places
+- rule: place by route
+  steps:
+    - intent: ask_place_by_route
+    - action: action_find_tourist_places
+- rule: reviews
+  steps:
+    - intent: ask_place_review
+    - action: action_show_place_reviews
+- rule: trip plan
+  steps:
+    - intent: ask_trip_plan
+    - action: action_recommend_trip_plan
+- rule: report
+  steps:
+    - intent: report_problem
+    - action: action_create_report

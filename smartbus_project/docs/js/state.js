@@ -1,0 +1,1 @@
+window.SmartBusState = window.SmartBusState || { currentUser:null, selectedProvince:'', selectedRoute:null, mapLayers:{}, timers:new Set(), cleanup(){this.timers.forEach(clearInterval);this.timers.clear();this.currentUser=null;this.selectedRoute=null;} };

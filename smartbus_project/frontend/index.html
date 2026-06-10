@@ -1,0 +1,1137 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartBus Travel Connect – GIS xe buýt & du lịch 4 tỉnh</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/layout.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/map.css" />
+    <link rel="stylesheet" href="css/tourism.css" />
+    <link rel="stylesheet" href="css/chatbot.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  </head>
+  <body>
+    <section id="landing-page" class="landing-page">
+      <header class="landing-header">
+        <a class="landing-logo" href="#top" aria-label="SmartBus Home">
+          <span class="landing-logo-icon">🚌</span>
+          <span>Smart<span>Bus</span></span>
+        </a>
+        <nav class="landing-nav" aria-label="Điều hướng tổng quan">
+          <a href="#landing-routes">Tuyến xe</a>
+          <a href="#landing-tourism">Du lịch</a>
+          <a href="#smartbus-chat-root">Chatbot</a>
+        </nav>
+        <div class="landing-auth-actions">
+          <button type="button" class="landing-btn ghost" id="landing-login-btn">Đăng nhập</button>
+          <button type="button" class="landing-btn primary" id="landing-register-btn">Đăng ký</button>
+        </div>
+      </header>
+
+      <main id="top" class="landing-main">
+        <section class="landing-hero landing-hero-pro">
+          <div class="landing-hero-copy">
+            <div class="landing-kicker">GIS xe buýt · GPS Google Map · Du lịch gần trạm</div>
+            <h1>Khám phá xe buýt & du lịch miền Trung</h1>
+            <p>
+              SmartBus giúp bạn tìm tuyến xe buýt, bến gần vị trí hiện tại, địa điểm du lịch gần tuyến và hỏi chatbot để nhận gợi ý hành trình rõ ràng, dễ đi, phù hợp thực tế.
+            </p>
+            <div class="landing-hero-actions">
+              <button type="button" class="landing-btn primary big" id="landing-find-route-cta">Tìm tuyến xe ngay</button>
+              <button type="button" class="landing-btn ghost big" id="landing-nearest-stop-cta">Tìm bến gần tôi</button>
+              <button type="button" class="landing-btn ghost big" id="landing-chatbot-cta">Hỏi chatbot</button>
+              <a class="landing-btn ghost big" id="landing-tourism-cta" href="#landing-tourism">Khám phá địa điểm du lịch</a>
+            </div>
+            <div class="landing-trust-row" aria-label="Điểm mạnh SmartBus">
+              <span>✓ Dữ liệu SQL Server</span>
+              <span>✓ Bản đồ Leaflet/GIS</span>
+              <span>✓ Chatbot tiếng Việt</span>
+            </div>
+          </div>
+          <aside class="landing-hero-card landing-dashboard-preview" aria-label="Minh họa bản đồ SmartBus">
+            <div class="landing-map-preview pro-map-preview">
+              <span class="map-badge badge-live">LIVE DEMO</span>
+              <span class="map-badge badge-gis">GIS ready</span>
+              <span class="map-badge badge-gps">GPS stops</span>
+              <span class="map-dot qt">QT</span>
+              <span class="map-dot hue">Huế</span>
+              <span class="map-dot dn">ĐN</span>
+              <span class="map-dot qn">Hội An</span>
+              <span class="map-dot qng">QNg</span>
+              <span class="route-glow one"></span>
+              <span class="route-glow two"></span>
+              <span class="mini-marker bus m1">🚌</span>
+              <span class="mini-marker stop m2">🚏</span>
+              <span class="mini-marker place m3">📍</span>
+              <div class="map-line one"></div>
+              <div class="map-line two"></div>
+              <div class="preview-card route-card-mini">
+                <b>DN-05</b><span>Mỹ Khê · Sơn Trà</span>
+              </div>
+              <div class="preview-card place-card-mini">
+                <b>Gợi ý gần tuyến</b><span>Biển · check-in · ăn uống</span>
+              </div>
+            </div>
+            <div class="landing-live-row"><span class="live-dot"></span> Dữ liệu 5 khu vực sẵn sàng cho bản đồ, du lịch và chatbot</div>
+          </aside>
+        </section>
+
+        <section class="landing-stats smartbus-stat-grid is-loading" aria-label="Thống kê dữ liệu SmartBus">
+          <div><span class="stat-ico">🚌</span><b id="landing-stat-routes">...</b><span>Tuyến xe</span></div>
+          <div><span class="stat-ico">🚏</span><b id="landing-stat-stops">...</b><span>Điểm dừng GPS</span></div>
+          <div><span class="stat-ico">📍</span><b id="landing-stat-places">...</b><span>Địa điểm du lịch</span></div>
+          <div><span class="stat-ico">🗺️</span><b id="landing-stat-provinces">...</b><span>Tỉnh/thành</span></div>
+          <div><span class="stat-ico">⭐</span><b id="landing-stat-reviews">...</b><span>Review cộng đồng</span></div>
+        </section>
+
+        <section class="landing-section landing-value-section" aria-label="Giá trị SmartBus">
+          <div class="landing-section-head compact">
+            <div>
+              <div class="landing-kicker">SmartBus giúp bạn đi đâu?</div>
+              <h2>Một nơi cho tuyến xe, du lịch và hành trình</h2>
+              <p>Từ tìm tuyến, xem bến GPS, hỏi chatbot đến lưu địa điểm yêu thích — tất cả được gom trong một giao diện dễ demo.</p>
+            </div>
+          </div>
+          <div class="landing-value-grid">
+            <article><span>🚌</span><h3>Tìm tuyến xe buýt</h3><p>Xem tuyến, điểm đầu/cuối, giờ hoạt động, tần suất và bến GPS.</p></article>
+            <article><span>🏖️</span><h3>Khám phá du lịch gần tuyến</h3><p>Tìm điểm check-in, biển, món ăn và chỗ nghỉ gần bến xe.</p></article>
+            <article><span>💬</span><h3>Hỏi chatbot hành trình</h3><p>Nhắn tự nhiên như “Tôi muốn đi Hội An” để nhận gợi ý tuyến.</p></article>
+            <article><span>💚</span><h3>Lưu lịch trình yêu thích</h3><p>Lưu tuyến, địa điểm, lịch sử chat và review cộng đồng sau đăng nhập.</p></article>
+          </div>
+        </section>
+
+        <section class="landing-section landing-quick-section" aria-label="Câu hỏi nhanh cho chatbot">
+          <div class="landing-section-head compact">
+            <div>
+              <div class="landing-kicker">Gợi ý nhanh</div>
+              <h2>Thử hỏi SmartBus Assistant</h2>
+              <p>Bấm vào câu hỏi để mở chatbot và nhận câu trả lời theo dữ liệu tuyến, địa điểm và review hiện có.</p>
+            </div>
+          </div>
+          <div class="landing-quick-chips">
+            <button type="button" data-landing-q="Tôi muốn đến Biển Mỹ Khê">Tôi muốn đến Biển Mỹ Khê</button>
+            <button type="button" data-landing-q="Đi Hội An bằng tuyến nào?">Đi Hội An bằng tuyến nào?</button>
+            <button type="button" data-landing-q="Bến xe gần tôi ở đâu?">Bến xe gần tôi ở đâu?</button>
+            <button type="button" data-landing-q="Địa điểm du lịch nào gần tuyến bus?">Địa điểm du lịch nào gần tuyến bus?</button>
+            <button type="button" data-landing-q="Gợi ý lịch trình Đà Nẵng 1 ngày">Gợi ý lịch trình Đà Nẵng 1 ngày</button>
+            <button type="button" data-landing-q="Món ngon gần phố cổ Hội An">Món ngon gần phố cổ Hội An</button>
+          </div>
+        </section>
+
+        <section id="landing-routes" class="landing-section">
+          <div class="landing-section-head">
+            <div>
+              <div class="landing-kicker">Xem tuyến như trang tổng quan</div>
+              <h2>Tuyến xe buýt theo tỉnh/thành</h2>
+              <p>Người dùng có thể xem trước tuyến, giờ chạy, tần suất và số điểm GPS. Muốn xem bản đồ đầy đủ thì đăng nhập.</p>
+            </div>
+            <div class="landing-filter-box">
+              <input id="landing-route-search" type="search" placeholder="Tìm tuyến, tỉnh, đầu/cuối tuyến..." />
+              <select id="landing-province-filter"><option value="">Tất cả tỉnh/thành</option></select>
+            </div>
+          </div>
+          <div id="landing-route-list" class="landing-route-list"></div>
+        </section>
+
+        <section id="landing-tourism" class="landing-section">
+          <div class="landing-section-head">
+            <div>
+              <div class="landing-kicker">Du lịch gần xe buýt</div>
+              <h2>Địa điểm nổi bật gần tuyến/trạm</h2>
+              <p>Dữ liệu du lịch dùng GPS và tuyến gợi ý, phục vụ chatbot và trang du lịch sau khi đăng nhập.</p>
+            </div>
+            <button type="button" class="landing-btn ghost" id="landing-login-cta">Đăng nhập để xem đủ</button>
+          </div>
+          <div id="landing-place-list" class="landing-place-list"></div>
+        </section>
+      </main>
+    </section>
+    <div id="page-login" class="hidden">
+      <div class="login-brand">
+        <div class="brand-inner">
+          <div class="brand-logo">
+            <svg viewBox="0 0 40 40" fill="none">
+              <rect
+                width="40"
+                height="40"
+                rx="10"
+                fill="rgba(62,207,191,.15)"
+              />
+              <path
+                d="M8 26c0 1.1.4 2.1 1 2.8V30c0 .6.4 1 1 1h1c.6 0 1-.4 1-1v-1h16v1c0 .6.4 1 1 1h1c.6 0 1-.4 1-1v-1.2c.6-.7 1-1.7 1-2.8V14c0-4-4.5-5-12-5S8 10 8 14v12zm4.5 1.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm15 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM30 21H10v-7h20v7z"
+                fill="#3ecfbf"
+              />
+            </svg>
+            <div class="brand-logo-txt">Smart<span>Bus</span></div>
+          </div>
+          <div class="brand-bus-wrap">
+            <div class="brand-bus-track"></div>
+            <div class="brand-bus-icon">🚌</div>
+          </div>
+          <div class="brand-headline">
+            SmartBus GIS<em>4 tỉnh miền Trung.</em>
+          </div>
+          <p class="brand-sub">
+            Theo dõi tuyến, bến, xe buýt, điểm du lịch và chatbot cho Quảng Trị, Huế, Đà Nẵng, Quảng Ngãi.
+          </p>
+          <div class="brand-stats">
+            <div>
+              <span class="bstat-val">50+</span
+              ><span class="bstat-lbl">Xe mô phỏng</span>
+            </div>
+            <div>
+              <span class="bstat-val">25</span
+              ><span class="bstat-lbl">Tuyến xe</span>
+            </div>
+            <div>
+              <span class="bstat-val">4 tỉnh</span
+              ><span class="bstat-lbl">GIS/GPS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="login-form-panel">
+        <div class="login-form-wrap">
+          <button type="button" class="login-close" id="login-close" aria-label="Đóng">×</button>
+          <div class="lf-title" id="auth-panel-title">Đăng nhập</div>
+          <p class="lf-sub" id="auth-panel-sub">Đăng nhập để vào dashboard quản lý tuyến, bản đồ, review và dữ liệu cá nhân.</p>
+          <form id="login-form" novalidate>
+            <div class="fg">
+              <label class="fg-label">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                  />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                Email
+              </label>
+              <div class="fg-inp-wrap">
+                <input
+                  class="fg-inp"
+                  type="email"
+                  id="inp-email"
+                  placeholder="Nhập email của bạn"
+                  autocomplete="email"
+                />
+              </div>
+              <span class="fg-err" id="err-email"></span>
+            </div>
+            <div class="fg">
+              <label class="fg-label">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0110 0v4" />
+                </svg>
+                Mật khẩu
+              </label>
+              <div class="fg-inp-wrap">
+                <input
+                  class="fg-inp"
+                  type="password"
+                  id="inp-pw"
+                  placeholder="Tối thiểu 6 ký tự"
+                  autocomplete="current-password"
+                  style="padding-right: 42px"
+                />
+                <button
+                  type="button"
+                  class="pw-toggle"
+                  id="pw-toggle"
+                  aria-label="Hiện/ẩn mật khẩu"
+                >
+                  <svg
+                    id="pw-eye"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    style="width: 18px; height: 18px"
+                  >
+                    <path
+                      d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"
+                    />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                </button>
+              </div>
+              <span class="fg-err" id="err-pw"></span>
+            </div>
+            <div class="lf-row">
+              <label class="lf-check"
+                ><input type="checkbox" id="remember" /> Ghi nhớ đăng
+                nhập</label
+              >
+              <a href="#" class="lf-link">Quên mật khẩu?</a>
+            </div>
+            <button type="submit" class="btn-primary" id="login-btn">
+              <span class="btn-txt">Đăng nhập</span>
+              <div class="btn-spin"></div>
+            </button>
+            <button type="button" class="auth-switch" id="switch-to-register">Chưa có tài khoản? Đăng ký ngay</button>
+          </form>
+          <form id="register-form" class="hidden" novalidate>
+            <div class="fg">
+              <label class="fg-label">Họ tên</label>
+              <div class="fg-inp-wrap"><input class="fg-inp" type="text" id="reg-name" placeholder="Tên của bạn" autocomplete="name" /></div>
+            </div>
+            <div class="fg">
+              <label class="fg-label">Email</label>
+              <div class="fg-inp-wrap"><input class="fg-inp" type="email" id="reg-email" placeholder="ban@smartbus.vn" autocomplete="email" /></div>
+            </div>
+            <div class="fg">
+              <label class="fg-label">Mật khẩu</label>
+              <div class="fg-inp-wrap"><input class="fg-inp" type="password" id="reg-pw" placeholder="Tối thiểu 6 ký tự" autocomplete="new-password" /></div>
+            </div>
+            <button type="submit" class="btn-primary" id="register-btn"><span class="btn-txt">Tạo tài khoản</span><div class="btn-spin"></div></button>
+            <button type="button" class="auth-switch" id="switch-to-login">Đã có tài khoản? Đăng nhập</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div id="app" class="hidden">
+      <aside class="sidebar" id="sidebar">
+        <div class="sb-header">
+          <div class="sb-logo">
+            <svg viewBox="0 0 40 40" fill="none">
+              <rect
+                width="40"
+                height="40"
+                rx="10"
+                fill="rgba(62,207,191,.15)"
+              />
+              <path
+                d="M8 26c0 1.1.4 2.1 1 2.8V30c0 .6.4 1 1 1h1c.6 0 1-.4 1-1v-1h16v1c0 .6.4 1 1 1h1c.6 0 1-.4 1-1v-1.2c.6-.7 1-1.7 1-2.8V14c0-4-4.5-5-12-5S8 10 8 14v12zm4.5 1.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm15 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM30 21H10v-7h20v7z"
+                fill="#3ecfbf"
+              />
+            </svg>
+          </div>
+          <div class="sb-logo-txt">Smart<span>Bus Travel</span></div>
+        </div>
+        <div class="sb-scroll" id="sidebar-scroll" tabindex="0" aria-label="Danh sách chức năng SmartBus">
+        <nav class="sb-nav">
+          <div class="sb-nav-section">
+            <div class="sb-nav-label">Theo dõi</div>
+            <a class="sb-link active" data-view="dashboard">🗺️ Bản đồ thực</a>
+            <a class="sb-link" data-view="buses">🚌 Danh sách xe <span class="sb-badge" id="sb-badge">24</span></a>
+            <a class="sb-link" data-view="nearby-stops">📍 Bến gần tôi</a>
+          </div>
+          <div class="sb-nav-section">
+            <div class="sb-nav-label">Du lịch</div>
+            <a class="sb-link" data-view="tourism">🏖️ Địa điểm du lịch</a>
+            <a class="sb-link" data-view="trip">🧭 Gợi ý lịch trình</a>
+            <a class="sb-link" data-view="reviews">⭐ Cộng đồng review</a>
+          </div>
+          <div class="sb-nav-section">
+            <div class="sb-nav-label">Cá nhân</div>
+            <a class="sb-link" data-view="favorite-routes">💚 Tuyến yêu thích</a>
+            <a class="sb-link" data-view="favorite-places">🔖 Địa điểm yêu thích</a>
+            <a class="sb-link" data-view="chat-history">💬 Lịch sử chat</a>
+          </div>
+          <div class="sb-nav-section">
+            <div class="sb-nav-label">Quản lý</div>
+            <a class="sb-link" data-view="report">🚩 Gửi báo cáo</a>
+            <a class="sb-link" data-view="analytics">📊 Thống kê</a>
+            <a class="sb-link admin-only hidden" data-admin-only="true" data-view="admin">🛠️ Quản trị nội dung</a>
+          </div>
+        </nav>
+        <div class="sb-footer">
+          <div class="sb-user">
+            <div class="sb-avatar">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <div>
+              <div class="sb-uname" id="sb-username">Admin</div>
+              <div class="sb-urole">Quản trị viên</div>
+            </div>
+          </div>
+          <button class="sb-logout" id="logout-btn">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" /></svg
+            >Đăng xuất
+          </button>
+        </div>
+        </div>
+      </aside>
+      <div id="overlay" aria-hidden="true"></div>
+      <div class="main">
+        <header class="topbar">
+          <button class="topbar-menu" id="menu-btn">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <div class="topbar-title">
+            <svg
+              id="tb-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polygon points="3 11 22 2 13 21 11 13 3 11" />
+            </svg>
+            <h2 id="tb-title">Bản đồ theo dõi</h2>
+          </div>
+          <div class="topbar-actions">
+            <div id="schedule-indicator" class="tb-live">
+              <div class="tb-live-dot"></div>
+              LIVE
+            </div>
+            <button class="tb-btn" aria-label="Cài đặt">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M2 12h2M20 12h2M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41"
+                />
+              </svg>
+            </button>
+          </div>
+        </header>
+        <!-- Schedule off-hours banner -->
+        <div
+          id="schedule-banner"
+          class="schedule-banner"
+          style="display: none"
+        ></div>
+        <div class="main-body">
+          <div class="view active" id="view-dashboard">
+            <div class="stats-row">
+              <div class="scard">
+                <div class="scard-icon si-teal">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect x="1" y="3" width="15" height="13" />
+                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                    <circle cx="5.5" cy="18.5" r="2.5" />
+                    <circle cx="18.5" cy="18.5" r="2.5" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="scard-val" id="sc-total">24</div>
+                  <div class="scard-lbl">Tổng xe</div>
+                </div>
+              </div>
+              <div class="scard">
+                <div class="scard-icon si-green">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="scard-val" id="sc-active">24</div>
+                  <div class="scard-lbl">Đang chạy</div>
+                </div>
+              </div>
+              <div class="scard">
+                <div class="scard-icon si-red">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 00-3-3.87" />
+                    <path d="M16 3.13a4 4 0 010 7.75" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="scard-val" id="sc-busy">0</div>
+                  <div class="scard-lbl">Đông khách</div>
+                </div>
+              </div>
+              <div class="scard">
+                <div class="scard-icon si-orange">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="scard-val" id="sc-update">--:--:--</div>
+                  <div class="scard-lbl">GIS/GPS lúc</div>
+                </div>
+              </div>
+            </div>
+            <div class="search-bar">
+              <div class="search-wrap">
+                <span class="search-ico"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></span
+                ><input
+                  class="search-inp"
+                  type="search"
+                  id="search-inp"
+                  placeholder="Tìm tuyến xe, biển số..."
+                />
+              </div>
+              <div class="filter-pills">
+                <button class="fpill active" data-f="all">Tất cả</button
+                ><button class="fpill" data-f="busy">Đông</button
+                ><button class="fpill" data-f="moderate">Vừa</button
+                ><button class="fpill" data-f="quiet">Vắng</button>
+              </div>
+            </div>
+            <div class="gis-toolbar" aria-label="Bộ lọc bản đồ GIS">
+              <label class="gis-field">
+                <span>Tỉnh/thành</span>
+                <select id="gis-province-filter" class="gis-select">
+                  <option value="DN">Đà Nẵng</option>
+                </select>
+              </label>
+              <label class="gis-field">
+                <span>Tuyến</span>
+                <select id="gis-route-filter" class="gis-select">
+                  <option value="">Tất cả tuyến</option>
+                </select>
+              </label>
+              <label class="gis-field">
+                <span>Xe bus</span>
+                <select id="gis-bus-filter" class="gis-select">
+                  <option value="all">Hiện tất cả xe bus</option>
+                  <option value="none">Ẩn toàn bộ xe bus</option>
+                  <option value="active">Chỉ hiện xe đang hoạt động</option>
+                  <option value="route">Chỉ hiện xe tuyến được chọn</option>
+                  <option value="nearby">Chỉ hiện xe gần vị trí tôi</option>
+                  <option value="province">Chỉ hiện xe theo tỉnh/thành</option>
+                </select>
+              </label>
+              <label class="gis-field">
+                <span>Tuyến xe</span>
+                <select id="gis-route-mode" class="gis-select">
+                  <option value="all">Hiện tất cả tuyến</option>
+                  <option value="selected">Chỉ hiện tuyến đang chọn</option>
+                  <option value="province">Hiện tuyến theo tỉnh</option>
+                  <option value="none">Ẩn toàn bộ tuyến</option>
+                </select>
+              </label>
+              <label class="gis-check"><input type="checkbox" id="gis-show-stops" checked /> Hiện điểm dừng</label>
+              <label class="gis-check"><input type="checkbox" id="gis-show-labels" /> Hiện tên bến</label>
+              <button type="button" class="gis-btn" id="gis-gps-btn">Lấy vị trí của tôi</button>
+            </div>
+            <div class="dash-grid">
+              <div class="map-wrap"><div id="map"></div></div>
+              <div class="bus-panel">
+                <div class="bp-head">
+                  <div class="bp-title">Xe đang chạy</div>
+                  <div style="display: flex; align-items: center; gap: 8px">
+                    <span class="bp-count" id="bp-count">24 xe</span
+                    ><button class="bp-refresh" id="refresh-btn">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <polyline points="23 4 23 10 17 10" />
+                        <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="bp-body" id="bus-list"></div>
+              </div>
+            </div>
+          </div>
+          <div class="view" id="view-buses">
+            <div style="margin-bottom: 20px">
+              <h3
+                style="
+                  font-family: var(--font-head);
+                  font-size: 1.6rem;
+                  font-weight: 800;
+                  letter-spacing: -0.03em;
+                  margin-bottom: 6px;
+                "
+              >
+                Danh sách tuyến/chuyến xe theo tỉnh
+              </h3>
+              <p style="color: var(--txt2); font-size: 0.9rem">
+                Xem rõ tuyến nào thuộc tỉnh nào, giờ chạy, tần suất, số xe, điểm GPS và xe đang mô phỏng.
+              </p>
+            </div>
+            <div class="route-catalog-toolbar">
+              <label class="gis-field"><span>Tỉnh/thành</span><select id="bus-view-province" class="gis-select"><option value="">Tất cả tỉnh/thành</option></select></label>
+              <label class="gis-field"><span>Tuyến cụ thể</span><select id="bus-view-route" class="gis-select"><option value="">Tất cả tuyến</option></select></label>
+              <span id="route-catalog-count" class="route-catalog-count">0 tuyến</span>
+            </div>
+            <div id="route-catalog-list" class="route-catalog-list"></div>
+            <div class="route-table-title">Xe đang chạy theo tuyến đã chọn</div>
+            <div
+              id="bus-table-wrap"
+              style="
+                background: var(--surf1);
+                border: 1px solid var(--border);
+                border-radius: var(--r-xl);
+                overflow: hidden;
+              "
+            >
+              <table style="width: 100%; border-collapse: collapse">
+                <thead>
+                  <tr style="background: var(--surf0)">
+                    <th
+                      style="
+                        padding: 12px 16px;
+                        text-align: left;
+                        font-size: 0.72rem;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.07em;
+                        color: var(--txt3);
+                        border-bottom: 1px solid var(--border);
+                      "
+                    >
+                      Biển số
+                    </th>
+                    <th
+                      style="
+                        padding: 12px 16px;
+                        text-align: left;
+                        font-size: 0.72rem;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.07em;
+                        color: var(--txt3);
+                        border-bottom: 1px solid var(--border);
+                      "
+                    >
+                      Tuyến
+                    </th>
+                    <th
+                      style="
+                        padding: 12px 16px;
+                        text-align: left;
+                        font-size: 0.72rem;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.07em;
+                        color: var(--txt3);
+                        border-bottom: 1px solid var(--border);
+                      "
+                    >
+                      Tình trạng
+                    </th>
+                    <th
+                      style="
+                        padding: 12px 16px;
+                        text-align: left;
+                        font-size: 0.72rem;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.07em;
+                        color: var(--txt3);
+                        border-bottom: 1px solid var(--border);
+                      "
+                    >
+                      Hành khách
+                    </th>
+                    <th
+                      style="
+                        padding: 12px 16px;
+                        text-align: left;
+                        font-size: 0.72rem;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.07em;
+                        color: var(--txt3);
+                        border-bottom: 1px solid var(--border);
+                      "
+                    >
+                      Tốc độ
+                    </th>
+                    <th
+                      style="
+                        padding: 12px 16px;
+                        text-align: left;
+                        font-size: 0.72rem;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.07em;
+                        color: var(--txt3);
+                        border-bottom: 1px solid var(--border);
+                      "
+                    >
+                      Vị trí
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="bus-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="view" id="view-nearby-stops">
+            <div class="travel-head">
+              <h3>Bến gần tôi</h3>
+              <p>Tìm bến xe buýt gần vị trí GPS hiện tại và thời gian đi bộ ước tính.</p>
+              <button class="btn-primary mini" id="nearby-gps-btn">Lấy vị trí của tôi</button>
+            </div>
+            <div id="nearby-stop-result" class="travel-grid"></div>
+          </div>
+
+          <div class="view" id="view-tourism">
+            <div class="travel-head">
+              <h3>Địa điểm du lịch gần tuyến bus</h3>
+              <p>Tìm kiếm điểm đến nổi tiếng ở Quảng Trị, Huế, Đà Nẵng, Quảng Ngãi; xem bến/hub gần nhất, tuyến gợi ý và review cộng đồng.</p>
+            </div>
+            <div class="travel-filter">
+              <input id="place-search" class="travel-input" placeholder="Tìm Huế, Bà Nà, Lý Sơn, Vịnh Mốc..." />
+              <select id="place-province" class="travel-input"><option value="">Tất cả tỉnh/thành</option></select>
+              <select id="place-category" class="travel-input">
+                <option value="">Tất cả danh mục</option>
+                <option value="beach">Biển</option>
+                <option value="culture">Văn hóa</option>
+                <option value="shopping">Mua sắm</option>
+                <option value="checkin">Check-in</option>
+                <option value="spiritual">Tâm linh</option>
+                <option value="entertainment">Vui chơi</option>
+                <option value="nature">Thiên nhiên</option>
+                <option value="food">Ẩm thực</option>
+              </select>
+              <select id="place-route" class="travel-input"><option value="">Mọi tuyến bus</option></select>
+              <button id="place-near-me" class="btn-ghost">Gần tôi</button>
+            </div>
+            <div id="place-state" class="travel-state"></div>
+            <div id="place-list" class="travel-grid"></div>
+          </div>
+
+          <div class="view" id="view-trip">
+            <div class="travel-head">
+              <h3>Gợi ý lịch trình bằng xe buýt</h3>
+              <p>Chọn thời gian, sở thích và ngân sách để SmartBus gợi ý lịch trình ít vòng, dễ đi bộ và tiết kiệm.</p>
+            </div>
+            <form id="trip-form" class="travel-filter trip-form">
+              <select id="trip-time" class="travel-input">
+                <option value="1 buổi">1 buổi</option>
+                <option value="1 ngày">1 ngày</option>
+                <option value="2 ngày">2 ngày</option>
+                <option value="3 ngày">3 ngày</option>
+              </select>
+              <input id="trip-interests" class="travel-input" placeholder="Sở thích: biển, check-in, mua sắm, tiết kiệm..." value="biển, check-in" />
+              <select id="trip-budget" class="travel-input"><option value="low">Tiết kiệm</option><option value="medium">Vừa phải</option><option value="high">Thoải mái</option></select>
+              <button class="btn-primary mini" type="submit">Tạo lịch trình</button>
+            </form>
+            <div id="trip-result" class="travel-grid"></div>
+          </div>
+
+          <div class="view" id="view-reviews">
+            <div class="travel-head">
+              <h3>Cộng đồng review</h3>
+              <p>Chia sẻ trải nghiệm đi du lịch bằng xe buýt, đánh giá bến xuống, tuyến đã đi và mẹo tiết kiệm.</p>
+            </div>
+            <div class="travel-filter">
+              <input id="community-search" class="travel-input" placeholder="Tìm bài review, tuyến, địa điểm..." />
+              <select id="community-province" class="travel-input"><option value="">Tất cả khu vực</option><option>Đà Nẵng</option><option>Quảng Nam cũ / Hội An</option><option>Huế</option><option>Quảng Trị</option><option>Quảng Ngãi</option></select>
+              <select id="community-category" class="travel-input"><option value="">Tất cả nhóm</option><option>Biển</option><option>Check-in</option><option>Vui chơi</option><option>Đặc sản</option><option>Chỗ nghỉ</option><option>Lịch sử</option><option>Văn hóa</option><option>Ăn uống</option></select>
+              <button id="community-refresh" class="btn-ghost">Làm mới</button>
+            </div>
+            <form id="community-review-form" class="travel-card wide review-form">
+              <div class="travel-kicker">Đăng bài review mới</div>
+              <div class="review-form-grid">
+                <input id="review-title" class="travel-input" placeholder="Tiêu đề bài review" required />
+                <input id="review-place" class="travel-input" placeholder="Địa điểm" required />
+                <select id="review-province" class="travel-input"><option>Đà Nẵng</option><option>Quảng Nam cũ / Hội An</option><option>Huế</option><option>Quảng Trị</option><option>Quảng Ngãi</option></select>
+                <select id="review-category" class="travel-input"><option>Biển / check-in</option><option>Vui chơi</option><option>Đặc sản / ăn uống</option><option>Chỗ nghỉ</option><option>Lịch sử / văn hóa</option></select>
+                <select id="review-rating" class="travel-input"><option value="5">5 sao</option><option value="4">4 sao</option><option value="3">3 sao</option><option value="2">2 sao</option><option value="1">1 sao</option></select>
+                <input id="review-tags" class="travel-input" placeholder="#hashtag / từ khóa" />
+              </div>
+              <textarea id="review-content" class="travel-input" rows="4" placeholder="Nội dung review tối thiểu 30 ký tự" required></textarea>
+              <textarea id="review-tips" class="travel-input" rows="2" placeholder="Gợi ý/lưu ý khi đi" ></textarea>
+              <input id="review-image" class="travel-input" placeholder="URL ảnh minh họa nếu có" />
+              <button type="submit" class="btn-primary mini">Đăng review</button>
+            </form>
+            <div id="community-list" class="travel-grid"></div>
+          </div>
+
+          <div class="view" id="view-favorite-routes"><div class="travel-head"><h3>Tuyến yêu thích</h3><p>Lưu nhanh các tuyến thường đi. Dữ liệu lấy từ tuyến thật đã lưu theo tài khoản.</p></div><div id="favorite-routes-list" class="travel-grid"></div></div>
+          <div class="view" id="view-favorite-places"><div class="travel-head"><h3>Địa điểm yêu thích</h3><p>Các địa điểm đã lưu từ trang du lịch, có thể xem bản đồ hoặc hỏi chatbot.</p></div><div id="favorite-places-list" class="travel-grid"></div></div>
+          <div class="view" id="view-chat-history"><div class="travel-head"><h3>Lịch sử chat</h3><p>Các câu hỏi gần đây với SmartBus Travel Assistant, kèm liên kết địa điểm/tuyến nếu có.</p></div><div id="chat-history-list" class="travel-grid"></div></div>
+          <div class="view" id="view-admin"><div class="travel-head"><h3>Quản trị nội dung</h3><p>Duyệt review, bài cộng đồng và quản lý địa điểm du lịch. Chỉ tài khoản Admin được phép truy cập.</p></div><div id="admin-panel" class="travel-grid"></div></div>
+          <div class="view" id="view-report">
+            <div class="report-wrap">
+              <div class="report-head">
+                <h3>Gửi báo cáo tình trạng</h3>
+                <p>Phản hồi giúp cải thiện dịch vụ xe buýt Đà Nẵng.</p>
+              </div>
+              <form class="report-form" id="report-form" novalidate>
+                <div class="rf-grid">
+                  <div class="fg">
+                    <label class="fg-label">Số tuyến *</label
+                    ><select class="fg-inp" id="rf-route">
+                      <option value="">-- Chọn tuyến --</option>
+                      <option value="05">
+                        Tuyến 05 – CC Hòa Hiệp Nam → CV Biển Đông
+                      </option>
+                      <option value="07">
+                        Tuyến 07 – Xuân Diệu → Hòa Phước
+                      </option>
+                      <option value="08">
+                        Tuyến 08 – Vũng Thùng → Phạm Hùng
+                      </option>
+                      <option value="11">
+                        Tuyến 11 – Xuân Diệu → BV Phụ Sản Nhi
+                      </option>
+                      <option value="12">
+                        Tuyến 12 – Xuân Diệu → Sân bay → Phạm Hùng
+                      </option>
+                      <option value="16">
+                        Tuyến 16 – Kim Liên → ĐH Việt Hàn
+                      </option>
+                      <option value="17">
+                        Tuyến 17 – Cảng Sông Hàn → Hòa Khương
+                      </option></select
+                    ><span class="fg-err" id="rf-err-route"></span>
+                  </div>
+                  <div class="fg">
+                    <label class="fg-label">Biển số xe</label
+                    ><input
+                      class="fg-inp"
+                      type="text"
+                      id="rf-plate"
+                      placeholder="VD: 43-B1 001.11"
+                    />
+                  </div>
+                  <div class="fg rf-full">
+                    <label class="fg-label">Tình trạng đông vắng *</label>
+                    <div class="crowding-grid" id="crowd-grid">
+                      <label class="crowd-opt" id="co-quiet"
+                        ><input
+                          type="radio"
+                          name="crowding"
+                          value="quiet"
+                        /><svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="var(--green)"
+                          stroke-width="2"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                          <line x1="9" y1="9" x2="9.01" y2="9" />
+                          <line x1="15" y1="9" x2="15.01" y2="9" /></svg
+                        >Rất vắng</label
+                      ><label class="crowd-opt" id="co-moderate"
+                        ><input
+                          type="radio"
+                          name="crowding"
+                          value="moderate"
+                        /><svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="var(--orange)"
+                          stroke-width="2"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="8" y1="15" x2="16" y2="15" />
+                          <line x1="9" y1="9" x2="9.01" y2="9" />
+                          <line x1="15" y1="9" x2="15.01" y2="9" /></svg
+                        >Vừa phải</label
+                      ><label class="crowd-opt" id="co-busy"
+                        ><input type="radio" name="crowding" value="busy" /><svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="var(--red)"
+                          stroke-width="2"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M16 16s-1.5-2-4-2-4 2-4 2" />
+                          <line x1="9" y1="9" x2="9.01" y2="9" />
+                          <line x1="15" y1="9" x2="15.01" y2="9" /></svg
+                        >Rất đông</label
+                      >
+                    </div>
+                    <span class="fg-err" id="rf-err-crowd"></span>
+                  </div>
+                  <div class="fg rf-full">
+                    <label class="fg-label">Ghi chú</label
+                    ><textarea
+                      class="fg-inp"
+                      id="rf-note"
+                      rows="3"
+                      placeholder="Mô tả thêm tình trạng xe..."
+                      maxlength="300"
+                      style="
+                        resize: vertical;
+                        min-height: 80px;
+                        line-height: 1.6;
+                      "
+                    ></textarea
+                    ><span class="char-count"
+                      ><span id="char-n">0</span>/300</span
+                    >
+                  </div>
+                </div>
+                <div class="rf-actions">
+                  <button type="reset" class="btn-ghost">Xóa trắng</button
+                  ><button type="submit" class="btn-submit" id="rf-submit">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      style="width: 16px; height: 16px"
+                    >
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" /></svg
+                    ><span class="btn-txt">Gửi báo cáo</span>
+                    <div class="btn-spin2"></div>
+                  </button>
+                </div>
+              </form>
+              <div class="report-history">
+                <div class="rh-title">Báo cáo gần đây</div>
+                <table class="rh-table">
+                  <thead>
+                    <tr>
+                      <th>Thời gian</th>
+                      <th>Tuyến</th>
+                      <th>Tình trạng</th>
+                      <th>Ghi chú</th>
+                    </tr>
+                  </thead>
+                  <tbody id="report-history-body">
+                    <tr>
+                      <td
+                        colspan="4"
+                        style="
+                          color: var(--txt3);
+                          text-align: center;
+                          padding: 24px;
+                          font-size: 0.85rem;
+                        "
+                      >
+                        Chưa có báo cáo nào.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="view" id="view-analytics">
+            <div style="margin-bottom: 20px">
+              <h3
+                style="
+                  font-family: var(--font-head);
+                  font-size: 1.6rem;
+                  font-weight: 800;
+                  letter-spacing: -0.03em;
+                  margin-bottom: 6px;
+                "
+              >
+                Thống kê & Phân tích
+              </h3>
+              <p style="color: var(--txt2); font-size: 0.9rem">
+                Dữ liệu tổng hợp theo thời gian thực
+              </p>
+            </div>
+            <div class="analytics-grid">
+              <div class="acard">
+                <div class="acard-title">Phân bố tình trạng theo tuyến</div>
+                <div class="bar-chart" id="route-bars"></div>
+              </div>
+              <div class="acard">
+                <div class="acard-title">Tỉ lệ đông / vừa / vắng</div>
+                <div class="donut-wrap">
+                  <div class="donut">
+                    <svg viewBox="0 0 36 36">
+                      <circle
+                        cx="18"
+                        cy="18"
+                        r="15.9"
+                        fill="none"
+                        stroke="var(--surf2)"
+                        stroke-width="3"
+                      />
+                      <circle
+                        cx="18"
+                        cy="18"
+                        r="15.9"
+                        fill="none"
+                        stroke="var(--red)"
+                        stroke-width="3"
+                        stroke-dasharray="0 100"
+                        id="d-busy"
+                        style="transition: stroke-dasharray 1s var(--ease)"
+                      />
+                      <circle
+                        cx="18"
+                        cy="18"
+                        r="15.9"
+                        fill="none"
+                        stroke="var(--orange)"
+                        stroke-width="3"
+                        stroke-dasharray="0 100"
+                        stroke-dashoffset="0"
+                        id="d-moderate"
+                        style="transition: stroke-dasharray 1s var(--ease)"
+                      />
+                      <circle
+                        cx="18"
+                        cy="18"
+                        r="15.9"
+                        fill="none"
+                        stroke="var(--green)"
+                        stroke-width="3"
+                        stroke-dasharray="0 100"
+                        stroke-dashoffset="0"
+                        id="d-quiet"
+                        style="transition: stroke-dasharray 1s var(--ease)"
+                      />
+                    </svg>
+                    <div class="donut-center">
+                      <div class="donut-num" id="d-total">24</div>
+                      <div class="donut-sub">xe</div>
+                    </div>
+                  </div>
+                  <div class="donut-legend">
+                    <div class="dl-item">
+                      <div class="dl-dot" style="background: var(--red)"></div>
+                      <span id="dl-busy">Đông: 0</span>
+                    </div>
+                    <div class="dl-item">
+                      <div
+                        class="dl-dot"
+                        style="background: var(--orange)"
+                      ></div>
+                      <span id="dl-moderate">Vừa: 0</span>
+                    </div>
+                    <div class="dl-item">
+                      <div
+                        class="dl-dot"
+                        style="background: var(--green)"
+                      ></div>
+                      <span id="dl-quiet">Vắng: 24</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="acard">
+                <div class="acard-title">Hành khách trung bình / xe</div>
+                <div id="passenger-bars" class="bar-chart"></div>
+              </div>
+              <div class="acard">
+                <div class="acard-title">Hoạt động gần đây</div>
+                <div class="timeline" id="activity-log"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="toast-box"></div>
+
+    <!-- SmartBus Assistant: full-stack chatbot + GPS -->
+    <div id="smartbus-chat-root" class="smartbus-chat-root" aria-live="polite">
+      <button id="chat-toggle" class="chat-toggle" type="button" aria-label="Mở SmartBus Assistant">
+        <span class="chat-toggle-glow"></span>
+        <span class="chat-toggle-ico">💬</span>
+        <span class="chat-toggle-label">Assistant</span>
+      </button>
+      <section id="chat-panel" class="chat-panel hidden" aria-label="SmartBus Assistant">
+        <header class="chat-head">
+          <div class="chat-avatar">🚌</div>
+          <div>
+            <div class="chat-title">SmartBus Assistant</div>
+            <div class="chat-sub" id="chat-gps-status">Tư vấn tuyến xe theo GPS</div>
+          </div>
+          <button id="chat-close" class="chat-close" type="button" aria-label="Đóng chat">×</button>
+        </header>
+        <div class="chat-body" id="chat-messages">
+          <div class="chat-msg bot">
+            <div class="bubble">
+              Xin chào! Bạn có thể hỏi: <b>Tôi muốn đến Hội An</b>, <b>VKU ra sân bay</b>, <b>Bến gần tôi nhất?</b>, hoặc <b>Tuyến 02 giá vé bao nhiêu?</b>
+            </div>
+          </div>
+        </div>
+        <div class="chat-suggestions">
+          <button type="button" data-q="Tôi muốn đến Hội An">Hội An</button>
+          <button type="button" data-q="Đi Mỹ Khê bằng tuyến nào?">Mỹ Khê</button>
+          <button type="button" data-q="Bến xe buýt gần tôi nhất ở đâu?">Bến gần tôi</button>
+          <button type="button" data-q="Gợi ý lịch trình Đà Nẵng 1 ngày">Lịch trình 1 ngày</button>
+          <button type="button" data-q="Địa điểm du lịch nào gần tuyến bus?">Du lịch gần bus</button>
+          <button type="button" data-q="Có review về Lý Sơn không?">Review Lý Sơn</button>
+        </div>
+        <form id="chat-form" class="chat-form">
+          <button id="chat-gps-btn" type="button" class="chat-gps" title="Lấy vị trí GPS">⌖</button>
+          <input id="chat-input" autocomplete="off" placeholder="Nhập câu hỏi về tuyến xe..." />
+          <button id="chat-send" type="submit">Gửi</button>
+        </form>
+      </section>
+    </div>
+    <script src="script.js"></script>
+    <script src="js/performance.js"></script>
+  </body>
+</html>

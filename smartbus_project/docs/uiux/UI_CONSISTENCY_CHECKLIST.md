@@ -1,0 +1,27 @@
+# UI Consistency Checklist
+
+- [ ] Màu chính thống nhất
+- [ ] Màu phụ thống nhất
+- [ ] Màu lỗi/thành công/cảnh báo thống nhất
+- [ ] Font thống nhất
+- [ ] Heading thống nhất
+- [ ] Button thống nhất
+- [ ] Input thống nhất
+- [ ] Card thống nhất
+- [ ] Badge thống nhất
+- [ ] Modal thống nhất
+- [ ] Popup map thống nhất
+- [ ] Toast/alert thống nhất
+- [ ] Sidebar/menu thống nhất
+- [ ] Icon thống nhất
+- [ ] Spacing thống nhất
+- [ ] Border radius thống nhất
+- [ ] Shadow thống nhất
+- [ ] Loading state thống nhất
+- [ ] Empty state thống nhất
+- [ ] Error state thống nhất
+- [ ] Mobile layout thống nhất
+- [ ] CTA wording thống nhất
+- [ ] Vietnamese text thống nhất
+- [ ] Không có style cũ mới lẫn lộn quá rõ
+- [ ] Không có button cùng ý nghĩa nhưng màu khác nhau bất thường
