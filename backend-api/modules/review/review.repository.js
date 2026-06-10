@@ -277,9 +277,14 @@ async function adminListCommunity(filters = {}) {
 
 async function adminSetCommunityStatus(id, status, admin) {
   const nowStatus = status === 'approved_seed' ? 'approved' : status;
+  const adminId = Number(admin?.id || 0) || null;
+  // FIX: Ghi moderated_by và moderated_at khi admin duyệt/từ chối
   const rs = await query(`
     UPDATE community_reviews
-    SET status=@status, updated_at=SYSDATETIME()
+    SET status=@status,
+        moderated_by=COALESCE(@adminId, moderated_by),
+        moderated_at=SYSDATETIME(),
+        updated_at=SYSDATETIME()
     OUTPUT INSERTED.id, INSERTED.review_id AS reviewId, INSERTED.slug, INSERTED.user_id AS userId,
            INSERTED.author_name AS authorName, INSERTED.province, INSERTED.place_name AS placeName,
            INSERTED.category, INSERTED.rating, INSERTED.title, INSERTED.short_caption AS shortCaption,
@@ -287,7 +292,7 @@ async function adminSetCommunityStatus(id, status, admin) {
            INSERTED.image_url AS imageUrl, INSERTED.status, INSERTED.is_seed AS isSeed,
            INSERTED.created_at AS createdAt, INSERTED.updated_at AS updatedAt
     WHERE id=@id
-  `, { id: Number(id), status: nowStatus, adminId: Number(admin?.id || 0) || null });
+  `, { id: Number(id), status: nowStatus, adminId });
   return rs.recordset[0] ? mapCommunityReview(rs.recordset[0]) : null;
 }
 

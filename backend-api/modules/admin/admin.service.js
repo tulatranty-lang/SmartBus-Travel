@@ -1,27 +1,51 @@
 const { reviewRepo, communityRepo, tourismRepo } = require('./admin.repository');
 const activity = require('../activity/activity.repository');
+const cache = require('../../common/utils/cache.util');
 
+// FIX: reviews() - Mặc định dùng community_reviews (bảng review cộng đồng thật)
 async function reviews(filters = {}) {
-  // Trong UI gọi là 'Duyệt review địa điểm', nhưng dữ liệu cũ đang nằm ở community_reviews.
-  // Giữ endpoint cũ để không làm hỏng dữ liệu người dùng đã đăng; nếu cần review bảng reviews, dùng ?source=place.
-  if (String(filters.source || '').toLowerCase() === 'place') return reviewRepo.adminListPlaceReviews(filters);
+  if (String(filters.source || '').toLowerCase() === 'place') {
+    return reviewRepo.adminListPlaceReviews(filters);
+  }
+  // Default: luôn dùng community_reviews
   return reviewRepo.adminListCommunity(filters);
 }
 
 async function approveReview(id, user) {
   const item = await reviewRepo.adminSetCommunityStatus(id, 'approved', user);
-  await activity.logActivity({ userId: user?.id || null, actionType: 'admin_moderate_review', targetType: 'community_review', targetId: id, description: `Admin duyệt review cộng đồng #${id}` });
+  if (item) {
+    // FIX: Xóa cache stats sau khi duyệt review
+    cache.clear('stats:');
+    await activity.logActivity({
+      userId: user?.id || null,
+      actionType: 'admin_moderate_review',
+      targetType: 'community_review',
+      targetId: id,
+      description: `Admin duyệt review cộng đồng #${id}: "${item.title || ''}"`,
+    });
+  }
   return item;
 }
 
 async function hideReview(id, user) {
   const item = await reviewRepo.adminSetCommunityStatus(id, 'rejected', user);
-  await activity.logActivity({ userId: user?.id || null, actionType: 'admin_moderate_review', targetType: 'community_review', targetId: id, description: `Admin từ chối review cộng đồng #${id}` });
+  if (item) {
+    cache.clear('stats:');
+    await activity.logActivity({
+      userId: user?.id || null,
+      actionType: 'admin_moderate_review',
+      targetType: 'community_review',
+      targetId: id,
+      description: `Admin từ chối review cộng đồng #${id}: "${item.title || ''}"`,
+    });
+  }
   return item;
 }
 
 async function deleteReview(id, user) {
-  return reviewRepo.adminRemoveCommunity(id, user);
+  const result = await reviewRepo.adminRemoveCommunity(id, user);
+  cache.clear('stats:');
+  return result;
 }
 
 async function pendingCommunity() {
@@ -30,13 +54,25 @@ async function pendingCommunity() {
 
 async function approveCommunity(id, user) {
   const item = await communityRepo.setStatus(id, 'approved', user);
-  await activity.logActivity({ userId: user?.id || null, actionType: 'admin_moderate_post', targetType: 'community_post', targetId: id, description: `Admin duyệt bài cộng đồng #${id}` });
+  await activity.logActivity({
+    userId: user?.id || null,
+    actionType: 'admin_moderate_post',
+    targetType: 'community_post',
+    targetId: id,
+    description: `Admin duyệt bài cộng đồng #${id}`,
+  });
   return item;
 }
 
 async function hideCommunity(id, user) {
   const item = await communityRepo.setStatus(id, 'hidden', user);
-  await activity.logActivity({ userId: user?.id || null, actionType: 'admin_moderate_post', targetType: 'community_post', targetId: id, description: `Admin ẩn bài cộng đồng #${id}` });
+  await activity.logActivity({
+    userId: user?.id || null,
+    actionType: 'admin_moderate_post',
+    targetType: 'community_post',
+    targetId: id,
+    description: `Admin ẩn bài cộng đồng #${id}`,
+  });
   return item;
 }
 

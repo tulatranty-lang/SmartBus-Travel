@@ -2450,8 +2450,12 @@ const Nav = {
     if (view === "dashboard") MapModule.invalidate();
     if (view === "analytics") AnalyticsUI.render();
     if (view === "buses") BusTableUI.render();
+    // FIX: Lazy load - chỉ load khi người dùng bấm tab, không load tất cả lúc đầu
     if (view === "nearby-stops") TravelUI.renderNearestStop();
-    if (view === "tourism") TravelUI.renderPlaces();
+    if (view === "tourism") {
+      // Chỉ load lần đầu hoặc khi cache đã hết
+      if (!TravelUI._placesLoaded) TravelUI.renderPlaces();
+    }
     if (view === "trip") TravelUI.renderTripIntro();
     if (view === "reviews") TravelUI.renderCommunity();
     if (view === "favorite-routes") TravelUI.renderFavoriteRoutes();
@@ -2889,7 +2893,7 @@ const TravelUI = {
     }
   },
 
-  _debouncedPlaces: debounce(function () { TravelUI.renderPlaces(); }, 450),
+  _debouncedPlaces: debounce(function () { TravelUI._placesLoaded = false; TravelUI.renderPlaces(); }, 450),
   _debouncedCommunity: debounce(function () { TravelUI.renderCommunity(); }, 450),
 
   async _getGps(showToast = false, allowCache = true) {
@@ -3096,12 +3100,19 @@ const TravelUI = {
         places = Array.isArray(data) ? data : data.places || data.items || [];
         this._placesCache.set(cacheKey, places);
       }
+      // FIX: Đánh dấu đã load lần đầu để lazy loading hoạt động
+      this._placesLoaded = true;
     } catch (err) {
       places = [];
       source = err.code === "TIMEOUT" ? "API phản hồi quá lâu" : "SQL Server/API lỗi";
+      // FIX: Nếu lỗi, reset _placesLoaded để lần sau thử lại
+      this._placesLoaded = false;
     }
     state && (state.innerHTML = `${source} · ${places.length} địa điểm phù hợp${places.length >= 24 ? " · đang giới hạn 24 kết quả đầu để tải nhanh" : ""}`);
-    if (!places.length) { list.innerHTML = this._empty("Chưa có địa điểm phù hợp bộ lọc hoặc backend đang phản hồi chậm."); return; }
+    if (!places.length) {
+      list.innerHTML = this._empty("Chưa có địa điểm phù hợp bộ lọc hoặc backend đang phản hồi chậm.");
+      return;
+    }
     list.innerHTML = places.map((p) => this._placeCard(p)).join("");
     $$('[data-place-chat]').forEach((btn) => btn.addEventListener('click', () => SmartBusAssistant.sendQuestion?.(`Tôi muốn đến ${btn.dataset.placeChat}`)));
     $$('[data-place-reviews]').forEach((btn) => btn.addEventListener('click', () => { $("#community-search") && ($("#community-search").value = btn.dataset.placeReviews); Nav.go("reviews"); }));
@@ -3152,7 +3163,16 @@ const TravelUI = {
     if (!box) return;
     box.innerHTML = this._loading("Đang tạo lịch trình... SmartBus đang lọc địa điểm/tuyến liên quan, vui lòng chờ vài giây.");
     if (submitBtn) { submitBtn.disabled = true; submitBtn.dataset.originalText = submitBtn.textContent; submitBtn.textContent = "Đang tạo..."; }
-    const gps = this.gps || await this._getGps(false);
+    // FIX: GPS timeout tối đa 2.5 giây, không chặn tạo lịch trình nếu GPS chậm
+    let gps = this.gps;
+    if (!gps) {
+      try {
+        gps = await Promise.race([
+          this._getGps(false),
+          new Promise((resolve) => setTimeout(() => resolve(null), 2500)),
+        ]);
+      } catch { gps = null; }
+    }
     const body = {
       timeAvailable: $("#trip-time")?.value || "1 buổi",
       interests: ($("#trip-interests")?.value || "").split(",").map((x) => x.trim()).filter(Boolean),
@@ -3177,13 +3197,15 @@ const TravelUI = {
     const box = $("#community-list");
     if (!box) return;
     this._bindCommunity();
-    box.innerHTML = this._loading("Đang tải review cộng đồng chờ duyệt...");
+    // FIX: "review cộng đồng đã duyệt" - không phải "chờ duyệt"
+    box.innerHTML = this._loading("Đang tải review cộng đồng...");
     const q = encodeURIComponent($("#community-search")?.value || "");
     const province = encodeURIComponent($("#community-province")?.value || "");
     const category = encodeURIComponent($("#community-category")?.value || "");
     try {
-      const posts = await API.get(`/reviews?q=${q}&province=${province}&category=${category}`, { skipAuth: true });
-      if (!posts.length) { box.innerHTML = this._empty("Chưa có bài review phù hợp."); return; }
+      // FIX: Gọi /reviews thay vì /community/reviews để nhất quán
+      const posts = await API.get(`/reviews?q=${q}&province=${province}&category=${category}&status=approved`, { skipAuth: true });
+      if (!posts.length) { box.innerHTML = this._empty("Chưa có review cộng đồng đã duyệt. Hãy đăng review đầu tiên!"); return; }
       box.innerHTML = posts.map((p) => `<article class="travel-card"><div class="travel-kicker">${this._esc(p.category || "Review")} ${p.isSeed ? "· Bài gợi ý từ SmartBus" : "· Người dùng"}</div><h4>${this._esc(p.title)}</h4><p>${this._esc(p.shortCaption || p.content || "")}</p><div class="travel-meta"><span>⭐ ${this._esc(p.rating || 0)}/5</span><span>${this._esc(p.province || "")}</span><span>${this._esc(p.placeName || "")}</span></div><div class="travel-actions"><button class="btn-ghost" data-review-detail="${this._esc(p.id)}">Xem chi tiết</button><button class="btn-ghost" data-review-chat="${this._esc(p.placeName || p.title)}">Hỏi chatbot</button></div></article>`).join("");
       $$('[data-review-chat]').forEach((btn) => btn.addEventListener('click', () => SmartBusAssistant.sendQuestion?.(`Địa điểm ${btn.dataset.reviewChat} có tuyến bus hoặc review gì?`)));
       $$('[data-review-detail]').forEach((btn) => btn.addEventListener('click', async () => this.showReviewDetail(btn.dataset.reviewDetail)));
@@ -4066,19 +4088,15 @@ const SmartBusAssistant = (() => {
     typing?.classList.add("chat-typing");
 
     try {
-      const pos = currentPosition || (await requestGPS(false, 1200));
+      // FIX: Timeout GPS tối đa 2 giây, không chặn chat nếu GPS chậm
+      const pos = currentPosition || (await requestGPS(false, 2000).catch(() => null));
       payload = {
         message: safeQuestion,
         lat: pos?.lat ?? null,
         lng: pos?.lng ?? null,
       };
-      const res = await fetch(`${API_BASE}/chatbot/ask`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      // FIX: Dùng API wrapper thay vì fetch thủ công để tự thêm Authorization token
+      const data = await API.post("/chatbot/ask", payload, { timeoutMs: 15000 });
       typing?.remove();
       addMessage(data.reply || "Tôi đã nhận câu hỏi của bạn.", "bot", data);
       applyMapResult(data, payload);
