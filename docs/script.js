@@ -3670,13 +3670,259 @@ const TravelUI = {
     if (box && !box.innerHTML.trim()) box.innerHTML = this._empty("Chọn thời gian, sở thích rồi bấm “Tạo lịch trình”.");
   },
 
+  _tripProvinceFromInput(body = {}, gps = null) {
+    const explicit = String(body.province || body.provinceCode || "").trim();
+    if (explicit) return explicit;
+    const interestText = this._norm([...(body.interests || []), body.keyword || ""].join(" "));
+    if (/hoi an|quang nam|pho co/.test(interestText)) return "QN_CU";
+    if (/hue|dai noi|lang vua/.test(interestText)) return "HUE";
+    if (/ly son|quang ngai|sa ky/.test(interestText)) return "QNG";
+    if (/quang tri|vinh moc|hien luong|la vang/.test(interestText)) return "QT";
+    const safeGps = this._safeNearbyGps(gps);
+    if (!safeGps) return "DN";
+    const anchors = [
+      { code: "DN", lat: 16.0544, lng: 108.2022 },
+      { code: "QN_CU", lat: 15.8801, lng: 108.3380 },
+      { code: "HUE", lat: 16.4637, lng: 107.5909 },
+      { code: "QNG", lat: 15.1205, lng: 108.7923 },
+      { code: "QT", lat: 16.7500, lng: 107.1900 },
+    ];
+    return anchors
+      .map((a) => ({ ...a, meters: getDistanceMeters([safeGps.lat, safeGps.lng], [a.lat, a.lng]) }))
+      .sort((a, b) => a.meters - b.meters)[0]?.code || "DN";
+  },
+
+  _tripCategoryPrefs(interests = [], timeAvailable = "") {
+    const text = this._norm(`${Array.isArray(interests) ? interests.join(" ") : interests} ${timeAvailable}`);
+    const prefs = [];
+    const push = (...items) => items.forEach((x) => { if (x && !prefs.includes(x)) prefs.push(x); });
+    if (/bien|tam bien|hai san|dao/.test(text)) push("beach", "nature", "food", "checkin");
+    if (/van hoa|lich su|di san|pho co|bao tang/.test(text)) push("culture", "spiritual", "checkin", "food");
+    if (/check|song ao|chup anh/.test(text)) push("checkin", "culture", "beach", "shopping");
+    if (/mua sam|cho|shopping|dac san/.test(text)) push("shopping", "food", "checkin", "culture");
+    if (/vui choi|giai tri|tre em/.test(text)) push("entertainment", "checkin", "shopping", "food");
+    if (/tam linh|chua|thanh dia/.test(text)) push("spiritual", "culture", "nature", "food");
+    if (/tiet kiem|re|low/.test(text)) push("culture", "checkin", "beach", "food");
+    if (!prefs.length) push("culture", "checkin", "food", "beach", "nature", "shopping", "spiritual", "entertainment", "general");
+    push("culture", "checkin", "food", "beach", "nature", "shopping", "spiritual", "entertainment", "general");
+    return prefs;
+  },
+
+  _tripSlots(timeAvailable = "1 ngày") {
+    const t = this._norm(timeAvailable);
+    if (/3 ngay|ba ngay/.test(t)) return [
+      { day: 1, timeBlock: "Ngày 1 · Buổi sáng", suggestedStart: "08:00", role: "main", duration: 120 },
+      { day: 1, timeBlock: "Ngày 1 · Buổi chiều", suggestedStart: "14:30", role: "nearby", duration: 90 },
+      { day: 1, timeBlock: "Ngày 1 · Buổi tối", suggestedStart: "18:30", role: "food", duration: 90 },
+      { day: 2, timeBlock: "Ngày 2 · Buổi sáng", suggestedStart: "08:00", role: "main", duration: 150 },
+      { day: 2, timeBlock: "Ngày 2 · Buổi chiều", suggestedStart: "14:30", role: "nearby", duration: 90 },
+      { day: 2, timeBlock: "Ngày 2 · Buổi tối", suggestedStart: "18:30", role: "checkin", duration: 75 },
+      { day: 3, timeBlock: "Ngày 3 · Buổi sáng", suggestedStart: "08:30", role: "light", duration: 90 },
+      { day: 3, timeBlock: "Ngày 3 · Buổi chiều", suggestedStart: "14:00", role: "shopping", duration: 75 },
+    ];
+    if (/2 ngay|hai ngay|cuoi tuan|weekend/.test(t)) return [
+      { day: 1, timeBlock: "Ngày 1 · Buổi sáng", suggestedStart: "08:00", role: "main", duration: 120 },
+      { day: 1, timeBlock: "Ngày 1 · Buổi trưa", suggestedStart: "11:30", role: "food", duration: 75 },
+      { day: 1, timeBlock: "Ngày 1 · Buổi chiều", suggestedStart: "14:30", role: "nearby", duration: 105 },
+      { day: 1, timeBlock: "Ngày 1 · Buổi tối", suggestedStart: "18:30", role: "checkin", duration: 90 },
+      { day: 2, timeBlock: "Ngày 2 · Buổi sáng", suggestedStart: "08:30", role: "main", duration: 120 },
+      { day: 2, timeBlock: "Ngày 2 · Buổi chiều", suggestedStart: "14:00", role: "shopping", duration: 90 },
+    ];
+    if (/1 buoi|nua ngay|nửa ngày|half/.test(t)) return [
+      { day: 1, timeBlock: "Điểm chính", suggestedStart: "08:30", role: "main", duration: 105 },
+      { day: 1, timeBlock: "Điểm gần kề", suggestedStart: "10:30", role: "nearby", duration: 75 },
+    ];
+    return [
+      { day: 1, timeBlock: "Buổi sáng", suggestedStart: "08:00", role: "main", duration: 120 },
+      { day: 1, timeBlock: "Buổi trưa", suggestedStart: "11:30", role: "food", duration: 75 },
+      { day: 1, timeBlock: "Buổi chiều", suggestedStart: "14:30", role: "nearby", duration: 105 },
+      { day: 1, timeBlock: "Buổi tối", suggestedStart: "18:30", role: "checkin", duration: 90 },
+    ];
+  },
+
+  _tripCategoryForSlot(slot = {}, prefs = []) {
+    if (slot.role === "food") return ["food", "shopping", "general", ...prefs];
+    if (slot.role === "checkin") return ["checkin", "culture", "shopping", "beach", ...prefs];
+    if (slot.role === "shopping") return ["shopping", "food", "checkin", ...prefs];
+    if (slot.role === "light") return ["culture", "shopping", "checkin", "food", ...prefs];
+    if (slot.role === "nearby") return [...prefs, "checkin", "culture", "nature", "beach", "shopping", "food"];
+    return [...prefs, "culture", "beach", "nature", "checkin", "spiritual", "entertainment"];
+  },
+
+  _tripDistanceMeters(a, b) {
+    const pa = normalizeLatLng(a, { allowOutsideCentral: true, source: "trip-distance-a" });
+    const pb = normalizeLatLng(b, { allowOutsideCentral: true, source: "trip-distance-b" });
+    if (!pa || !pb) return Number.POSITIVE_INFINITY;
+    return getDistanceMeters(pa, pb);
+  },
+
+  _tripPlaceCategory(place = {}) {
+    const text = this._norm(`${place.categoryCode || ""} ${place.category || ""} ${place.categoryName || ""} ${place.name || ""} ${place.foodSuggestions || ""}`);
+    if (/bien|beach|dao|hai san/.test(text)) return "beach";
+    if (/food|am thuc|ẩm thực|cho|mua sam|dac san|shopping/.test(text)) return text.includes("cho") || text.includes("shopping") ? "shopping" : "food";
+    if (/check|cau rong|song ao|quang truong|bieu tuong/.test(text)) return "checkin";
+    if (/chua|tam linh|spiritual|thanh dia/.test(text)) return "spiritual";
+    if (/vui choi|giai tri|entertainment|cong vien/.test(text)) return "entertainment";
+    if (/nui|thac|nature|rung|suoi|ho|son tra/.test(text)) return "nature";
+    if (/di tich|van hoa|lich su|di san|culture|pho co|bao tang/.test(text)) return "culture";
+    return place.categoryCode || place.category || "general";
+  },
+
+  async _buildLocalTripPlan(body = {}, gps = null, reason = "Dữ liệu local") {
+    const safeGps = this._safeNearbyGps(gps);
+    const province = this._tripProvinceFromInput(body, safeGps);
+    const prefs = this._tripCategoryPrefs(body.interests, body.timeAvailable);
+    const slots = this._tripSlots(body.timeAvailable);
+    let rows = await this._loadStaticTourismPlaces();
+    if (!rows.length) rows = this._getHardcodedTourismPlaces();
+    let places = rows
+      .map((p, idx) => this._normalizeTourismPlace(p, idx, safeGps))
+      .filter(Boolean)
+      .filter((p) => !province || this._norm(`${p.provinceCode} ${p.provinceName}`).includes(this._norm(province)) || String(p.provinceCode || "").toUpperCase() === String(province).toUpperCase());
+
+    if (!places.length) {
+      places = rows.map((p, idx) => this._normalizeTourismPlace(p, idx, safeGps)).filter(Boolean);
+    }
+
+    const selected = [];
+    const categoryCount = new Map();
+    let anchor = safeGps || places[0] || null;
+
+    for (const slot of slots) {
+      const desired = this._tripCategoryForSlot(slot, prefs);
+      const candidates = places
+        .filter((p) => !selected.some((x) => String(x.id) === String(p.id) || this._norm(x.name) === this._norm(p.name)))
+        .map((p) => {
+          const category = this._tripPlaceCategory(p);
+          const categoryRank = desired.includes(category) ? desired.indexOf(category) : desired.length + 3;
+          const sameCatPenalty = Math.max(0, (categoryCount.get(category) || 0) - 1) * 30;
+          const meters = anchor ? this._tripDistanceMeters(anchor, p) : 0;
+          const km = Number.isFinite(meters) ? meters / 1000 : 999;
+          const distancePenalty = Math.min(45, km * 1.4);
+          const ratingBoost = Number(p.averageRating || 4.5) * 3 + Math.min(12, Number(p.reviewCount || 0) / 8);
+          const busBoost = p.nearestRouteCode || p.recommendedRoute || p.nearestStopName ? 8 : 0;
+          const foodFit = slot.role === "food" && (p.foodSuggestions || category === "food" || category === "shopping") ? -12 : 0;
+          const score = categoryRank * 18 + distancePenalty + sameCatPenalty - ratingBoost - busBoost + foodFit;
+          return { place: p, category, score, meters };
+        })
+        .sort((a, b) => a.score - b.score);
+      const chosen = candidates[0]?.place;
+      if (!chosen) break;
+      const cat = this._tripPlaceCategory(chosen);
+      categoryCount.set(cat, (categoryCount.get(cat) || 0) + 1);
+      selected.push({ ...chosen, _tripCategory: cat, _distanceFromPrevMeters: candidates[0]?.meters });
+      anchor = chosen;
+    }
+
+    const items = selected.map((p, index) => {
+      const slot = slots[index] || slots[slots.length - 1] || {};
+      const previous = index ? selected[index - 1] : safeGps;
+      const moveMeters = previous ? this._tripDistanceMeters(previous, p) : null;
+      const moveMinutes = Number.isFinite(moveMeters) ? Math.max(5, Math.round((moveMeters / 1000) / 22 * 60)) : null;
+      const stopName = p.nearestStopName || p.nearestStop?.stopName || p.nearestStop?.name || "bến gần nhất đang cập nhật";
+      const routeCode = p.nearestRouteCode || p.recommendedRoute?.id || p.recommendedRoute?.routeCode || "đang cập nhật";
+      return {
+        ...p,
+        order: index + 1,
+        day: slot.day || 1,
+        timeBlock: slot.timeBlock || `Điểm ${index + 1}`,
+        suggestedStart: slot.suggestedStart || "08:00",
+        suggestedDurationMinutes: p.suggestedDurationMinutes || slot.duration || 90,
+        busRoute: p.recommendedRoute || { id: routeCode, routeCode },
+        stopDown: p.nearestStop || { stopName, name: stopName, walkingMinutes: p.walkingMinutes },
+        walkingMinutes: p.walkingMinutes || p.nearestStop?.walkingMinutes || null,
+        transferMinutes: moveMinutes,
+        practicalNote: `${index === 0 ? "Bắt đầu bằng điểm chính" : "Điểm tiếp theo được chọn gần điểm trước"}; xuống tại ${stopName}, tuyến ${routeCode}. ${p.bestTime ? `Thời điểm hợp lý: ${p.bestTime}.` : ""}`,
+      };
+    });
+
+    const totalEstimatedTime = items.reduce((sum, it) => sum + Number(it.suggestedDurationMinutes || 90) + Number(it.walkingMinutes || 0) + Number(it.transferMinutes || 0), 0);
+    const provinceName = items[0]?.provinceName || province || "khu vực đã chọn";
+    const title = `Lịch trình ${body.timeAvailable || "1 ngày"} tại ${provinceName}`;
+    const summary = items.length
+      ? `Đã sắp xếp ${items.length} điểm theo cụm gần nhau, hạn chế nhảy tỉnh xa, có xen kẽ tham quan - ăn uống/check-in - nghỉ nhẹ.`
+      : "Chưa đủ dữ liệu địa điểm để tạo lịch trình hợp lý.";
+
+    return {
+      itineraryId: null,
+      title,
+      summary,
+      source: reason,
+      totalEstimatedTime,
+      routeSuggestion: items.find((x) => x.busRoute)?.busRoute || null,
+      nearestBusStop: items.find((x) => x.stopDown)?.stopDown || null,
+      items,
+      places: items,
+      stops: items,
+      mapPoints: items.map((p) => ({ name: p.name, lat: p.lat || p.latitude, lng: p.lng || p.longitude })),
+      note: `Nguồn: ${reason}. Logic ưu tiên cùng tỉnh, gần tuyến/bến và giảm quãng đường vòng.`,
+    };
+  },
+
+  _isTripPlanReasonable(plan = {}, body = {}, gps = null) {
+    const items = Array.isArray(plan?.items) ? plan.items : (Array.isArray(plan?.places) ? plan.places : []);
+    if (!items.length) return false;
+    const names = items.map((it) => this._norm(it.name || it.placeName || "")).filter(Boolean);
+    if (new Set(names).size < Math.min(2, names.length)) return false;
+    const validCoords = items.filter((it) => normalizeLatLng(it, { allowOutsideCentral: true, source: "trip-reasonable" })).length;
+    if (validCoords < Math.min(2, items.length)) return false;
+    const province = this._tripProvinceFromInput(body, gps);
+    if (province) {
+      const sameProvince = items.filter((it) => this._norm(`${it.provinceCode || ""} ${it.provinceName || ""}`).includes(this._norm(province)) || String(it.provinceCode || "").toUpperCase() === String(province).toUpperCase()).length;
+      if (sameProvince && sameProvince < Math.ceil(items.length * 0.6)) return false;
+    }
+    for (let i = 1; i < items.length; i++) {
+      const meters = this._tripDistanceMeters(items[i - 1], items[i]);
+      if (Number.isFinite(meters) && meters > 85000) return false;
+    }
+    return true;
+  },
+
+  _renderTripPlan(plan = {}, source = "SmartBus") {
+    const safeItems = (Array.isArray(plan.items) ? plan.items : (Array.isArray(plan.places) ? plan.places : []))
+      .map((it, index) => ({ ...it, order: it.order || index + 1 }));
+    this._lastTripPlan = { ...plan, items: safeItems };
+    const summaryCard = `<div class="travel-card wide">
+      <div class="travel-kicker">${this._esc(plan.title || "Lịch trình SmartBus")}</div>
+      <h4>${this._esc(plan.summary || "Gợi ý lịch trình cân bằng")}</h4>
+      <p class="travel-small">${this._esc(plan.note || `Nguồn: ${source}`)}${plan.totalEstimatedTime ? ` · Tổng thời gian ước tính: ${this._esc(Math.round(plan.totalEstimatedTime))} phút` : ""}</p>
+      <div class="travel-actions"><button class="btn-ghost" onclick="TravelUI.showTripOnMap()">Hiện lịch trình trên bản đồ</button><button class="btn-ghost" onclick="SmartBusAssistant.sendQuestion('Hỏi thêm về lịch trình này')">Hỏi chatbot về lịch trình này</button></div>
+    </div>`;
+    if (!safeItems.length) return summaryCard + this._empty("Không đủ địa điểm để tạo lịch trình hợp lý. Hãy chọn tỉnh cụ thể hoặc đổi sở thích.");
+    return summaryCard + safeItems.map((it, i) => {
+      const route = it.busRoute || it.recommendedRoute || (it.nearestRouteCode ? { id: it.nearestRouteCode } : null);
+      const stopName = it.stopDown?.stopName || it.stopDown?.name || it.nearestStopName || it.nearestStop?.stopName || it.nearestStop?.name || "bến gần nhất đang cập nhật";
+      const moveText = it.transferMinutes ? `<span>Di chuyển ~${this._esc(it.transferMinutes)} phút</span>` : "";
+      return `<div class="travel-card">
+        <div class="travel-kicker">${this._esc(it.timeBlock || `Điểm ${i + 1}`)} · ${this._esc(it.suggestedStart || "")}</div>
+        <h4>${this._esc(it.name || it.placeName || "Địa điểm")}</h4>
+        <p>${this._esc(it.description || it.shortDescription || "")}</p>
+        <div class="travel-meta"><span>Ở lại ${this._esc(it.suggestedDurationMinutes || 90)} phút</span>${route ? `<span>Bus ${this._esc(route.id || route.routeCode || route.routeDisplayCode || route)}</span>` : ""}${it.walkingMinutes ? `<span>Đi bộ ${this._esc(it.walkingMinutes)} phút</span>` : ""}${moveText}</div>
+        <p class="travel-small">${this._esc(it.practicalNote || `Xuống tại ${stopName}; ưu tiên cùng cụm để giảm thời gian di chuyển.`)}</p>
+      </div>`;
+    }).join("");
+  },
+
+  showTripOnMap() {
+    const plan = this._lastTripPlan;
+    if (!plan || !Array.isArray(plan.items) || !plan.items.length) { Nav.go("dashboard"); return; }
+    Nav.go("dashboard");
+    setTimeout(() => {
+      try {
+        MapModule.showTravelPlan?.({ suggestedPlaces: plan.items, destinationPlace: plan.items[0], routePlan: { summary: plan.summary, legs: plan.items.map((x) => `${x.timeBlock || "Điểm"}: ${x.name || x.placeName}`) } }, {});
+      } catch (err) { console.warn("[SmartBus] Không thể hiển thị lịch trình trên bản đồ:", err?.message || err); }
+    }, 350);
+  },
+
   async generateTrip() {
     const box = $("#trip-result");
     const submitBtn = $("#trip-form button[type='submit']");
     if (!box) return;
-    box.innerHTML = this._loading("Đang tạo lịch trình... SmartBus đang lọc địa điểm/tuyến liên quan, vui lòng chờ vài giây.");
+    box.innerHTML = this._loading("Đang tạo lịch trình hợp lý... SmartBus đang gom địa điểm theo tỉnh, nhóm gần nhau và tuyến bus liên quan.");
     if (submitBtn) { submitBtn.disabled = true; submitBtn.dataset.originalText = submitBtn.textContent; submitBtn.textContent = "Đang tạo..."; }
-    const gps = this.gps || await this._getGps(false);
+    const rawGps = this.gps || await this._getGps(false);
+    const gps = this._safeNearbyGps(rawGps);
+    if (gps) this.gps = gps;
     const body = {
       timeAvailable: $("#trip-time")?.value || "1 buổi",
       interests: ($("#trip-interests")?.value || "").split(",").map((x) => x.trim()).filter(Boolean),
@@ -3686,11 +3932,15 @@ const TravelUI = {
       lng: gps?.lng ?? null,
     };
     try {
-      const plan = await API.post("/trip-plans/generate", body, { timeoutMs: 18000 });
-      const items = plan.items || [];
-      box.innerHTML = `<div class="travel-card wide"><div class="travel-kicker">${this._esc(plan.title || "Lịch trình")}</div><h4>${this._esc(plan.summary || "Gợi ý từ SmartBus")}</h4><div class="travel-actions"><button class="btn-ghost" onclick="Nav.go('dashboard')">Hiện lịch trình trên bản đồ</button><button class="btn-ghost" onclick="SmartBusAssistant.sendQuestion('Hỏi thêm về lịch trình này')">Hỏi chatbot về lịch trình này</button></div></div>` + items.map((it, i) => `<div class="travel-card"><div class="travel-kicker">${this._esc(it.timeBlock || `Điểm ${i + 1}`)} · ${this._esc(it.suggestedStart || "")}</div><h4>${this._esc(it.name || it.placeName || "Địa điểm")}</h4><p>${this._esc(it.description || it.practicalNote || "")}</p><div class="travel-meta"><span>Ở lại ${it.suggestedDurationMinutes || 90} phút</span>${it.busRoute ? `<span>Bus ${it.busRoute.id || it.busRoute.routeCode}</span>` : ""}${it.walkingMinutes ? `<span>Đi bộ ${it.walkingMinutes} phút</span>` : ""}</div><p class="travel-small">${this._esc(it.practicalNote || "Sắp xếp theo cụm gần tuyến để giảm thời gian di chuyển.")}</p></div>`).join("");
+      const backendPlan = await API.post("/trip-plans/generate", body, { timeoutMs: 12000, skipRefresh: true });
+      const plan = this._isTripPlanReasonable(backendPlan, body, gps)
+        ? backendPlan
+        : await this._buildLocalTripPlan(body, gps, "Backend trả lịch trình chưa hợp lý → đã cân bằng lại bằng dữ liệu local");
+      box.innerHTML = this._renderTripPlan(plan, plan.source || "Backend SQL Server");
     } catch (err) {
-      box.innerHTML = this._empty(err.code === "TIMEOUT" ? "Tạo lịch trình quá lâu. Hãy chọn ít sở thích hơn hoặc chọn tỉnh cụ thể rồi thử lại." : "Không tạo được lịch trình từ backend. Hãy kiểm tra backend-api hoặc thử lại.");
+      console.warn("[SmartBus] Trip API lỗi/chậm, tạo lịch trình local:", err?.message || err);
+      const plan = await this._buildLocalTripPlan(body, gps, err?.code === "TIMEOUT" ? "Backend phản hồi chậm → dùng dữ liệu local" : "Dữ liệu local GitHub Pages");
+      box.innerHTML = this._renderTripPlan(plan, plan.source || "Dữ liệu local");
     } finally {
       if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = submitBtn.dataset.originalText || "Tạo lịch trình"; }
     }
