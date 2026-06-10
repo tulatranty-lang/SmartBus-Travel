@@ -1,0 +1,16 @@
+## TEST LOG - Fix Bến gần tôi fallback + GPS
+UTC 2026-06-10 03:59:05
+$ node --check docs/script.js
+docs/script.js: OK - 0 syntax error
+$ node --check frontend/script.js
+frontend/script.js: OK - 0 syntax error
+$ grep _getHardcodedStops docs/frontend
+docs/script.js:3080:    const hardcoded = this._getHardcodedStops();
+docs/script.js:3105:  _getHardcodedStops() {
+docs/script.js:3183:      const hc = this._getHardcodedStops();
+frontend/script.js:3084:    const hardcoded = this._getHardcodedStops();
+frontend/script.js:3109:  _getHardcodedStops() {
+frontend/script.js:3187:      const hc = this._getHardcodedStops();
+$ grep timeout 25000
+docs/script.js:3036:      { timeoutMs: 25000, skipAuth: true }
+frontend/script.js:3040:      { timeoutMs: 25000, skipAuth: true }

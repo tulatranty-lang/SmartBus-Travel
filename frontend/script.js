@@ -1326,7 +1326,9 @@ const MapModule = (() => {
     else userLocationCircle = L.circle(ll, { radius: 650, weight: 1, opacity: 0.7, fillOpacity: 0.08 }).addTo(map);
     userLocationMarker.bindPopup("Vị trí hiện tại của bạn");
     map.flyTo(ll, 15, { duration: 1.0 });
-    setTimeout(() => userLocationMarker?.openPopup(), 800);
+    setTimeout(() => {
+      userLocationMarker?.openPopup?.();
+    }, 800);
     updateMarkers(State.buses);
     drawStops();
     window.safeInvalidateSmartBusMap?.(200);
@@ -2791,7 +2793,10 @@ const SearchFilter = {
       });
       if (!gps) {
         Toast.show("Không lấy được GPS. Hãy bật quyền Location cho trình duyệt rồi thử lại.", "warning", 4500);
+        return;
       }
+      MapModule.markUserLocation?.(gps.lat, gps.lng);
+      window.safeInvalidateSmartBusMap?.(300);
     });
 
     $("#refresh-btn")?.addEventListener("click", () => {
@@ -2955,12 +2960,13 @@ const TravelUI = {
       if (!this._nearbyStaticStops) {
         const candidates = [
           '/SmartBus-Travel/data/import/smartbus-bus-data.normalized.json',
-          './SmartBus-Travel/data/import/smartbus-bus-data.normalized.json',
-          'data/import/smartbus-bus-data.normalized.json',
           './data/import/smartbus-bus-data.normalized.json',
+          'data/import/smartbus-bus-data.normalized.json',
+          '../data/import/smartbus-bus-data.normalized.json',
           '../backend-api/data/import/smartbus-bus-data.normalized.json',
         ];
         let payload = null;
+        let lastError = null;
         for (const url of candidates) {
           try {
             const res = await fetchWithTimeout(url, { cache: 'force-cache' }, 6000);
@@ -2968,10 +2974,14 @@ const TravelUI = {
             payload = await res.json();
             break;
           } catch (err) {
+            lastError = err;
             console.warn(`Không đọc được dữ liệu bến local từ ${url}:`, err);
           }
         }
-        if (!payload) return [];
+        if (!payload) {
+          console.warn('[SmartBus] Không đọc được JSON tĩnh:', lastError?.message || lastError);
+          return [];
+        }
         const routes = Array.isArray(payload.routes) ? payload.routes : [];
         const routeStops = Array.isArray(payload.routeStops) ? payload.routeStops : [];
         const stops = Array.isArray(payload.stops) ? payload.stops : [];
@@ -3023,25 +3033,103 @@ const TravelUI = {
   },
 
   async _getNearbyStopsTrietDe(gps, limit = 5) {
-    try {
-      const rows = await API.get(`/stops/nearby?lat=${encodeURIComponent(gps.lat)}&lng=${encodeURIComponent(gps.lng)}&limit=${limit}`, { timeoutMs: 25000, skipAuth: true });
-      const stops = Array.isArray(rows) ? rows : (rows.nearestStops || rows.data || []);
-      if (stops.length) return { stops: stops.map((stop, index) => this._normalizeNearbyStop(stop, gps, index)).filter(Boolean), source: 'Backend SQL Server' };
-    } catch (err) {
-      console.warn('Không lấy được /stops/nearby từ backend; chuyển sang dữ liệu local để không làm chết chức năng Bến gần tôi:', err);
-    }
+  // Tầng 1: Backend API - Render có thể cold start nên timeout phải đủ dài
+  try {
+    const rows = await API.get(
+      `/stops/nearby?lat=${encodeURIComponent(gps.lat)}&lng=${encodeURIComponent(gps.lng)}&limit=${limit}`,
+      { timeoutMs: 25000, skipAuth: true }
+    );
 
+    const stops = Array.isArray(rows) ? rows : (rows.nearestStops || rows.data || []);
+    if (stops.length) {
+      return {
+        stops: stops
+          .map((stop, i) => this._normalizeNearbyStop(stop, gps, i))
+          .filter(Boolean),
+        source: 'Backend SQL Server'
+      };
+    }
+  } catch (err) {
+    console.warn('[SmartBus] API /stops/nearby fail, thử dữ liệu local:', err?.message || err);
+  }
+
+  // Tầng 2: Dữ liệu bến đã load trong State.stops
+  try {
     const loaded = this._nearbyFromLoadedMapData(gps, limit);
-    if (loaded.length) return { stops: loaded, source: 'Dữ liệu bản đồ đã tải' };
-
-    try {
-      const local = await this._nearbyFromStaticBusJson(gps, limit);
-      return { stops: local, source: local.length ? 'Dữ liệu bến local dự phòng' : 'Không tìm thấy dữ liệu bến' };
-    } catch (err) {
-      console.warn('Fallback bến local lỗi ngoài dự kiến:', err);
-      return { stops: [], source: 'Không tìm thấy dữ liệu bến' };
+    if (loaded.length) {
+      return {
+        stops: loaded,
+        source: 'Dữ liệu bản đồ đã tải'
+      };
     }
-  },
+  } catch (err) {
+    console.warn('[SmartBus] State.stops fallback fail:', err?.message || err);
+  }
+
+  // Tầng 3: File JSON tĩnh trong GitHub Pages
+  try {
+    const local = await this._nearbyFromStaticBusJson(gps, limit);
+    if (local.length) {
+      return {
+        stops: local,
+        source: 'Dữ liệu bến local'
+      };
+    }
+  } catch (err) {
+    console.warn('[SmartBus] Fetch JSON tĩnh fail:', err?.message || err);
+  }
+
+  // Tầng 4: Fallback offline cuối cùng, không cần backend/fetch
+  try {
+    const hardcoded = this._getHardcodedStops();
+    if (hardcoded.length) {
+      const sorted = hardcoded
+        .map((stop, i) => this._normalizeNearbyStop(stop, gps, i))
+        .filter(Boolean)
+        .sort((a, b) => a.distanceMeters - b.distanceMeters)
+        .slice(0, limit);
+
+      if (sorted.length) {
+        return {
+          stops: sorted,
+          source: 'Dữ liệu bến Đà Nẵng offline'
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[SmartBus] Hardcoded fallback fail:', err?.message || err);
+  }
+
+  return {
+    stops: [],
+    source: 'Không tìm thấy dữ liệu bến'
+  };
+},
+
+  _getHardcodedStops() {
+  return [
+    { id: 'DN_BEN_XE_TRUNG_TAM', name: 'Bến xe Trung tâm Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0739, lng: 108.1537, address: 'Bến xe Trung tâm Đà Nẵng' },
+    { id: 'DN_NAM_TRAN', name: 'Nam Trân', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0750, lng: 108.1700, address: 'Nam Trân, Đà Nẵng' },
+    { id: 'DN_LY_THAI_TONG', name: 'Lý Thái Tông Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0840, lng: 108.1700, address: 'Lý Thái Tông, Đà Nẵng' },
+    { id: 'DN_CAU_THUAN_PHUOC', name: 'Cầu Thuận Phước', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0910, lng: 108.2240, address: 'Cầu Thuận Phước, Đà Nẵng' },
+    { id: 'DN_HOANG_SA', name: 'Hoàng Sa', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0980, lng: 108.2590, address: 'Hoàng Sa, Đà Nẵng' },
+    { id: 'DN_MY_KHE', name: 'Bãi biển Mỹ Khê', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0670, lng: 108.2470, address: 'Mỹ Khê, Đà Nẵng' },
+    { id: 'DN_CAU_RONG', name: 'Cầu Rồng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0610, lng: 108.2280, address: 'Cầu Rồng, Đà Nẵng' },
+    { id: 'DN_NGU_HANH_SON', name: 'Ngũ Hành Sơn', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0030, lng: 108.2630, address: 'Ngũ Hành Sơn, Đà Nẵng' },
+    { id: 'DN_SON_TRA', name: 'Bán đảo Sơn Trà', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.1050, lng: 108.2680, address: 'Sơn Trà, Đà Nẵng' },
+    { id: 'DN_HOI_AN_BUS', name: 'Bến xe Hội An', provinceCode: 'QN_CU', provinceName: 'Hội An', lat: 15.8750, lng: 108.3300, address: 'Bến xe Hội An, Quảng Nam' },
+    { id: 'DN_AIRPORT', name: 'Sân bay Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0440, lng: 108.1990, address: 'Sân bay Quốc tế Đà Nẵng' },
+    { id: 'DN_CHO_CON', name: 'Chợ Cồn', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0680, lng: 108.2200, address: 'Chợ Cồn, Đà Nẵng' },
+    { id: 'DN_BACH_DANG', name: 'Bạch Đằng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0670, lng: 108.2250, address: 'Đường Bạch Đằng, Đà Nẵng' },
+    { id: 'DN_HAI_CHAU', name: 'Hải Châu', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0600, lng: 108.2180, address: 'Quận Hải Châu, Đà Nẵng' },
+    { id: 'DN_THANH_KHE', name: 'Thanh Khê', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0800, lng: 108.1900, address: 'Quận Thanh Khê, Đà Nẵng' },
+    { id: 'DN_CAM_LE', name: 'Cẩm Lệ', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0200, lng: 108.2050, address: 'Quận Cẩm Lệ, Đà Nẵng' },
+    { id: 'DN_LIEN_CHIEU', name: 'Liên Chiểu', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.1200, lng: 108.1600, address: 'Quận Liên Chiểu, Đà Nẵng' },
+    { id: 'DN_HOA_VANG', name: 'Hòa Vang', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 15.9800, lng: 108.1400, address: 'Huyện Hòa Vang, Đà Nẵng' },
+    { id: 'DN_VINCOM', name: 'Vincom Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0550, lng: 108.2100, address: 'Vincom Center Đà Nẵng' },
+    { id: 'DN_BIG_C', name: 'Big C Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0580, lng: 108.2020, address: 'Big C Đà Nẵng' }
+  ];
+},
 
   _renderNearbyStops(box, stops, gps, source = 'Backend SQL Server') {
     box.innerHTML = `<div class="travel-card wide success-state"><div class="travel-kicker">Đã lấy vị trí của bạn</div><p>Nguồn: ${this._esc(source)} · lat ${Number(gps.lat).toFixed(5)}, lng ${Number(gps.lng).toFixed(5)}</p></div>` + stops.map((stop, idx) => {
@@ -3068,27 +3156,58 @@ const TravelUI = {
   },
 
   async renderNearestStop(forceGps = false) {
-    const box = $("#nearby-stop-result");
-    if (!box) return;
-    showLoading(box, forceGps ? "Đang lấy vị trí và tìm bến gần nhất..." : "Đang tìm bến gần nhất...");
-    if (forceGps) this.gps = null;
-    const gps = forceGps ? await this._getGps(true, false) : this.gps || await this._getGps(false, true);
-    if (!gps) {
-      showEmpty(box, "Bạn cần bật quyền vị trí trong trình duyệt để tìm bến gần nhất.");
+  const box = $("#nearby-stop-result");
+  if (!box) return;
+  showLoading(box, forceGps ? "Đang lấy vị trí và tìm bến gần nhất..." : "Đang tìm bến gần nhất...");
+  if (forceGps) this.gps = null;
+  const gps = forceGps ? await this._getGps(true, false) : this.gps || await this._getGps(false, true);
+  if (!gps) {
+    showEmpty(box, "Bạn cần bật quyền vị trí trong trình duyệt để tìm bến gần nhất.");
+    return;
+  }
+  try {
+    const result = await this._getNearbyStopsTrietDe(gps, 5);
+    const stops = Array.isArray(result?.stops) ? result.stops : [];
+    const source = result?.source || 'Không tìm thấy dữ liệu bến';
+    if (!stops.length) {
+      box.innerHTML = `
+        <div class="travel-card wide empty-state">
+          <h4>Không tìm thấy bến gần vị trí hiện tại</h4>
+          <p>Dữ liệu bến đang được cập nhật. Vui lòng thử lại sau.</p>
+          <button class="btn-ghost" onclick="TravelUI.renderNearestStop(true)" style="margin-top:12px">🔄 Thử lại</button>
+        </div>
+      `;
       return;
     }
+    this._renderNearbyStops(box, stops, gps, source);
+  } catch (err) {
+    console.error('[SmartBus] Bến gần tôi lỗi không mong đợi:', err);
+
     try {
-      const { stops, source } = await this._getNearbyStopsTrietDe(gps, 5);
-      if (!stops.length) {
-        box.innerHTML = `<div class="travel-card wide empty-state"><h4>Không tìm thấy bến gần vị trí hiện tại. Dữ liệu bến đang được cập nhật.</h4><div class="travel-actions"><button class="btn-ghost" onclick="TravelUI.renderNearestStop(true)">Thử lại</button></div></div>`;
-        return;
+      const hc = this._getHardcodedStops();
+      if (hc.length && gps) {
+        const fallback = hc
+          .map((stop, i) => this._normalizeNearbyStop(stop, gps, i))
+          .filter(Boolean)
+          .sort((a, b) => a.distanceMeters - b.distanceMeters)
+          .slice(0, 5);
+
+        if (fallback.length) {
+          this._renderNearbyStops(box, fallback, gps, 'Dữ liệu bến Đà Nẵng dự phòng');
+          return;
+        }
       }
-      this._renderNearbyStops(box, stops, gps, source);
-    } catch (err) {
-      console.error('Bến gần tôi lỗi cả backend lẫn dữ liệu local:', err);
-      showError(box, "Không kết nối được backend. Hãy thử lại sau vài giây.");
-    }
-  },
+    } catch (_e) {}
+
+    box.innerHTML = `
+      <div class="travel-card wide empty-state">
+        <h4>Không tìm thấy bến gần vị trí hiện tại</h4>
+        <p>Dữ liệu bến đang được cập nhật. Vui lòng thử lại sau.</p>
+        <button class="btn-ghost" onclick="TravelUI.renderNearestStop(true)" style="margin-top:12px">🔄 Thử lại</button>
+      </div>
+    `;
+  }
+},
 
   async renderPlaces() {
     const list = $("#place-list");
