@@ -1,0 +1,8 @@
+node --check docs/script.js: OK
+node --check frontend/script.js: OK
+node --check backend-api/modules/stats/stats.repository.js: OK
+npm ci --no-audit --no-fund --prefer-offline: OK, 534 packages installed
+cd backend-api && npm run check: OK, SmartBus static check passed
+npm start: OK, backend running at http://localhost:5000/api/v1
+GET /api/v1/stats/overview: success=true, static-import-cache fallback returned totals 39 routes, 243 stops, 60 tourism places
+GET /api/v1/stats/recent-activities?limit=8: success=true, returned data_sync activity

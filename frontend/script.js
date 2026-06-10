@@ -140,8 +140,16 @@ const TokenStore = {
 const API = {
   BASE: window.SMARTBUS_API_BASE || "https://smartbus-backend-xr34.onrender.com/api/v1",
 
+  _cache: new Map(),
+
   async request(path, options = {}) {
-    const { skipAuth = false, skipRefresh = false, timeoutMs = 15000, ...fetchOptions } = options;
+    const { skipAuth = false, skipRefresh = false, timeoutMs = 15000, cacheTtlMs = 0, ...fetchOptions } = options;
+    const method = String(fetchOptions.method || "GET").toUpperCase();
+    const cacheKey = method === "GET" && cacheTtlMs > 0 ? `${path}` : null;
+    if (cacheKey) {
+      const cached = this._cache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) return cached.data;
+    }
     const headers = new Headers(fetchOptions.headers || {});
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
@@ -187,7 +195,9 @@ const API = {
       throw err;
     }
 
-    return payload.data ?? payload;
+    const data = payload.data ?? payload;
+    if (cacheKey) this._cache.set(cacheKey, { data, expiresAt: Date.now() + cacheTtlMs });
+    return data;
   },
 
   async refreshAccessToken() {
@@ -513,7 +523,7 @@ function safeLeafletLatLng(point, options = {}) {
 }
 
 function safeMarkerSetLatLng(marker, point, options = {}) {
-  const ll = point && typeof point.lat === "number" && typeof point.lng === "number"
+  const ll = point && typeof point.lat === "number" && typeof point.lng === "number" && Number.isFinite(point.lat) && Number.isFinite(point.lng)
     ? point
     : safeLeafletLatLng(point, options);
   if (!marker || !ll) return false;
@@ -527,20 +537,19 @@ function safeMarkerSetLatLng(marker, point, options = {}) {
 }
 
 function safeMapFlyTo(mapInstance, point, zoom = 15, options = {}, meta = {}) {
-  const ll = point && typeof point.lat === "number" && typeof point.lng === "number"
+  const ll = point && typeof point.lat === "number" && typeof point.lng === "number" && Number.isFinite(point.lat) && Number.isFinite(point.lng)
     ? point
     : safeLeafletLatLng(point, { allowOutsideCentral: meta.allowOutsideCentral, source: meta.source || "map-flyTo" });
   if (!mapInstance || !ll) return false;
   try {
     mapInstance.flyTo(ll, zoom, options);
     return true;
-  } catch (err) {
-    console.warn("[SmartBus] map.flyTo bị bỏ qua:", meta.source || "map-flyTo", err?.message || err);
+  } catch (_err) {
+    // Leaflet có thể throw nếu animation đang chạy trên mobile; fallback sang setView nhưng không spam console.
     try {
       mapInstance.setView(ll, zoom);
       return true;
-    } catch (err2) {
-      console.warn("[SmartBus] map.setView bị bỏ qua:", meta.source || "map-setView", err2?.message || err2);
+    } catch (_err2) {
       return false;
     }
   }
@@ -831,9 +840,22 @@ function getRenderableRoutePath(route) {
 }
 
 const DynamicData = {
+  _cache: new Map(),
+
   async load(provinceCode = State.mapFilters.province || CONFIG.DEFAULT_PROVINCE) {
     const province = provinceCode || CONFIG.DEFAULT_PROVINCE;
     State.mapFilters.province = province;
+    const cacheKey = `map-data:${province}`;
+    const cached = this._cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      ROUTES.splice(0, ROUTES.length, ...cached.routes.map((r) => ({ ...r, path: (r.path || []).map((p) => [...p]) })));
+      State.stops = cached.stops.map((s) => ({ ...s }));
+      State.buses = cached.buses.map((b) => ({ ...b }));
+      State.dataSource = cached.dataSource || "sql-cache";
+      this.populateFilters();
+      window.safeInvalidateSmartBusMap?.(120);
+      return true;
+    }
     document.body.classList.add('map-loading');
     try {
       const qs = mapDataQuery();
@@ -954,6 +976,13 @@ const DynamicData = {
       }).filter((b) => b.routeId && routeById(b.routeId));
       State.buses = apiBuses;
       State.dataSource = "sql";
+      this._cache.set(cacheKey, {
+        routes: ROUTES.map((r) => ({ ...r, path: (r.path || []).map((p) => [...p]) })),
+        stops: State.stops.map((s) => ({ ...s })),
+        buses: State.buses.map((b) => ({ ...b })),
+        dataSource: State.dataSource,
+        expiresAt: Date.now() + 60_000,
+      });
       this.populateFilters();
       window.safeInvalidateSmartBusMap?.(200);
       return true;
@@ -1888,7 +1917,11 @@ const BusTableUI = {
 
 // 12e. ANALYTICS
 const AnalyticsUI = {
+  _cache: new Map(),
+
   render() {
+    // Cập nhật số liệu xe hiện tại trước khi render thống kê để trang không bị dữ liệu cũ.
+    StatsUI.update?.();
     this._renderRouteBars();
     this._renderPassengerBars();
     this._renderActivityLog();
@@ -1936,19 +1969,73 @@ const AnalyticsUI = {
   async _renderActivityLog() {
     const el = $("#activity-log");
     if (!el) return;
+
+    const renderRows = (rows = [], source = "SQL Server") => {
+      const clean = rows
+        .filter(Boolean)
+        .slice(0, 8)
+        .map((a) => ({
+          title: a.description || a.title || a.label || a.actionType || a.text || "Hoạt động SmartBus",
+          time: a.createdAt || a.time || new Date().toISOString(),
+          source,
+        }));
+      if (!clean.length) return false;
+      el.innerHTML = clean.map((a) => `<div class="tl-item"><div class="tl-dot" style="background:var(--teal)"></div><div class="tl-body"><div class="tl-title">${this._esc(a.title)}</div><div class="tl-time">${this._esc(this._formatTime(a.time))} · ${this._esc(a.source)}</div></div></div>`).join("");
+      return true;
+    };
+
+    const cacheKey = "stats:recent-activities";
+    const cached = this._cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      renderRows(cached.rows, cached.source);
+      return;
+    }
+
     el.innerHTML = `<div class="txt3 small">Đang tải hoạt động gần đây từ backend...</div>`;
     try {
-      const rows = await API.get('/stats/recent-activities?limit=8', { skipAuth: true, timeoutMs: 7000 });
-      if (Array.isArray(rows) && rows.length) {
-        el.innerHTML = rows.map((a) => `<div class="tl-item"><div class="tl-dot" style="background:var(--teal)"></div><div class="tl-body"><div class="tl-title">${this._esc(a.description || a.label || a.actionType || 'Hoạt động')}</div><div class="tl-time">${this._esc(a.createdAt ? new Date(a.createdAt).toLocaleString('vi-VN') : '')}</div></div></div>`).join('');
+      const rows = await API.get('/stats/recent-activities?limit=8', { skipAuth: true, timeoutMs: 25000, cacheTtlMs: 30000 });
+      const list = Array.isArray(rows) ? rows : (rows?.data || rows?.activities || []);
+      if (renderRows(list, "Backend SQL Server")) {
+        this._cache.set(cacheKey, { rows: list, source: "Backend SQL Server", expiresAt: Date.now() + 30000 });
         return;
       }
-      el.innerHTML = `<div class="txt3 small">Chưa có hoạt động gần đây.</div>`;
-    } catch (_err) {
-      el.innerHTML = `<div class="txt3 small">Không tải được hoạt động gần đây từ backend.</div>`;
+    } catch (err) {
+      console.warn("[SmartBus] Không tải được hoạt động gần đây từ backend, dùng cache/local:", err?.message || err);
     }
+
+    const localRows = this._localActivityRows();
+    if (renderRows(localRows, "Bộ nhớ tạm frontend")) return;
+    el.innerHTML = `<div class="txt3 small">Chưa có hoạt động gần đây. Khi bạn gửi báo cáo, chat, lưu địa điểm hoặc admin duyệt review, dữ liệu sẽ cập nhật tại đây.</div>`;
   },
 
+  _formatTime(value) {
+    if (!value) return "vừa xong";
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) return String(value);
+    return date.toLocaleString('vi-VN');
+  },
+
+  _localActivityRows() {
+    const rows = [];
+    (State.activityLog || []).forEach((item) => rows.push({
+      description: item.text || item.description || "Hoạt động SmartBus",
+      createdAt: item.createdAt || item.time || new Date().toISOString(),
+    }));
+    try {
+      const reports = JSON.parse(localStorage.getItem("danabus_reports") || "[]");
+      reports.slice(0, 5).forEach((r) => rows.push({
+        description: `Báo cáo tuyến ${r.route || "?"}: ${CROWDING[r.crowding]?.label || r.crowding || "đã gửi"}`,
+        createdAt: r.createdAt || r.time || new Date().toISOString(),
+      }));
+    } catch {}
+    if (State.dataSource === "sql" && (State.buses?.length || State.stops?.length || ROUTES?.length)) {
+      rows.push({ description: `Đã đồng bộ ${ROUTES.length} tuyến, ${State.stops.length} bến và ${State.buses.length} xe từ backend`, createdAt: new Date().toISOString() });
+    }
+    if (this._tourismPlaces?.length) {
+      rows.push({ description: `Đã tải ${this._tourismPlaces.length} địa điểm du lịch`, createdAt: new Date().toISOString() });
+    }
+    return rows.slice(0, 8);
+  },
 
   _renderRouteTable() {
     const el = $("#analytics-route-table");
