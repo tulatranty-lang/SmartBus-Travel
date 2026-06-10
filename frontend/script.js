@@ -1325,6 +1325,8 @@ const MapModule = (() => {
     if (userLocationCircle) userLocationCircle.setLatLng(ll);
     else userLocationCircle = L.circle(ll, { radius: 650, weight: 1, opacity: 0.7, fillOpacity: 0.08 }).addTo(map);
     userLocationMarker.bindPopup("Vị trí hiện tại của bạn");
+    map.flyTo(ll, 15, { duration: 1.0 });
+    setTimeout(() => userLocationMarker?.openPopup(), 800);
     updateMarkers(State.buses);
     drawStops();
     window.safeInvalidateSmartBusMap?.(200);
@@ -2949,74 +2951,80 @@ const TravelUI = {
   },
 
   async _nearbyFromStaticBusJson(gps, limit = 5) {
-    if (!this._nearbyStaticStops) {
-      const candidates = [
-        'data/import/smartbus-bus-data.normalized.json',
-        './data/import/smartbus-bus-data.normalized.json',
-        '../backend-api/data/import/smartbus-bus-data.normalized.json',
-      ];
-      let payload = null;
-      let lastError = null;
-      for (const url of candidates) {
-        try {
-          const res = await fetchWithTimeout(url, { cache: 'force-cache' }, 6000);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          payload = await res.json();
-          break;
-        } catch (err) {
-          lastError = err;
+    try {
+      if (!this._nearbyStaticStops) {
+        const candidates = [
+          '/SmartBus-Travel/data/import/smartbus-bus-data.normalized.json',
+          './SmartBus-Travel/data/import/smartbus-bus-data.normalized.json',
+          'data/import/smartbus-bus-data.normalized.json',
+          './data/import/smartbus-bus-data.normalized.json',
+          '../backend-api/data/import/smartbus-bus-data.normalized.json',
+        ];
+        let payload = null;
+        for (const url of candidates) {
+          try {
+            const res = await fetchWithTimeout(url, { cache: 'force-cache' }, 6000);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            payload = await res.json();
+            break;
+          } catch (err) {
+            console.warn(`Không đọc được dữ liệu bến local từ ${url}:`, err);
+          }
         }
+        if (!payload) return [];
+        const routes = Array.isArray(payload.routes) ? payload.routes : [];
+        const routeStops = Array.isArray(payload.routeStops) ? payload.routeStops : [];
+        const stops = Array.isArray(payload.stops) ? payload.stops : [];
+        const routeByCode = new Map(routes.map((route) => [String(route.routeCode || route.id || route.displayCode || '').trim(), route]));
+        const routesByStop = new Map();
+        routeStops.forEach((item) => {
+          const stopKey = String(item.externalStopCode || item.stopCode || item.stopId || item.stopName || '').trim();
+          const routeCode = String(item.routeCode || item.routeNumber || item.routeId || '').trim();
+          if (!stopKey || !routeCode) return;
+          const route = routeByCode.get(routeCode) || { routeCode, displayCode: routeCode, name: routeCode };
+          const value = {
+            id: route.routeCode || route.id || routeCode,
+            routeCode: route.routeCode || routeCode,
+            displayCode: route.displayCode || route.routeNumber || routeCode,
+            name: route.name || routeCode,
+            color: route.color || '#2563eb',
+          };
+          const list = routesByStop.get(stopKey) || [];
+          if (!list.some((r) => String(r.id) === String(value.id))) list.push(value);
+          routesByStop.set(stopKey, list);
+        });
+        this._nearbyStaticStops = stops.map((stop, index) => {
+          const stopKey = String(stop.externalStopCode || stop.id || stop.name || '').trim();
+          const linkedRoutes = routesByStop.get(stopKey) || [];
+          const firstRoute = linkedRoutes[0] || null;
+          return {
+            ...stop,
+            id: stop.id || stop.externalStopCode || `static-stop-${index + 1}`,
+            code: stop.externalStopCode || stop.id || `STOP-${index + 1}`,
+            routeId: firstRoute?.id || null,
+            routeCode: firstRoute?.displayCode || firstRoute?.routeCode || null,
+            routeName: firstRoute?.name || null,
+            routes: linkedRoutes,
+            province: stop.provinceName || stop.province || '',
+            latitude: stop.lat ?? stop.latitude,
+            longitude: stop.lng ?? stop.longitude,
+          };
+        });
       }
-      if (!payload) throw lastError || new Error('Không đọc được dữ liệu bến local');
-      const routes = Array.isArray(payload.routes) ? payload.routes : [];
-      const routeStops = Array.isArray(payload.routeStops) ? payload.routeStops : [];
-      const stops = Array.isArray(payload.stops) ? payload.stops : [];
-      const routeByCode = new Map(routes.map((route) => [String(route.routeCode || route.id || route.displayCode || '').trim(), route]));
-      const routesByStop = new Map();
-      routeStops.forEach((item) => {
-        const stopKey = String(item.externalStopCode || item.stopCode || item.stopId || item.stopName || '').trim();
-        const routeCode = String(item.routeCode || item.routeNumber || item.routeId || '').trim();
-        if (!stopKey || !routeCode) return;
-        const route = routeByCode.get(routeCode) || { routeCode, displayCode: routeCode, name: routeCode };
-        const value = {
-          id: route.routeCode || route.id || routeCode,
-          routeCode: route.routeCode || routeCode,
-          displayCode: route.displayCode || route.routeNumber || routeCode,
-          name: route.name || routeCode,
-          color: route.color || '#2563eb',
-        };
-        const list = routesByStop.get(stopKey) || [];
-        if (!list.some((r) => String(r.id) === String(value.id))) list.push(value);
-        routesByStop.set(stopKey, list);
-      });
-      this._nearbyStaticStops = stops.map((stop, index) => {
-        const stopKey = String(stop.externalStopCode || stop.id || stop.name || '').trim();
-        const linkedRoutes = routesByStop.get(stopKey) || [];
-        const firstRoute = linkedRoutes[0] || null;
-        return {
-          ...stop,
-          id: stop.id || stop.externalStopCode || `static-stop-${index + 1}`,
-          code: stop.externalStopCode || stop.id || `STOP-${index + 1}`,
-          routeId: firstRoute?.id || null,
-          routeCode: firstRoute?.displayCode || firstRoute?.routeCode || null,
-          routeName: firstRoute?.name || null,
-          routes: linkedRoutes,
-          province: stop.provinceName || stop.province || '',
-          latitude: stop.lat ?? stop.latitude,
-          longitude: stop.lng ?? stop.longitude,
-        };
-      });
+      return (this._nearbyStaticStops || [])
+        .map((stop, index) => this._normalizeNearbyStop(stop, gps, index))
+        .filter(Boolean)
+        .sort((a, b) => a.distanceMeters - b.distanceMeters)
+        .slice(0, limit);
+    } catch (err) {
+      console.warn('Không thể xử lý dữ liệu bến local dự phòng:', err);
+      return [];
     }
-    return this._nearbyStaticStops
-      .map((stop, index) => this._normalizeNearbyStop(stop, gps, index))
-      .filter(Boolean)
-      .sort((a, b) => a.distanceMeters - b.distanceMeters)
-      .slice(0, limit);
   },
 
   async _getNearbyStopsTrietDe(gps, limit = 5) {
     try {
-      const rows = await API.get(`/stops/nearby?lat=${encodeURIComponent(gps.lat)}&lng=${encodeURIComponent(gps.lng)}&limit=${limit}`, { timeoutMs: 9000, skipAuth: true });
+      const rows = await API.get(`/stops/nearby?lat=${encodeURIComponent(gps.lat)}&lng=${encodeURIComponent(gps.lng)}&limit=${limit}`, { timeoutMs: 25000, skipAuth: true });
       const stops = Array.isArray(rows) ? rows : (rows.nearestStops || rows.data || []);
       if (stops.length) return { stops: stops.map((stop, index) => this._normalizeNearbyStop(stop, gps, index)).filter(Boolean), source: 'Backend SQL Server' };
     } catch (err) {
@@ -3026,8 +3034,13 @@ const TravelUI = {
     const loaded = this._nearbyFromLoadedMapData(gps, limit);
     if (loaded.length) return { stops: loaded, source: 'Dữ liệu bản đồ đã tải' };
 
-    const local = await this._nearbyFromStaticBusJson(gps, limit);
-    return { stops: local, source: 'Dữ liệu bến local dự phòng' };
+    try {
+      const local = await this._nearbyFromStaticBusJson(gps, limit);
+      return { stops: local, source: local.length ? 'Dữ liệu bến local dự phòng' : 'Không tìm thấy dữ liệu bến' };
+    } catch (err) {
+      console.warn('Fallback bến local lỗi ngoài dự kiến:', err);
+      return { stops: [], source: 'Không tìm thấy dữ liệu bến' };
+    }
   },
 
   _renderNearbyStops(box, stops, gps, source = 'Backend SQL Server') {
@@ -3045,7 +3058,7 @@ const TravelUI = {
     }).join('');
     this._nearbyStops = stops;
     MapModule.markUserLocation?.(gps.lat, gps.lng);
-    MapModule.focusStop?.(stops[0]);
+    setTimeout(() => MapModule.focusStop?.(stops[0]), 1500);
     $$('[data-nearby-stop-map]').forEach((btn) => btn.addEventListener('click', () => {
       const stop = (this._nearbyStops || []).find((item) => String(item.id) === String(btn.dataset.nearbyStopMap));
       if (!stop) return;
@@ -3067,13 +3080,13 @@ const TravelUI = {
     try {
       const { stops, source } = await this._getNearbyStopsTrietDe(gps, 5);
       if (!stops.length) {
-        showEmpty(box, "Không tìm thấy bến có tọa độ gần vị trí hiện tại.");
+        box.innerHTML = `<div class="travel-card wide empty-state"><h4>Không tìm thấy bến gần vị trí hiện tại. Dữ liệu bến đang được cập nhật.</h4><div class="travel-actions"><button class="btn-ghost" onclick="TravelUI.renderNearestStop(true)">Thử lại</button></div></div>`;
         return;
       }
       this._renderNearbyStops(box, stops, gps, source);
     } catch (err) {
       console.error('Bến gần tôi lỗi cả backend lẫn dữ liệu local:', err);
-      showError(box, "Không lấy được dữ liệu bến gần tôi. Hãy kiểm tra file docs/data/import/smartbus-bus-data.normalized.json hoặc backend Render.");
+      showError(box, "Không kết nối được backend. Hãy thử lại sau vài giây.");
     }
   },
 
