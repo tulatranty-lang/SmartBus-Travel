@@ -2008,6 +2008,8 @@ const AnalyticsUI = {
     el.innerHTML = `<div class="txt3 small">Chưa có hoạt động gần đây. Khi bạn gửi báo cáo, chat, lưu địa điểm hoặc admin duyệt review, dữ liệu sẽ cập nhật tại đây.</div>`;
   },
 
+  _esc(v) { return String(v ?? "").replace(/[&<>\"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[c]); },
+
   _formatTime(value) {
     if (!value) return "vừa xong";
     const date = value instanceof Date ? value : new Date(value);
