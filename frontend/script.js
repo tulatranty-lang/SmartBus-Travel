@@ -14,37 +14,56 @@ function debounce(fn, delay = 300) {
 }
 
 function fetchWithTimeout(url, options = {}, timeout = 15000) {
-  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timer = controller ? setTimeout(() => controller.abort(), timeout) : null;
-  return fetch(url, { ...options, signal: controller?.signal || options.signal }).finally(() => { if (timer) clearTimeout(timer); });
+  const controller =
+    typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = controller
+    ? setTimeout(() => controller.abort(), timeout)
+    : null;
+  return fetch(url, {
+    ...options,
+    signal: controller?.signal || options.signal,
+  }).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
 }
 
-function showLoading(container, message = 'Đang tải dữ liệu...') {
-  if (container) container.innerHTML = `<div class="travel-card wide loading-state"><div class="spinner"></div><p>${message}</p></div>`;
+function showLoading(container, message = "Đang tải dữ liệu...") {
+  if (container)
+    container.innerHTML = `<div class="travel-card wide loading-state"><div class="spinner"></div><p>${message}</p></div>`;
 }
 
-function showError(container, message = 'Không tải được dữ liệu. Vui lòng thử lại.') {
-  if (container) container.innerHTML = `<div class="travel-card wide empty-state error-state"><h4>Không thể tải dữ liệu</h4><p>${message}</p></div>`;
+function showError(
+  container,
+  message = "Không tải được dữ liệu. Vui lòng thử lại.",
+) {
+  if (container)
+    container.innerHTML = `<div class="travel-card wide empty-state error-state"><h4>Không thể tải dữ liệu</h4><p>${message}</p></div>`;
 }
 
-function showEmpty(container, message = 'Chưa có dữ liệu phù hợp.') {
-  if (container) container.innerHTML = `<div class="travel-card wide empty-state"><h4>${message}</h4></div>`;
+function showEmpty(container, message = "Chưa có dữ liệu phù hợp.") {
+  if (container)
+    container.innerHTML = `<div class="travel-card wide empty-state"><h4>${message}</h4></div>`;
 }
 
 /* ----------------------------------------------------------
    0. CONSTANTS & CONFIG
 ---------------------------------------------------------- */
 const CONFIG = {
-  DEFAULT_PROVINCE: 'DN',
+  DEFAULT_PROVINCE: "DN",
   MAP_CENTER: [16.0544, 108.2022],
   MAP_ZOOM: 11,
   BUS_LIMIT_PER_PROVINCE: 20,
   PROVINCES: [
-    { code: 'DN', name: 'Đà Nẵng', center: [16.0544, 108.2022], zoom: 11 },
-    { code: 'QN_CU', name: 'Quảng Nam cũ / Hội An', center: [15.8801, 108.3380], zoom: 10 },
-    { code: 'HUE', name: 'Huế', center: [16.4637, 107.5909], zoom: 10 },
-    { code: 'QT', name: 'Quảng Trị', center: [16.7505, 107.1893], zoom: 9 },
-    { code: 'QNG', name: 'Quảng Ngãi', center: [15.1214, 108.8044], zoom: 9 },
+    { code: "DN", name: "Đà Nẵng", center: [16.0544, 108.2022], zoom: 11 },
+    {
+      code: "QN_CU",
+      name: "Quảng Nam cũ / Hội An",
+      center: [15.8801, 108.338],
+      zoom: 10,
+    },
+    { code: "HUE", name: "Huế", center: [16.4637, 107.5909], zoom: 10 },
+    { code: "QT", name: "Quảng Trị", center: [16.7505, 107.1893], zoom: 9 },
+    { code: "QNG", name: "Quảng Ngãi", center: [15.1214, 108.8044], zoom: 9 },
   ],
   TICK_MS: 2500, // Cập nhật vị trí xe mỗi 2.5s
   SCHEDULE: {
@@ -69,23 +88,41 @@ const TokenStore = {
   },
 
   _storageWith(key) {
-    return this._safeStores().find((store) => {
-      try { return Boolean(store.getItem(key)); } catch { return false; }
-    }) || null;
+    return (
+      this._safeStores().find((store) => {
+        try {
+          return Boolean(store.getItem(key));
+        } catch {
+          return false;
+        }
+      }) || null
+    );
   },
 
   _get(key) {
     const store = this._storageWith(key);
-    try { return store ? store.getItem(key) : null; } catch { return null; }
+    try {
+      return store ? store.getItem(key) : null;
+    } catch {
+      return null;
+    }
   },
 
-  getAccessToken() { return this._get(AUTH_KEYS.accessToken); },
-  getRefreshToken() { return this._get(AUTH_KEYS.refreshToken); },
+  getAccessToken() {
+    return this._get(AUTH_KEYS.accessToken);
+  },
+  getRefreshToken() {
+    return this._get(AUTH_KEYS.refreshToken);
+  },
 
   getUser() {
     const raw = this._get(AUTH_KEYS.user);
     if (!raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
   },
 
   save(authData, remember = true) {
@@ -114,7 +151,10 @@ const TokenStore = {
 
   updateTokens(authData) {
     const data = authData || {};
-    const store = this._storageWith(AUTH_KEYS.refreshToken) || this._storageWith(AUTH_KEYS.user) || window.localStorage;
+    const store =
+      this._storageWith(AUTH_KEYS.refreshToken) ||
+      this._storageWith(AUTH_KEYS.user) ||
+      window.localStorage;
     const accessToken = data.accessToken || data.token || "";
     const refreshToken = data.refreshToken || "";
     const user = data.user || null;
@@ -138,12 +178,20 @@ const TokenStore = {
 };
 
 const API = {
-  BASE: window.SMARTBUS_API_BASE || "https://smartbus-backend-xr34.onrender.com/api/v1",
+  BASE:
+    window.SMARTBUS_API_BASE ||
+    "https://smartbus-backend-xr34.onrender.com/api/v1",
 
   _cache: new Map(),
 
   async request(path, options = {}) {
-    const { skipAuth = false, skipRefresh = false, timeoutMs = 15000, cacheTtlMs = 0, ...fetchOptions } = options;
+    const {
+      skipAuth = false,
+      skipRefresh = false,
+      timeoutMs = 15000,
+      cacheTtlMs = 0,
+      ...fetchOptions
+    } = options;
     const method = String(fetchOptions.method || "GET").toUpperCase();
     const cacheKey = method === "GET" && cacheTtlMs > 0 ? `${path}` : null;
     if (cacheKey) {
@@ -151,10 +199,17 @@ const API = {
       if (cached && cached.expiresAt > Date.now()) return cached.data;
     }
     const headers = new Headers(fetchOptions.headers || {});
-    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    const controller =
+      typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = controller
+      ? setTimeout(() => controller.abort(), timeoutMs)
+      : null;
 
-    if (fetchOptions.body && !(fetchOptions.body instanceof FormData) && !headers.has("Content-Type")) {
+    if (
+      fetchOptions.body &&
+      !(fetchOptions.body instanceof FormData) &&
+      !headers.has("Content-Type")
+    ) {
       headers.set("Content-Type", "application/json");
     }
 
@@ -165,11 +220,20 @@ const API = {
 
     let res;
     try {
-      res = await fetch(`${this.BASE}${path}`, { ...fetchOptions, headers, signal: controller?.signal || fetchOptions.signal });
+      res = await fetch(`${this.BASE}${path}`, {
+        ...fetchOptions,
+        headers,
+        signal: controller?.signal || fetchOptions.signal,
+      });
     } catch (_err) {
-      const err = new Error("Không kết nối được backend. Kiểm tra backend Render/Azure SQL đã sẵn sàng chưa.");
-      err.code = _err?.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK';
-      err.message = _err?.name === 'AbortError' ? 'Backend phản hồi quá lâu. Vui lòng thử lại hoặc thu hẹp bộ lọc.' : err.message;
+      const err = new Error(
+        "Không kết nối được backend. Kiểm tra backend Render/Azure SQL đã sẵn sàng chưa.",
+      );
+      err.code = _err?.name === "AbortError" ? "TIMEOUT" : "NETWORK";
+      err.message =
+        _err?.name === "AbortError"
+          ? "Backend phản hồi quá lâu. Vui lòng thử lại hoặc thu hẹp bộ lọc."
+          : err.message;
       throw err;
     } finally {
       if (timer) clearTimeout(timer);
@@ -177,11 +241,24 @@ const API = {
 
     const payload = await res.json().catch(() => ({}));
 
-    if (res.status === 401 && !skipRefresh && !path.includes("/auth/login") && !path.includes("/auth/refresh-token")) {
+    if (
+      res.status === 401 &&
+      !skipRefresh &&
+      !path.includes("/auth/login") &&
+      !path.includes("/auth/refresh-token")
+    ) {
       const refreshed = await this.refreshAccessToken();
-      if (refreshed) return this.request(path, { ...fetchOptions, skipAuth, skipRefresh: true });
+      if (refreshed)
+        return this.request(path, {
+          ...fetchOptions,
+          skipAuth,
+          skipRefresh: true,
+        });
       if (typeof Auth !== "undefined" && Auth.forceLogout) {
-        Auth.forceLogout("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", "warning");
+        Auth.forceLogout(
+          "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+          "warning",
+        );
       } else {
         TokenStore.clear();
       }
@@ -196,7 +273,8 @@ const API = {
     }
 
     const data = payload.data ?? payload;
-    if (cacheKey) this._cache.set(cacheKey, { data, expiresAt: Date.now() + cacheTtlMs });
+    if (cacheKey)
+      this._cache.set(cacheKey, { data, expiresAt: Date.now() + cacheTtlMs });
     return data;
   },
 
@@ -219,8 +297,16 @@ const API = {
     }
   },
 
-  get(path, options = {}) { return this.request(path, options); },
-  post(path, body, options = {}) { return this.request(path, { ...options, method: "POST", body: JSON.stringify(body || {}) }); },
+  get(path, options = {}) {
+    return this.request(path, options);
+  },
+  post(path, body, options = {}) {
+    return this.request(path, {
+      ...options,
+      method: "POST",
+      body: JSON.stringify(body || {}),
+    });
+  },
 };
 
 /* ----------------------------------------------------------
@@ -344,12 +430,9 @@ const Schedule = {
 ---------------------------------------------------------- */
 let ROUTES = [];
 
-
 const LOCAL_STOPS = [];
 
-
 const LOCAL_TOURISM_PLACES = [];
-
 
 /* ----------------------------------------------------------
    5. CROWDING CONFIG
@@ -392,22 +475,26 @@ const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const routeById = (id) => {
   const value = String(id || "");
-  return ROUTES.find((r) => [r.id, r.routeCode, r.displayCode].some((x) => String(x || "") === value));
+  return ROUTES.find((r) =>
+    [r.id, r.routeCode, r.displayCode].some((x) => String(x || "") === value),
+  );
 };
 const routeLabel = (routeOrId) => {
   const r = typeof routeOrId === "object" ? routeOrId : routeById(routeOrId);
   if (!r) return String(routeOrId || "?");
-  return r.displayCode && r.displayCode !== r.id ? `${r.displayCode}` : `${r.id}`;
+  return r.displayCode && r.displayCode !== r.id
+    ? `${r.displayCode}`
+    : `${r.id}`;
 };
 
-const provinceMeta = (code) => CONFIG.PROVINCES.find((p) => p.code === code) || CONFIG.PROVINCES[0];
-const provinceOptionsHtml = (includeAll = false) => `${includeAll ? '<option value="">Tất cả tỉnh/thành</option>' : ''}${CONFIG.PROVINCES.map((p) => `<option value="${p.code}">${p.name}</option>`).join('')}`;
+const provinceMeta = (code) =>
+  CONFIG.PROVINCES.find((p) => p.code === code) || CONFIG.PROVINCES[0];
+const provinceOptionsHtml = (includeAll = false) =>
+  `${includeAll ? '<option value="">Tất cả tỉnh/thành</option>' : ""}${CONFIG.PROVINCES.map((p) => `<option value="${p.code}">${p.name}</option>`).join("")}`;
 const mapDataQuery = () => {
   const province = State.mapFilters.province || CONFIG.DEFAULT_PROVINCE;
   return `province=${encodeURIComponent(province)}&provinceCode=${encodeURIComponent(province)}&limitPerProvince=${CONFIG.BUS_LIMIT_PER_PROVINCE}`;
 };
-
-
 
 /* ----------------------------------------------------------
    6a. GIS COORDINATE SAFETY – one source for Leaflet lat/lng
@@ -417,7 +504,7 @@ const CENTRAL_VIETNAM_BOUNDS = {
   // Chỉ mở rộng vùng lọc, không đổi cách vẽ marker/tuyến để giữ giống bản desktop.
   minLat: 14.55,
   maxLat: 17.35,
-  minLng: 106.70,
+  minLng: 106.7,
   maxLng: 109.35,
 };
 
@@ -434,16 +521,25 @@ function isLatLngInValidRange(latLng) {
   if (!Array.isArray(latLng) || latLng.length < 2) return false;
   const lat = toSmartBusNumber(latLng[0]);
   const lng = toSmartBusNumber(latLng[1]);
-  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
 }
 
 function isCoordinateInCentralVietnam(latLng) {
   if (!isLatLngInValidRange(latLng)) return false;
   const [lat, lng] = latLng.map(Number);
-  return lat >= CENTRAL_VIETNAM_BOUNDS.minLat &&
+  return (
+    lat >= CENTRAL_VIETNAM_BOUNDS.minLat &&
     lat <= CENTRAL_VIETNAM_BOUNDS.maxLat &&
     lng >= CENTRAL_VIETNAM_BOUNDS.minLng &&
-    lng <= CENTRAL_VIETNAM_BOUNDS.maxLng;
+    lng <= CENTRAL_VIETNAM_BOUNDS.maxLng
+  );
 }
 
 function normalizeLatLng(item, options = {}) {
@@ -459,7 +555,10 @@ function normalizeLatLng(item, options = {}) {
     const b = toSmartBusNumber(item[1]);
     if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
     // Leaflet uses [lat,lng]. If an array clearly looks like GeoJSON [lng,lat], swap it.
-    if ((Math.abs(a) > 90 && Math.abs(b) <= 90) || (a >= 100 && a <= 115 && b >= 5 && b <= 25)) {
+    if (
+      (Math.abs(a) > 90 && Math.abs(b) <= 90) ||
+      (a >= 100 && a <= 115 && b >= 5 && b <= 25)
+    ) {
       lat = b;
       lng = a;
     } else {
@@ -467,14 +566,16 @@ function normalizeLatLng(item, options = {}) {
       lng = b;
     }
   } else if (typeof item === "object") {
-    lat = toSmartBusNumber(item.lat) ??
+    lat =
+      toSmartBusNumber(item.lat) ??
       toSmartBusNumber(item.latitude) ??
       toSmartBusNumber(item.Latitude) ??
       toSmartBusNumber(item.stop_lat) ??
       toSmartBusNumber(item.stopLat) ??
       toSmartBusNumber(item.y);
 
-    lng = toSmartBusNumber(item.lng) ??
+    lng =
+      toSmartBusNumber(item.lng) ??
       toSmartBusNumber(item.lon) ??
       toSmartBusNumber(item.longitude) ??
       toSmartBusNumber(item.Longitude) ??
@@ -484,7 +585,11 @@ function normalizeLatLng(item, options = {}) {
       toSmartBusNumber(item.stopLon) ??
       toSmartBusNumber(item.x);
 
-    if ((!Number.isFinite(lat) || !Number.isFinite(lng)) && Array.isArray(item.coordinates) && item.coordinates.length >= 2) {
+    if (
+      (!Number.isFinite(lat) || !Number.isFinite(lng)) &&
+      Array.isArray(item.coordinates) &&
+      item.coordinates.length >= 2
+    ) {
       // GeoJSON/database geography convention is [lng,lat]. Convert before giving to Leaflet.
       lng = toSmartBusNumber(item.coordinates[0]);
       lat = toSmartBusNumber(item.coordinates[1]);
@@ -494,11 +599,21 @@ function normalizeLatLng(item, options = {}) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   const point = [lat, lng];
   if (!isLatLngInValidRange(point)) {
-    console.warn("SmartBus ignored invalid coordinate range", source, item, point);
+    console.warn(
+      "SmartBus ignored invalid coordinate range",
+      source,
+      item,
+      point,
+    );
     return null;
   }
   if (!allowOutsideCentral && !isCoordinateInCentralVietnam(point)) {
-    console.warn("SmartBus ignored coordinate outside Central Vietnam", source, item, point);
+    console.warn(
+      "SmartBus ignored coordinate outside Central Vietnam",
+      source,
+      item,
+      point,
+    );
     return null;
   }
   return point;
@@ -514,32 +629,58 @@ function safeLeafletLatLng(point, options = {}) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   try {
     const leafletPoint = L.latLng(lat, lng);
-    if (!Number.isFinite(leafletPoint.lat) || !Number.isFinite(leafletPoint.lng)) return null;
+    if (
+      !Number.isFinite(leafletPoint.lat) ||
+      !Number.isFinite(leafletPoint.lng)
+    )
+      return null;
     return leafletPoint;
   } catch (err) {
-    console.warn("[SmartBus] Bỏ qua LatLng không hợp lệ:", source, err?.message || err, point);
+    console.warn(
+      "[SmartBus] Bỏ qua LatLng không hợp lệ:",
+      source,
+      err?.message || err,
+      point,
+    );
     return null;
   }
 }
 
 function safeMarkerSetLatLng(marker, point, options = {}) {
-  const ll = point && typeof point.lat === "number" && typeof point.lng === "number" && Number.isFinite(point.lat) && Number.isFinite(point.lng)
-    ? point
-    : safeLeafletLatLng(point, options);
+  const ll =
+    point &&
+    typeof point.lat === "number" &&
+    typeof point.lng === "number" &&
+    Number.isFinite(point.lat) &&
+    Number.isFinite(point.lng)
+      ? point
+      : safeLeafletLatLng(point, options);
   if (!marker || !ll) return false;
   try {
     marker.setLatLng(ll);
     return true;
   } catch (err) {
-    console.warn("[SmartBus] Không thể setLatLng an toàn:", options.source || "marker", err?.message || err);
+    console.warn(
+      "[SmartBus] Không thể setLatLng an toàn:",
+      options.source || "marker",
+      err?.message || err,
+    );
     return false;
   }
 }
 
 function safeMapFlyTo(mapInstance, point, zoom = 15, options = {}, meta = {}) {
-  const ll = point && typeof point.lat === "number" && typeof point.lng === "number" && Number.isFinite(point.lat) && Number.isFinite(point.lng)
-    ? point
-    : safeLeafletLatLng(point, { allowOutsideCentral: meta.allowOutsideCentral, source: meta.source || "map-flyTo" });
+  const ll =
+    point &&
+    typeof point.lat === "number" &&
+    typeof point.lng === "number" &&
+    Number.isFinite(point.lat) &&
+    Number.isFinite(point.lng)
+      ? point
+      : safeLeafletLatLng(point, {
+          allowOutsideCentral: meta.allowOutsideCentral,
+          source: meta.source || "map-flyTo",
+        });
   if (!mapInstance || !ll) return false;
   try {
     mapInstance.flyTo(ll, zoom, options);
@@ -556,23 +697,42 @@ function safeMapFlyTo(mapInstance, point, zoom = 15, options = {}, meta = {}) {
 }
 
 (function installSmartBusLeafletErrorGuard() {
-  if (typeof window === "undefined" || window.__smartBusLeafletErrorGuardInstalled) return;
+  if (
+    typeof window === "undefined" ||
+    window.__smartBusLeafletErrorGuardInstalled
+  )
+    return;
   window.__smartBusLeafletErrorGuardInstalled = true;
-  const isLatLngError = (value) => /Invalid LatLng object/i.test(String(value?.message || value || ""));
-  window.addEventListener("error", (event) => {
-    if (!isLatLngError(event.error || event.message)) return;
-    event.preventDefault();
-    event.stopImmediatePropagation?.();
-    console.warn("[SmartBus] Đã chặn lỗi tọa độ Leaflet không hợp lệ:", event.message || event.error?.message);
-    return true;
-  }, true);
-  window.addEventListener("unhandledrejection", (event) => {
-    if (!isLatLngError(event.reason)) return;
-    event.preventDefault();
-    event.stopImmediatePropagation?.();
-    console.warn("[SmartBus] Đã chặn promise lỗi tọa độ Leaflet không hợp lệ:", event.reason?.message || event.reason);
-    return true;
-  }, true);
+  const isLatLngError = (value) =>
+    /Invalid LatLng object/i.test(String(value?.message || value || ""));
+  window.addEventListener(
+    "error",
+    (event) => {
+      if (!isLatLngError(event.error || event.message)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation?.();
+      console.warn(
+        "[SmartBus] Đã chặn lỗi tọa độ Leaflet không hợp lệ:",
+        event.message || event.error?.message,
+      );
+      return true;
+    },
+    true,
+  );
+  window.addEventListener(
+    "unhandledrejection",
+    (event) => {
+      if (!isLatLngError(event.reason)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation?.();
+      console.warn(
+        "[SmartBus] Đã chặn promise lỗi tọa độ Leaflet không hợp lệ:",
+        event.reason?.message || event.reason,
+      );
+      return true;
+    },
+    true,
+  );
 })();
 
 function normalizePathPoints(points, options = {}) {
@@ -581,16 +741,20 @@ function normalizePathPoints(points, options = {}) {
   // from losing route polylines when the backend returns GeoJSON instead of path[].
   if (!points) return [];
 
-  if (points.type === "Feature") return normalizePathPoints(points.geometry, options);
+  if (points.type === "Feature")
+    return normalizePathPoints(points.geometry, options);
   if (points.geometry) return normalizePathPoints(points.geometry, options);
 
   if (points.type === "LineString" && Array.isArray(points.coordinates)) {
     return normalizePathPoints(points.coordinates, options);
   }
   if (points.type === "MultiLineString" && Array.isArray(points.coordinates)) {
-    return points.coordinates.flatMap((line) => normalizePathPoints(line, options));
+    return points.coordinates.flatMap((line) =>
+      normalizePathPoints(line, options),
+    );
   }
-  if (Array.isArray(points.coordinates)) return normalizePathPoints(points.coordinates, options);
+  if (Array.isArray(points.coordinates))
+    return normalizePathPoints(points.coordinates, options);
 
   if (!Array.isArray(points)) return [];
   if (Array.isArray(points[0]) && Array.isArray(points[0][0])) {
@@ -608,7 +772,9 @@ function routeKeyCandidates(route) {
     route?.route_code,
     route?.displayCode,
     route?.routeDisplayCode,
-  ].map((v) => String(v || "").trim()).filter(Boolean);
+  ]
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
 }
 
 function stopRouteKeyCandidates(stop) {
@@ -619,11 +785,14 @@ function stopRouteKeyCandidates(stop) {
     stop?.route_code,
     stop?.displayCode,
     stop?.routeDisplayCode,
-  ].map((v) => String(v || "").trim()).filter(Boolean);
+  ]
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
 }
 
 function stopSortValue(stop, index = 0) {
-  const value = toSmartBusNumber(stop?.sequence) ??
+  const value =
+    toSmartBusNumber(stop?.sequence) ??
     toSmartBusNumber(stop?.stopOrder) ??
     toSmartBusNumber(stop?.stop_order) ??
     toSmartBusNumber(stop?.order) ??
@@ -634,7 +803,8 @@ function stopSortValue(stop, index = 0) {
 }
 
 function distanceFromPathMeters(point, path) {
-  if (!point || !Array.isArray(path) || !path.length) return Number.POSITIVE_INFINITY;
+  if (!point || !Array.isArray(path) || !path.length)
+    return Number.POSITIVE_INFINITY;
   return path.reduce((min, p) => {
     if (!isLatLngInValidRange(p)) return min;
     return Math.min(min, getDistanceMeters(point, p));
@@ -655,7 +825,9 @@ function getDistanceMeters(a, b) {
 }
 
 function getPositionOnPath(path, progress) {
-  const cleanPath = normalizePathPoints(path || [], { source: "route-position" });
+  const cleanPath = normalizePathPoints(path || [], {
+    source: "route-position",
+  });
   if (!cleanPath.length) return [16.0544, 108.2022];
   if (cleanPath.length < 2) return cleanPath[0];
 
@@ -687,7 +859,9 @@ const geometryLoading = new Set();
 let geometryQueueRunning = false;
 
 function pathSignature(route) {
-  return normalizePathPoints(route?.path || [], { source: `signature:${route?.id || "?"}` })
+  return normalizePathPoints(route?.path || [], {
+    source: `signature:${route?.id || "?"}`,
+  })
     .map((p) => `${Number(p[0]).toFixed(5)},${Number(p[1]).toFixed(5)}`)
     .join("|");
 }
@@ -695,7 +869,8 @@ function pathSignature(route) {
 function geometryCacheKey(route) {
   let hash = 0;
   const text = `${route.id}:${pathSignature(route)}`;
-  for (let i = 0; i < text.length; i += 1) hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  for (let i = 0; i < text.length; i += 1)
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
   return `${OSRM_CACHE_PREFIX}${route.id}_${Math.abs(hash)}`;
 }
 
@@ -704,7 +879,9 @@ function readCachedGeometry(route) {
     const raw = localStorage.getItem(geometryCacheKey(route));
     if (!raw) return null;
     const pts = JSON.parse(raw);
-    const clean = normalizePathPoints(pts, { source: `cached-geometry:${route?.id || "?"}` });
+    const clean = normalizePathPoints(pts, {
+      source: `cached-geometry:${route?.id || "?"}`,
+    });
     if (!Array.isArray(clean) || clean.length < 2) return null;
     return clean;
   } catch {
@@ -714,15 +891,24 @@ function readCachedGeometry(route) {
 
 function saveCachedGeometry(route, pts) {
   try {
-    const clean = normalizePathPoints(pts || [], { source: `save-geometry:${route?.id || "?"}` });
-    if (Array.isArray(clean) && clean.length >= 2) localStorage.setItem(geometryCacheKey(route), JSON.stringify(clean));
+    const clean = normalizePathPoints(pts || [], {
+      source: `save-geometry:${route?.id || "?"}`,
+    });
+    if (Array.isArray(clean) && clean.length >= 2)
+      localStorage.setItem(geometryCacheKey(route), JSON.stringify(clean));
   } catch {}
 }
 
 async function fetchSegment(from, to) {
   const start = [Number(from[0]), Number(from[1])];
   const end = [Number(to[0]), Number(to[1])];
-  if (!Number.isFinite(start[0]) || !Number.isFinite(start[1]) || !Number.isFinite(end[0]) || !Number.isFinite(end[1])) return [from, to];
+  if (
+    !Number.isFinite(start[0]) ||
+    !Number.isFinite(start[1]) ||
+    !Number.isFinite(end[0]) ||
+    !Number.isFinite(end[1])
+  )
+    return [from, to];
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6500);
@@ -733,7 +919,9 @@ async function fetchSegment(from, to) {
     const data = await res.json();
     const coords = data?.routes?.[0]?.geometry?.coordinates;
     if (!coords?.length) throw new Error("OSRM empty geometry");
-    const mapped = coords.map(([lng, lat]) => [lat, lng]).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    const mapped = coords
+      .map(([lng, lat]) => [lat, lng])
+      .filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
     return mapped.length >= 2 ? mapped : [from, to];
   } catch (_err) {
     return [from, to];
@@ -743,7 +931,9 @@ async function fetchSegment(from, to) {
 }
 
 async function buildRouteGeometry(route) {
-  const basePath = normalizePathPoints(route?.path || [], { source: `route-path:${route?.id || "?"}` });
+  const basePath = normalizePathPoints(route?.path || [], {
+    source: `route-path:${route?.id || "?"}`,
+  });
   if (basePath.length < 2) return basePath;
   const cached = readCachedGeometry(route);
   if (cached?.length >= 2) return cached;
@@ -751,7 +941,9 @@ async function buildRouteGeometry(route) {
   const segments = [];
   for (let i = 0; i < basePath.length - 1; i += 1) {
     const seg = await fetchSegment(basePath[i], basePath[i + 1]);
-    const cleanSeg = normalizePathPoints(seg, { source: `osrm-segment:${route?.id || "?"}` });
+    const cleanSeg = normalizePathPoints(seg, {
+      source: `osrm-segment:${route?.id || "?"}`,
+    });
     segments.push(...(i === 0 ? cleanSeg : cleanSeg.slice(1)));
   }
   const geometry = segments.length >= 2 ? segments : basePath;
@@ -762,25 +954,40 @@ async function buildRouteGeometry(route) {
 async function loadAllGeometries(onRouteReady = null) {
   if (geometryQueueRunning) return;
   geometryQueueRunning = true;
-  const queue = ROUTES.filter((r) => r?.id && r.path?.length >= 2 && !State.routeGeometries[r.id] && !geometryLoading.has(r.id));
-  const workers = Array.from({ length: Math.min(3, queue.length || 0) }, async () => {
-    while (queue.length) {
-      const route = queue.shift();
-      if (!route || geometryLoading.has(route.id) || State.routeGeometries[route.id]) continue;
-      geometryLoading.add(route.id);
-      State.geometryStatus[route.id] = "pending";
-      try {
-        const pts = await buildRouteGeometry(route);
-        State.routeGeometries[route.id] = pts;
-        State.geometryStatus[route.id] = pts?.length > route.path.length ? "ok" : "fallback";
-        if (typeof onRouteReady === "function") onRouteReady(route);
-      } catch (_err) {
-        State.geometryStatus[route.id] = "fallback";
-      } finally {
-        geometryLoading.delete(route.id);
+  const queue = ROUTES.filter(
+    (r) =>
+      r?.id &&
+      r.path?.length >= 2 &&
+      !State.routeGeometries[r.id] &&
+      !geometryLoading.has(r.id),
+  );
+  const workers = Array.from(
+    { length: Math.min(3, queue.length || 0) },
+    async () => {
+      while (queue.length) {
+        const route = queue.shift();
+        if (
+          !route ||
+          geometryLoading.has(route.id) ||
+          State.routeGeometries[route.id]
+        )
+          continue;
+        geometryLoading.add(route.id);
+        State.geometryStatus[route.id] = "pending";
+        try {
+          const pts = await buildRouteGeometry(route);
+          State.routeGeometries[route.id] = pts;
+          State.geometryStatus[route.id] =
+            pts?.length > route.path.length ? "ok" : "fallback";
+          if (typeof onRouteReady === "function") onRouteReady(route);
+        } catch (_err) {
+          State.geometryStatus[route.id] = "fallback";
+        } finally {
+          geometryLoading.delete(route.id);
+        }
       }
-    }
-  });
+    },
+  );
   await Promise.all(workers);
   geometryQueueRunning = false;
 }
@@ -798,43 +1005,76 @@ function getPath(routeId) {
 }
 
 function sameRouteKey(a, b) {
-  const aa = String(a || "").trim().toUpperCase();
-  const bb = String(b || "").trim().toUpperCase();
+  const aa = String(a || "")
+    .trim()
+    .toUpperCase();
+  const bb = String(b || "")
+    .trim()
+    .toUpperCase();
   return Boolean(aa && bb && aa === bb);
 }
 
 function routeMatchesStop(route, stop) {
-  const routeKeys = routeKeyCandidates(route).map((v) => String(v).trim().toUpperCase()).filter(Boolean);
-  const stopKeys = stopRouteKeyCandidates(stop).map((v) => String(v).trim().toUpperCase()).filter(Boolean);
+  const routeKeys = routeKeyCandidates(route)
+    .map((v) => String(v).trim().toUpperCase())
+    .filter(Boolean);
+  const stopKeys = stopRouteKeyCandidates(stop)
+    .map((v) => String(v).trim().toUpperCase())
+    .filter(Boolean);
   if (routeKeys.some((rk) => stopKeys.includes(rk))) return true;
   const nestedRoutes = Array.isArray(stop?.routes) ? stop.routes : [];
-  return nestedRoutes.some((item) => routeKeys.some((rk) =>
-    sameRouteKey(rk, item?.id) || sameRouteKey(rk, item?.routeCode) || sameRouteKey(rk, item?.displayCode) || sameRouteKey(rk, item?.routeDisplayCode)
-  ));
+  return nestedRoutes.some((item) =>
+    routeKeys.some(
+      (rk) =>
+        sameRouteKey(rk, item?.id) ||
+        sameRouteKey(rk, item?.routeCode) ||
+        sameRouteKey(rk, item?.displayCode) ||
+        sameRouteKey(rk, item?.routeDisplayCode),
+    ),
+  );
 }
 
 function buildRoutePathFromStops(route) {
   const matched = (State.stops || [])
     .map((stop, index) => ({ stop, index }))
     .filter(({ stop }) => routeMatchesStop(route, stop))
-    .sort((a, b) => stopSortValue(a.stop, a.index) - stopSortValue(b.stop, b.index));
+    .sort(
+      (a, b) => stopSortValue(a.stop, a.index) - stopSortValue(b.stop, b.index),
+    );
   const points = matched
-    .map(({ stop }) => normalizeLatLng(stop, { source: `draw-route-stop-fallback:${route?.id || route?.routeCode || "?"}` }))
+    .map(({ stop }) =>
+      normalizeLatLng(stop, {
+        source: `draw-route-stop-fallback:${route?.id || route?.routeCode || "?"}`,
+      }),
+    )
     .filter(Boolean);
   const unique = [];
   const seen = new Set();
   points.forEach((pt) => {
     const key = `${Number(pt[0]).toFixed(6)},${Number(pt[1]).toFixed(6)}`;
-    if (!seen.has(key)) { seen.add(key); unique.push(pt); }
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(pt);
+    }
   });
   return unique;
 }
 
 function getRenderableRoutePath(route) {
   if (!route) return [];
-  const routeId = route.id || route.routeId || route.routeCode || route.displayCode;
-  let pts = normalizePathPoints(State.routeGeometries[route.id] || State.routeGeometries[routeId] || route.path || [], { source: `render-route-primary:${routeId}` });
-  if (pts.length < 2) pts = normalizePathPoints(getPath(routeId), { source: `render-route-getPath:${routeId}` });
+  const routeId =
+    route.id || route.routeId || route.routeCode || route.displayCode;
+  let pts = normalizePathPoints(
+    State.routeGeometries[route.id] ||
+      State.routeGeometries[routeId] ||
+      route.path ||
+      [],
+    { source: `render-route-primary:${routeId}` },
+  );
+  if (pts.length < 2)
+    pts = normalizePathPoints(getPath(routeId), {
+      source: `render-route-getPath:${routeId}`,
+    });
   if (pts.length < 2) pts = buildRoutePathFromStops(route);
   return pts;
 }
@@ -842,13 +1082,22 @@ function getRenderableRoutePath(route) {
 const DynamicData = {
   _cache: new Map(),
 
-  async load(provinceCode = State.mapFilters.province || CONFIG.DEFAULT_PROVINCE) {
+  async load(
+    provinceCode = State.mapFilters.province || CONFIG.DEFAULT_PROVINCE,
+  ) {
     const province = provinceCode || CONFIG.DEFAULT_PROVINCE;
     State.mapFilters.province = province;
     const cacheKey = `map-data:${province}`;
     const cached = this._cache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
-      ROUTES.splice(0, ROUTES.length, ...cached.routes.map((r) => ({ ...r, path: (r.path || []).map((p) => [...p]) })));
+      ROUTES.splice(
+        0,
+        ROUTES.length,
+        ...cached.routes.map((r) => ({
+          ...r,
+          path: (r.path || []).map((p) => [...p]),
+        })),
+      );
       State.stops = cached.stops.map((s) => ({ ...s }));
       State.buses = cached.buses.map((b) => ({ ...b }));
       State.dataSource = cached.dataSource || "sql-cache";
@@ -856,7 +1105,7 @@ const DynamicData = {
       window.safeInvalidateSmartBusMap?.(120);
       return true;
     }
-    document.body.classList.add('map-loading');
+    document.body.classList.add("map-loading");
     try {
       const qs = mapDataQuery();
       const [routesRaw, stopsRaw, busesRaw, mapRoutesRaw] = await Promise.all([
@@ -867,12 +1116,21 @@ const DynamicData = {
       ]);
 
       const geoJsonPathByKey = new Map();
-      const geoFeatures = Array.isArray(mapRoutesRaw?.features) ? mapRoutesRaw.features : [];
+      const geoFeatures = Array.isArray(mapRoutesRaw?.features)
+        ? mapRoutesRaw.features
+        : [];
       geoFeatures.forEach((feature) => {
         const props = feature.properties || {};
-        const pts = normalizePathPoints(feature, { source: `map-route-geojson:${props.id || props.routeCode || "?"}` });
+        const pts = normalizePathPoints(feature, {
+          source: `map-route-geojson:${props.id || props.routeCode || "?"}`,
+        });
         if (pts.length < 2) return;
-        [props.id, props.routeCode, props.displayCode, props.routeDisplayCode].forEach((key) => {
+        [
+          props.id,
+          props.routeCode,
+          props.displayCode,
+          props.routeDisplayCode,
+        ].forEach((key) => {
           const k = String(key || "").trim();
           if (k) geoJsonPathByKey.set(k, pts);
         });
@@ -886,64 +1144,114 @@ const DynamicData = {
         return acc;
       }, {});
 
-      const routes = (Array.isArray(routesRaw) ? routesRaw : []).map((r) => {
-        const routeKeys = routeKeyCandidates(r);
-        const grouped = routeKeys.flatMap((key) => stopGroups[key] || []);
-        const uniqueGrouped = Array.from(new Map(grouped.map((stop, idx) => [String(stop.id || stop.externalStopCode || `${routeKeys[0] || 'route'}-${idx}`), stop])).values());
+      const routes = (Array.isArray(routesRaw) ? routesRaw : [])
+        .map((r) => {
+          const routeKeys = routeKeyCandidates(r);
+          const grouped = routeKeys.flatMap((key) => stopGroups[key] || []);
+          const uniqueGrouped = Array.from(
+            new Map(
+              grouped.map((stop, idx) => [
+                String(
+                  stop.id ||
+                    stop.externalStopCode ||
+                    `${routeKeys[0] || "route"}-${idx}`,
+                ),
+                stop,
+              ]),
+            ).values(),
+          );
 
-        let points = normalizePathPoints(r.path || r.geometry || r.coordinates || [], { source: `route-api:${r.id || r.routeCode || '?'}` });
-        if (points.length < 2) {
-          for (const key of routeKeys) {
-            const geoPts = geoJsonPathByKey.get(key);
-            if (geoPts?.length >= 2) { points = geoPts; break; }
+          let points = normalizePathPoints(
+            r.path || r.geometry || r.coordinates || [],
+            { source: `route-api:${r.id || r.routeCode || "?"}` },
+          );
+          if (points.length < 2) {
+            for (const key of routeKeys) {
+              const geoPts = geoJsonPathByKey.get(key);
+              if (geoPts?.length >= 2) {
+                points = geoPts;
+                break;
+              }
+            }
           }
-        }
-        if (points.length < 2) {
-          points = uniqueGrouped
-            .map((s, index) => ({ stop: s, index }))
-            .sort((a, b) => stopSortValue(a.stop, a.index) - stopSortValue(b.stop, b.index))
-            .map(({ stop }) => normalizeLatLng(stop, { source: `stop-for-route:${r.id || r.routeCode || '?'}` }))
-            .filter(Boolean);
-        }
+          if (points.length < 2) {
+            points = uniqueGrouped
+              .map((s, index) => ({ stop: s, index }))
+              .sort(
+                (a, b) =>
+                  stopSortValue(a.stop, a.index) -
+                  stopSortValue(b.stop, b.index),
+              )
+              .map(({ stop }) =>
+                normalizeLatLng(stop, {
+                  source: `stop-for-route:${r.id || r.routeCode || "?"}`,
+                }),
+              )
+              .filter(Boolean);
+          }
 
-        const id = String(r.id || r.routeId || r.routeCode || r.displayCode || r.routeDisplayCode || "").trim();
-        return {
-          ...r,
-          id,
-          routeCode: String(r.routeCode || r.route_code || r.id || r.displayCode || id),
-          displayCode: r.displayCode || r.routeDisplayCode || r.routeCode || r.id,
-          provinceCode: r.provinceCode || r.province_code || province,
-          path: points,
-          color: r.color || "#2563eb",
-          time: r.time || r.operatingTime || "Đang cập nhật",
-          interval: r.interval || r.intervalText || "Đang cập nhật",
-        };
-      }).filter((r) => r.id && r.path?.length >= 2);
+          const id = String(
+            r.id ||
+              r.routeId ||
+              r.routeCode ||
+              r.displayCode ||
+              r.routeDisplayCode ||
+              "",
+          ).trim();
+          return {
+            ...r,
+            id,
+            routeCode: String(
+              r.routeCode || r.route_code || r.id || r.displayCode || id,
+            ),
+            displayCode:
+              r.displayCode || r.routeDisplayCode || r.routeCode || r.id,
+            provinceCode: r.provinceCode || r.province_code || province,
+            path: points,
+            color: r.color || "#2563eb",
+            time: r.time || r.operatingTime || "Đang cập nhật",
+            interval: r.interval || r.intervalText || "Đang cập nhật",
+          };
+        })
+        .filter((r) => r.id && r.path?.length >= 2);
 
       ROUTES.splice(0, ROUTES.length, ...routes);
       State.routeGeometries = {};
       State.geometryStatus = {};
 
-      const validRouteIds = new Set(ROUTES.flatMap((r) => routeKeyCandidates(r)));
-      const sqlStops = stops.map((s, idx) => {
-        const ll = normalizeLatLng(s, { source: `bus-stop:${s.id || idx}` });
-        if (!ll) return null;
-        const routeKeys = stopRouteKeyCandidates(s).filter((key) => validRouteIds.has(key));
-        const routeId = routeKeys[0] || String(s.routeId || s.routeCode || s.routeDisplayCode || "");
-        return {
-          ...s,
-          id: s.id || s.externalStopCode || `${routeId || province}-stop-${idx}`,
-          routeId,
-          routeCode: s.routeCode || s.route_code || routeId,
-          provinceCode: s.provinceCode || s.province_code || province,
-          lat: ll[0],
-          lng: ll[1],
-        };
-      }).filter(Boolean);
+      const validRouteIds = new Set(
+        ROUTES.flatMap((r) => routeKeyCandidates(r)),
+      );
+      const sqlStops = stops
+        .map((s, idx) => {
+          const ll = normalizeLatLng(s, { source: `bus-stop:${s.id || idx}` });
+          if (!ll) return null;
+          const routeKeys = stopRouteKeyCandidates(s).filter((key) =>
+            validRouteIds.has(key),
+          );
+          const routeId =
+            routeKeys[0] ||
+            String(s.routeId || s.routeCode || s.routeDisplayCode || "");
+          return {
+            ...s,
+            id:
+              s.id ||
+              s.externalStopCode ||
+              `${routeId || province}-stop-${idx}`,
+            routeId,
+            routeCode: s.routeCode || s.route_code || routeId,
+            provinceCode: s.provinceCode || s.province_code || province,
+            lat: ll[0],
+            lng: ll[1],
+          };
+        })
+        .filter(Boolean);
       State.stops = sqlStops;
 
       ROUTES.forEach((route) => {
-        const clean = normalizePathPoints(route.path || [], { source: `post-load-route-path:${route.id}` });
+        const clean = normalizePathPoints(route.path || [], {
+          source: `post-load-route-path:${route.id}`,
+        });
         if (clean.length >= 2) route.path = clean;
         else {
           const fallback = buildRoutePathFromStops(route);
@@ -951,33 +1259,67 @@ const DynamicData = {
         }
       });
 
-      const apiBuses = (Array.isArray(busesRaw) ? busesRaw : []).map((b, idx) => {
-        const ck = CROWDING[b.crowding] ? b.crowding : pick(Object.keys(CROWDING));
-        const c = CROWDING[ck];
-        const routeId = String(b.routeId || b.route_id || b.routeCode || b.route_code || b.displayCode || "").trim();
-        const route = routeById(routeId);
-        const path = route?.path || [];
-        const apiPoint = normalizeLatLng(b, { source: `bus-api:${b.id || idx}` });
-        const isNearRoute = apiPoint && path.length ? distanceFromPathMeters(apiPoint, path) <= 2500 : Boolean(apiPoint);
-        const safePoint = isNearRoute ? apiPoint : null;
-        return {
-          ...b,
-          uid: String(b.uid || b.vehicleCode || b.vehicle_code || b.id || `${routeId || 'BUS'}-${idx + 1}`),
-          routeId,
-          plate: b.plate || b.licensePlate || b.license_plate || b.vehicleCode || `BUS-${idx + 1}`,
-          crowding: ck,
-          passengers: Number(b.passengers || rnd(c.min, c.max)),
-          speed: Number(b.speed || b.speedKmh || b.speed_kmh || CONFIG.SPEEDS.min),
-          progress: Number.isFinite(Number(b.progress)) ? Number(b.progress) : ((idx % 10) + 1) / 11,
-          status: b.status || "active",
-          lat: safePoint ? safePoint[0] : null,
-          lng: safePoint ? safePoint[1] : null,
-        };
-      }).filter((b) => b.routeId && routeById(b.routeId));
+      const apiBuses = (Array.isArray(busesRaw) ? busesRaw : [])
+        .map((b, idx) => {
+          const ck = CROWDING[b.crowding]
+            ? b.crowding
+            : pick(Object.keys(CROWDING));
+          const c = CROWDING[ck];
+          const routeId = String(
+            b.routeId ||
+              b.route_id ||
+              b.routeCode ||
+              b.route_code ||
+              b.displayCode ||
+              "",
+          ).trim();
+          const route = routeById(routeId);
+          const path = route?.path || [];
+          const apiPoint = normalizeLatLng(b, {
+            source: `bus-api:${b.id || idx}`,
+          });
+          const isNearRoute =
+            apiPoint && path.length
+              ? distanceFromPathMeters(apiPoint, path) <= 2500
+              : Boolean(apiPoint);
+          const safePoint = isNearRoute ? apiPoint : null;
+          return {
+            ...b,
+            uid: String(
+              b.uid ||
+                b.vehicleCode ||
+                b.vehicle_code ||
+                b.id ||
+                `${routeId || "BUS"}-${idx + 1}`,
+            ),
+            routeId,
+            plate:
+              b.plate ||
+              b.licensePlate ||
+              b.license_plate ||
+              b.vehicleCode ||
+              `BUS-${idx + 1}`,
+            crowding: ck,
+            passengers: Number(b.passengers || rnd(c.min, c.max)),
+            speed: Number(
+              b.speed || b.speedKmh || b.speed_kmh || CONFIG.SPEEDS.min,
+            ),
+            progress: Number.isFinite(Number(b.progress))
+              ? Number(b.progress)
+              : ((idx % 10) + 1) / 11,
+            status: b.status || "active",
+            lat: safePoint ? safePoint[0] : null,
+            lng: safePoint ? safePoint[1] : null,
+          };
+        })
+        .filter((b) => b.routeId && routeById(b.routeId));
       State.buses = apiBuses;
       State.dataSource = "sql";
       this._cache.set(cacheKey, {
-        routes: ROUTES.map((r) => ({ ...r, path: (r.path || []).map((p) => [...p]) })),
+        routes: ROUTES.map((r) => ({
+          ...r,
+          path: (r.path || []).map((p) => [...p]),
+        })),
         stops: State.stops.map((s) => ({ ...s })),
         buses: State.buses.map((b) => ({ ...b })),
         dataSource: State.dataSource,
@@ -987,16 +1329,22 @@ const DynamicData = {
       window.safeInvalidateSmartBusMap?.(200);
       return true;
     } catch (err) {
-      console.error("Không tải được dữ liệu SQL Server. Frontend không dùng dữ liệu cứng; hãy chạy backend và import SQL Server:", err);
+      console.error(
+        "Không tải được dữ liệu SQL Server. Frontend không dùng dữ liệu cứng; hãy chạy backend và import SQL Server:",
+        err,
+      );
       State.dataSource = "sql_error";
       ROUTES.splice(0, ROUTES.length);
       State.stops = [];
       State.buses = [];
       this.populateFilters();
-      Toast?.show?.("Không kết nối được SQL Server/API. Hãy chạy backend và import database.", "error");
+      Toast?.show?.(
+        "Không kết nối được SQL Server/API. Hãy chạy backend và import database.",
+        "error",
+      );
       return false;
     } finally {
-      document.body.classList.remove('map-loading');
+      document.body.classList.remove("map-loading");
       window.safeInvalidateSmartBusMap?.(250);
     }
   },
@@ -1135,28 +1483,55 @@ const MapModule = (() => {
       if (mapEl) {
         mapEl.innerHTML = `<div class="map-missing">Không tải được thư viện bản đồ Leaflet. Kiểm tra internet hoặc dùng bản local.</div>`;
       }
-      Toast.show("Không tải được thư viện bản đồ Leaflet. Kiểm tra internet hoặc dùng bản local.", "warning", 6000);
+      Toast.show(
+        "Không tải được thư viện bản đồ Leaflet. Kiểm tra internet hoặc dùng bản local.",
+        "warning",
+        6000,
+      );
       return;
     }
 
-    const meta = provinceMeta(State.mapFilters.province || CONFIG.DEFAULT_PROVINCE);
-    map = L.map("map", { zoomControl: false, scrollWheelZoom: true, preferCanvas: false });
-    const initialCenter = safeLeafletLatLng(meta.center || CONFIG.MAP_CENTER, { allowOutsideCentral: true, source: "map-initial-center" }) || safeLeafletLatLng(CONFIG.MAP_CENTER, { allowOutsideCentral: true, source: "map-default-center" });
+    const meta = provinceMeta(
+      State.mapFilters.province || CONFIG.DEFAULT_PROVINCE,
+    );
+    map = L.map("map", {
+      zoomControl: false,
+      scrollWheelZoom: true,
+      preferCanvas: false,
+    });
+    const initialCenter =
+      safeLeafletLatLng(meta.center || CONFIG.MAP_CENTER, {
+        allowOutsideCentral: true,
+        source: "map-initial-center",
+      }) ||
+      safeLeafletLatLng(CONFIG.MAP_CENTER, {
+        allowOutsideCentral: true,
+        source: "map-default-center",
+      });
     if (initialCenter) map.setView(initialCenter, meta.zoom || CONFIG.MAP_ZOOM);
     else map.setView([16.0544, 108.2022], meta.zoom || CONFIG.MAP_ZOOM);
     window.smartBusMap = map;
     window.map = map;
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: "abcd",
-      maxZoom: 20,
-    }).addTo(map);
+    L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 20,
+      },
+    ).addTo(map);
 
     ensureMapPanes();
     L.control.zoom({ position: "bottomright" }).addTo(map);
     map.on("zoomend", debounce(updateStopLabelVisibility, 120));
-    map.on("moveend", debounce(() => { updateMarkers(State.buses); }, 180));
+    map.on(
+      "moveend",
+      debounce(() => {
+        updateMarkers(State.buses);
+      }, 180),
+    );
     drawRoutes();
     drawStops();
     State.mapReady = true;
@@ -1166,22 +1541,41 @@ const MapModule = (() => {
   }
 
   function averageCenter(points) {
-    const clean = (points || []).filter((p) => Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])));
+    const clean = (points || []).filter(
+      (p) => Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])),
+    );
     if (!clean.length) return null;
-    return [clean.reduce((sum, p) => sum + Number(p[0]), 0) / clean.length, clean.reduce((sum, p) => sum + Number(p[1]), 0) / clean.length];
+    return [
+      clean.reduce((sum, p) => sum + Number(p[0]), 0) / clean.length,
+      clean.reduce((sum, p) => sum + Number(p[1]), 0) / clean.length,
+    ];
   }
 
   function routeVisible(route) {
     const f = State.mapFilters || {};
-    const mode = ["all", "selected", "none", "province"].includes(f.routes) ? f.routes : "all";
-    const routeProvince = String(route?.provinceCode || route?.province_code || "").toUpperCase();
+    const mode = ["all", "selected", "none", "province"].includes(f.routes)
+      ? f.routes
+      : "all";
+    const routeProvince = String(
+      route?.provinceCode || route?.province_code || "",
+    ).toUpperCase();
     const filterProvince = String(f.province || "").toUpperCase();
     if (mode === "none") return false;
     if (mode === "selected") {
-      return Boolean(f.routeId) && routeKeyCandidates(route).some((key) => sameRouteKey(key, f.routeId));
+      return (
+        Boolean(f.routeId) &&
+        routeKeyCandidates(route).some((key) => sameRouteKey(key, f.routeId))
+      );
     }
-    if (filterProvince && routeProvince && routeProvince !== filterProvince) return false;
-    if (mode === "province" && filterProvince && routeProvince && routeProvince !== filterProvince) return false;
+    if (filterProvince && routeProvince && routeProvince !== filterProvince)
+      return false;
+    if (
+      mode === "province" &&
+      filterProvince &&
+      routeProvince &&
+      routeProvince !== filterProvince
+    )
+      return false;
     return true;
   }
 
@@ -1199,7 +1593,8 @@ const MapModule = (() => {
         className: "smartbus-route-line",
         color: route.color || "#22d3ee",
         weight: highlightedRouteId === route.id ? 9 : 6,
-        opacity: highlightedRouteId && highlightedRouteId !== route.id ? 0.34 : 1,
+        opacity:
+          highlightedRouteId && highlightedRouteId !== route.id ? 0.34 : 1,
         lineCap: "round",
         lineJoin: "round",
         interactive: true,
@@ -1217,7 +1612,9 @@ const MapModule = (() => {
   function fitVisibleRoutes() {
     if (!map || !window.L || !routeLines.length) return;
     const group = L.featureGroup(routeLines);
-    try { map.fitBounds(group.getBounds(), { padding: [28, 28], maxZoom: 10 }); } catch {}
+    try {
+      map.fitBounds(group.getBounds(), { padding: [28, 28], maxZoom: 10 });
+    } catch {}
   }
 
   function buildRoutePopup(r) {
@@ -1237,7 +1634,10 @@ const MapModule = (() => {
     const c = CROWDING[bus.crowding] || CROWDING.quiet;
     const pct = Math.round(((bus.passengers || 0) / 75) * 100);
     const isResting = bus.status === "resting";
-    const restMins = isResting && bus.restUntil ? Math.max(0, Math.ceil((bus.restUntil - Date.now()) / 60000)) : 0;
+    const restMins =
+      isResting && bus.restUntil
+        ? Math.max(0, Math.ceil((bus.restUntil - Date.now()) / 60000))
+        : 0;
     return `<div class="popup-inner">
       <div class="popup-route" style="color:${route?.color || "var(--teal)"}">Tuyến ${routeLabel(route || bus.routeId)} – ${route?.name || ""}</div>
       ${isResting ? `<div class="popup-rest-badge">⏸ Nghỉ đầu/cuối tuyến · còn ${restMins} phút</div>` : ""}
@@ -1250,19 +1650,38 @@ const MapModule = (() => {
   }
 
   function getSafeBusPosition(bus) {
-    const path = normalizePathPoints(getPath(bus.routeId), { source: `bus-path:${bus.routeId}` });
-    const apiPoint = normalizeLatLng(bus, { source: `bus-marker:${bus.uid || bus.id || "?"}` });
-    if (apiPoint && (!path.length || distanceFromPathMeters(apiPoint, path) <= 2500)) return apiPoint;
-    return getPositionOnPath(path, Number.isFinite(Number(bus.progress)) ? Number(bus.progress) : 0);
+    const path = normalizePathPoints(getPath(bus.routeId), {
+      source: `bus-path:${bus.routeId}`,
+    });
+    const apiPoint = normalizeLatLng(bus, {
+      source: `bus-marker:${bus.uid || bus.id || "?"}`,
+    });
+    if (
+      apiPoint &&
+      (!path.length || distanceFromPathMeters(apiPoint, path) <= 2500)
+    )
+      return apiPoint;
+    return getPositionOnPath(
+      path,
+      Number.isFinite(Number(bus.progress)) ? Number(bus.progress) : 0,
+    );
   }
 
   function makeIcon(bus) {
+    // Lightweight cache to avoid recreating identical divIcon HTML repeatedly.
+    MapModule._iconCache = MapModule._iconCache || new Map();
+    const key = `${bus.routeId}|${bus.crowding}|${bus.status}`;
+    if (MapModule._iconCache.has(key)) return MapModule._iconCache.get(key);
     const c = CROWDING[bus.crowding] || CROWDING.quiet;
     const route = routeById(bus.routeId);
     const isResting = bus.status === "resting";
-    const body = isResting ? `lf-marker-body ${bus.crowding} resting-marker` : `lf-marker-body ${bus.crowding}`;
-    const pulse = isResting ? "" : `<div class="lf-marker-pulse ${bus.crowding}"></div>`;
-    return L.divIcon({
+    const body = isResting
+      ? `lf-marker-body ${bus.crowding} resting-marker`
+      : `lf-marker-body ${bus.crowding}`;
+    const pulse = isResting
+      ? ""
+      : `<div class="lf-marker-pulse ${bus.crowding}"></div>`;
+    const icon = L.divIcon({
       className: "bus-div-icon",
       html: `<div class="lf-marker">
         ${pulse}
@@ -1273,29 +1692,95 @@ const MapModule = (() => {
       iconAnchor: [17, 22],
       popupAnchor: [0, -24],
     });
+    MapModule._iconCache.set(key, icon);
+    // Keep cache bounded
+    if (MapModule._iconCache.size > 500) {
+      const it = MapModule._iconCache.keys();
+      MapModule._iconCache.delete(it.next().value);
+    }
+    return icon;
   }
 
   function updateMarkers(buses) {
     if (!map || !window.L) return;
     const currentIds = new Set(buses.map((b) => String(b.uid)));
-    markers.forEach((m, id) => { if (!currentIds.has(String(id))) { if (map.hasLayer(m)) m.remove(); markers.delete(id); } });
-    const visible = new Set(buses.filter((b) => filterBus(b)).map((b) => b.uid));
+    markers.forEach((m, id) => {
+      if (!currentIds.has(String(id))) {
+        if (map.hasLayer(m)) m.remove();
+        markers.delete(id);
+      }
+    });
+    const visible = new Set(
+      buses.filter((b) => filterBus(b)).map((b) => b.uid),
+    );
     buses.forEach((bus) => {
       const pos = getSafeBusPosition(bus);
-      if (!isLatLngInValidRange(pos) || !isCoordinateInCentralVietnam(pos)) return;
+      if (!isLatLngInValidRange(pos) || !isCoordinateInCentralVietnam(pos))
+        return;
       const latlng = [pos[0], pos[1]];
       if (markers.has(bus.uid)) {
         const m = markers.get(bus.uid);
-        if (!safeMarkerSetLatLng(m, latlng, { source: `bus-marker-update:${bus.uid}` })) return;
-        m.setIcon(makeIcon(bus));
+        if (
+          !safeMarkerSetLatLng(m, latlng, {
+            source: `bus-marker-update:${bus.uid}`,
+          })
+        )
+          return;
+        // Avoid recreating icon DOM every tick when not necessary. Only update icon when visual state changed.
+        try {
+          const prev = m._smartBusState || {};
+          const curr = {
+            uid: String(bus.uid),
+            crowding: bus.crowding,
+            status: bus.status,
+            plate: bus.plate,
+            routeId: bus.routeId,
+          };
+          const needIcon =
+            prev.uid !== curr.uid ||
+            prev.crowding !== curr.crowding ||
+            prev.status !== curr.status ||
+            prev.plate !== curr.plate ||
+            prev.routeId !== curr.routeId;
+          if (needIcon) {
+            m.setIcon(makeIcon(bus));
+            m._smartBusState = curr;
+          }
+        } catch (e) {
+          try {
+            m.setIcon(makeIcon(bus));
+            m._smartBusState = {
+              uid: String(bus.uid),
+              crowding: bus.crowding,
+              status: bus.status,
+              plate: bus.plate,
+              routeId: bus.routeId,
+            };
+          } catch {}
+        }
         if (m.isPopupOpen()) m.getPopup().setContent(buildBusPopup(bus, pos));
-        if (visible.has(bus.uid)) { if (!map.hasLayer(m)) m.addTo(map); } else if (map.hasLayer(m)) m.remove();
+        if (visible.has(bus.uid)) {
+          if (!map.hasLayer(m)) m.addTo(map);
+        } else if (map.hasLayer(m)) m.remove();
       } else {
-        const safePoint = safeLeafletLatLng(latlng, { source: `bus-marker-create:${bus.uid}` });
+        const safePoint = safeLeafletLatLng(latlng, {
+          source: `bus-marker-create:${bus.uid}`,
+        });
         if (!safePoint) return;
-        const m = L.marker(safePoint, { icon: makeIcon(bus), pane: "vehiclePane", zIndexOffset: 100 }).addTo(map);
+        const m = L.marker(safePoint, {
+          icon: makeIcon(bus),
+          pane: "vehiclePane",
+          zIndexOffset: 100,
+        }).addTo(map);
         m.bindPopup(buildBusPopup(bus, pos), { maxWidth: 320, minWidth: 230 });
         m.on("click", () => Events.emit("bus:select", bus.uid));
+        m._smartBusState = {
+          uid: String(bus.uid),
+          crowding: bus.crowding,
+          status: bus.status,
+          plate: bus.plate,
+          routeId: bus.routeId,
+        };
         markers.set(bus.uid, m);
         if (!visible.has(bus.uid)) m.remove();
       }
@@ -1307,16 +1792,23 @@ const MapModule = (() => {
     const text = `${stop.stopType || ""} ${stop.name || ""}`.toLowerCase();
     if (/sân bay|airport/.test(text)) return { emoji: "✈️", cls: "airport" };
     if (/nhà ga|ga /.test(text)) return { emoji: "🚉", cls: "rail" };
-    if (/du lịch|tour|điểm tham quan/.test(text)) return { emoji: "🏖️", cls: "tour" };
-    if (/trung chuyển|transfer/.test(text)) return { emoji: "🔁", cls: "transfer" };
-    if (stop.isMajor || /bến|đầu|cuối/.test(text)) return { emoji: "🚌", cls: "terminal" };
+    if (/du lịch|tour|điểm tham quan/.test(text))
+      return { emoji: "🏖️", cls: "tour" };
+    if (/trung chuyển|transfer/.test(text))
+      return { emoji: "🔁", cls: "transfer" };
+    if (stop.isMajor || /bến|đầu|cuối/.test(text))
+      return { emoji: "🚌", cls: "terminal" };
     return { emoji: "🚏", cls: "normal" };
   }
 
   function makeStopIcon(stop) {
     const type = stopIconType(stop);
-    const canShowLabel = Boolean(State.mapFilters.labels && map && map.getZoom() >= 14);
-    const label = canShowLabel ? `<span class="stop-label">${escapeHtml(stop.name)}${Number(stop.routeCount) ? ` · ${stop.routeCount} tuyến` : ""}</span>` : "";
+    const canShowLabel = Boolean(
+      State.mapFilters.labels && map && map.getZoom() >= 14,
+    );
+    const label = canShowLabel
+      ? `<span class="stop-label">${escapeHtml(stop.name)}${Number(stop.routeCount) ? ` · ${stop.routeCount} tuyến` : ""}</span>`
+      : "";
     return L.divIcon({
       className: `stop-div-icon stop-${type.cls}`,
       html: `<div class="stop-marker"><span class="stop-emoji">${type.emoji}</span>${label}</div>`,
@@ -1328,7 +1820,11 @@ const MapModule = (() => {
 
   function buildStopPopup(stop) {
     const routes = Array.isArray(stop.routes) ? stop.routes : [];
-    const routeText = routes.length ? routes.map((r) => `T.${escapeHtml(r.displayCode || r.id)}`).join(", ") : (stop.routeDisplayCode ? `T.${escapeHtml(stop.routeDisplayCode)}` : "Đang cập nhật");
+    const routeText = routes.length
+      ? routes.map((r) => `T.${escapeHtml(r.displayCode || r.id)}`).join(", ")
+      : stop.routeDisplayCode
+        ? `T.${escapeHtml(stop.routeDisplayCode)}`
+        : "Đang cập nhật";
     return `<div class="popup-inner">
       <div class="popup-route">${escapeHtml(stop.name || "Điểm dừng")}</div>
       <div class="popup-row"><span class="popup-key">Loại</span><span class="popup-val">${escapeHtml(stop.stopType || (stop.isMajor ? "Bến chính" : "Điểm dừng"))}</span></div>
@@ -1348,27 +1844,55 @@ const MapModule = (() => {
     const provinceFilter = State.mapFilters.province;
     const allowed = State.stops.filter((s) => {
       if (!shouldShow) return false;
-      if (majorOnly && !(s.isMajor || /đầu|cuối|bến|sân bay|ga|trung chuyển/i.test(`${s.stopType || ""} ${s.name || ""}`))) return false;
+      if (
+        majorOnly &&
+        !(
+          s.isMajor ||
+          /đầu|cuối|bến|sân bay|ga|trung chuyển/i.test(
+            `${s.stopType || ""} ${s.name || ""}`,
+          )
+        )
+      )
+        return false;
       if (provinceFilter && s.provinceCode !== provinceFilter) return false;
-      if (routeFilter && s.routeId !== routeFilter && !(s.routes || []).some((r) => r.id === routeFilter)) return false;
+      if (
+        routeFilter &&
+        s.routeId !== routeFilter &&
+        !(s.routes || []).some((r) => r.id === routeFilter)
+      )
+        return false;
       return true;
     });
-    const activeIds = new Set(allowed.map((s) => String(s.id || s.externalStopCode)));
-    stopMarkers.forEach((m, id) => { if (!activeIds.has(id)) { if (map.hasLayer(m)) m.remove(); stopMarkers.delete(id); } });
+    const activeIds = new Set(
+      allowed.map((s) => String(s.id || s.externalStopCode)),
+    );
+    stopMarkers.forEach((m, id) => {
+      if (!activeIds.has(id)) {
+        if (map.hasLayer(m)) m.remove();
+        stopMarkers.delete(id);
+      }
+    });
     allowed.forEach((stop) => {
       const id = String(stop.id || stop.externalStopCode);
       const ll = normalizeLatLng(stop, { source: `draw-stop:${id}` });
       if (!ll) return;
       if (stopMarkers.has(id)) {
         const m = stopMarkers.get(id);
-        if (!safeMarkerSetLatLng(m, ll, { source: `draw-stop-update:${id}` })) return;
+        if (!safeMarkerSetLatLng(m, ll, { source: `draw-stop-update:${id}` }))
+          return;
         m.setIcon(makeStopIcon(stop));
         if (m.isPopupOpen()) m.getPopup().setContent(buildStopPopup(stop));
         if (!map.hasLayer(m)) m.addTo(map);
       } else {
-        const safePoint = safeLeafletLatLng(ll, { source: `draw-stop-create:${id}` });
+        const safePoint = safeLeafletLatLng(ll, {
+          source: `draw-stop-create:${id}`,
+        });
         if (!safePoint) return;
-        const m = L.marker(safePoint, { icon: makeStopIcon(stop), pane: "stopPane", zIndexOffset: 70 }).addTo(map);
+        const m = L.marker(safePoint, {
+          icon: makeStopIcon(stop),
+          pane: "stopPane",
+          zIndexOffset: 70,
+        }).addTo(map);
         m.bindPopup(buildStopPopup(stop), { maxWidth: 320, minWidth: 230 });
         stopMarkers.set(id, m);
       }
@@ -1384,7 +1908,10 @@ const MapModule = (() => {
   }
 
   function escapeHtml(v) {
-    return String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    return String(v ?? "").replace(
+      /[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+    );
   }
 
   function focusBus(uid) {
@@ -1409,11 +1936,19 @@ const MapModule = (() => {
     routeLines.forEach((line) => {
       const r = routeById(line._smartBusRouteId);
       const active = line._smartBusRouteId === rid;
-      line.setStyle({ weight: active ? 8 : 3, opacity: active ? 1 : 0.16, color: r?.color || "var(--teal)" });
-      if (active) { focused = line; line.bringToFront(); }
+      line.setStyle({
+        weight: active ? 8 : 3,
+        opacity: active ? 1 : 0.16,
+        color: r?.color || "var(--teal)",
+      });
+      if (active) {
+        focused = line;
+        line.bringToFront();
+      }
     });
     drawStops();
-    if (focused) map.fitBounds(focused.getBounds(), { padding: [36, 36], maxZoom: 14 });
+    if (focused)
+      map.fitBounds(focused.getBounds(), { padding: [36, 36], maxZoom: 14 });
   }
 
   function clearRouteHighlight() {
@@ -1424,7 +1959,10 @@ const MapModule = (() => {
 
   function markUserLocation(lat, lng) {
     if (!map || !window.L) return false;
-    const leafletPoint = safeLeafletLatLng({ lat, lng }, { allowOutsideCentral: true, source: "user-location" });
+    const leafletPoint = safeLeafletLatLng(
+      { lat, lng },
+      { allowOutsideCentral: true, source: "user-location" },
+    );
     if (!leafletPoint) {
       console.warn("[SmartBus] Bỏ qua GPS không hợp lệ:", lat, lng);
       return false;
@@ -1433,35 +1971,88 @@ const MapModule = (() => {
     try {
       State.userLocation = { lat: leafletPoint.lat, lng: leafletPoint.lng };
       window.smartBusUserLocation = State.userLocation;
-      const icon = L.divIcon({ className: "user-location-icon", html: `<div class="user-location-dot"></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
+      const icon = L.divIcon({
+        className: "user-location-icon",
+        html: `<div class="user-location-dot"></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
       if (userLocationMarker) {
-        if (!safeMarkerSetLatLng(userLocationMarker, leafletPoint, { allowOutsideCentral: true, source: "user-location-marker-update" })) return false;
+        if (
+          !safeMarkerSetLatLng(userLocationMarker, leafletPoint, {
+            allowOutsideCentral: true,
+            source: "user-location-marker-update",
+          })
+        )
+          return false;
       } else {
-        userLocationMarker = L.marker(leafletPoint, { icon, pane: "focusPane", zIndexOffset: 500 }).addTo(map);
+        userLocationMarker = L.marker(leafletPoint, {
+          icon,
+          pane: "focusPane",
+          zIndexOffset: 500,
+        }).addTo(map);
       }
       if (userLocationCircle) {
-        if (!safeMarkerSetLatLng(userLocationCircle, leafletPoint, { allowOutsideCentral: true, source: "user-location-circle-update" })) return false;
+        if (
+          !safeMarkerSetLatLng(userLocationCircle, leafletPoint, {
+            allowOutsideCentral: true,
+            source: "user-location-circle-update",
+          })
+        )
+          return false;
       } else {
-        userLocationCircle = L.circle(leafletPoint, { radius: 650, weight: 1, opacity: 0.7, fillOpacity: 0.08 }).addTo(map);
+        userLocationCircle = L.circle(leafletPoint, {
+          radius: 650,
+          weight: 1,
+          opacity: 0.7,
+          fillOpacity: 0.08,
+        }).addTo(map);
       }
       userLocationMarker.bindPopup("Vị trí hiện tại của bạn");
-      safeMapFlyTo(map, leafletPoint, 15, { duration: 1.0 }, { allowOutsideCentral: true, source: "user-location-flyTo" });
+      safeMapFlyTo(
+        map,
+        leafletPoint,
+        15,
+        { duration: 1.0 },
+        { allowOutsideCentral: true, source: "user-location-flyTo" },
+      );
       setTimeout(() => {
-        try { userLocationMarker?.openPopup?.(); } catch {}
+        try {
+          userLocationMarker?.openPopup?.();
+        } catch {}
       }, 800);
-      try { updateMarkers(State.buses); } catch (err) { console.warn("[SmartBus] updateMarkers sau GPS bị bỏ qua:", err?.message || err); }
-      try { drawStops(); } catch (err) { console.warn("[SmartBus] drawStops sau GPS bị bỏ qua:", err?.message || err); }
+      try {
+        updateMarkers(State.buses);
+      } catch (err) {
+        console.warn(
+          "[SmartBus] updateMarkers sau GPS bị bỏ qua:",
+          err?.message || err,
+        );
+      }
+      try {
+        drawStops();
+      } catch (err) {
+        console.warn(
+          "[SmartBus] drawStops sau GPS bị bỏ qua:",
+          err?.message || err,
+        );
+      }
       window.safeInvalidateSmartBusMap?.(200);
       return true;
     } catch (err) {
-      console.warn("[SmartBus] Không thể đánh dấu vị trí người dùng:", err?.message || err);
+      console.warn(
+        "[SmartBus] Không thể đánh dấu vị trí người dùng:",
+        err?.message || err,
+      );
       return false;
     }
   }
 
   function clearTravelPlan() {
     planMarkers.forEach((marker) => {
-      try { if (marker && map?.hasLayer(marker)) marker.remove(); } catch {}
+      try {
+        if (marker && map?.hasLayer(marker)) marker.remove();
+      } catch {}
     });
     planMarkers = [];
   }
@@ -1477,10 +2068,19 @@ const MapModule = (() => {
   }
 
   function addPlanMarker(point, label, emoji, cls) {
-    const ll = safeLeafletLatLng(point, { allowOutsideCentral: true, source: `travel-plan:${label}` });
+    const ll = safeLeafletLatLng(point, {
+      allowOutsideCentral: true,
+      source: `travel-plan:${label}`,
+    });
     if (!ll) return null;
-    const marker = L.marker(ll, { icon: planIcon(emoji, cls), pane: "focusPane", zIndexOffset: 900 }).addTo(map);
-    marker.bindPopup(`<b>${escapeHtml(label)}</b><br/>${Number(ll.lat).toFixed(5)}, ${Number(ll.lng).toFixed(5)}`);
+    const marker = L.marker(ll, {
+      icon: planIcon(emoji, cls),
+      pane: "focusPane",
+      zIndexOffset: 900,
+    }).addTo(map);
+    marker.bindPopup(
+      `<b>${escapeHtml(label)}</b><br/>${Number(ll.lat).toFixed(5)}, ${Number(ll.lng).toFixed(5)}`,
+    );
     planMarkers.push(marker);
     return marker;
   }
@@ -1488,54 +2088,148 @@ const MapModule = (() => {
   function showTravelPlan(data = {}, payload = {}) {
     if (!map || !window.L) return;
     clearTravelPlan();
-    const routeId = data?.route?.id || data?.route?.route_id || data?.routeId || data?.relatedRouteId;
+    const routeId =
+      data?.route?.id ||
+      data?.route?.route_id ||
+      data?.routeId ||
+      data?.relatedRouteId;
     if (routeId) highlightRoute(routeId);
-    if (payload?.lat && payload?.lng) markUserLocation(payload.lat, payload.lng);
+    if (payload?.lat && payload?.lng)
+      markUserLocation(payload.lat, payload.lng);
 
-    const pickup = data.pickupStop || data.originStop || data.boardingStop || data.nearestStop;
-    const destinationStop = data.destinationStop || data.dropoffStop || data.alightingStop;
-    const place = data.destinationPlace || data.place || data.targetPlace || data.suggestedPlaces?.[0];
+    const pickup =
+      data.pickupStop ||
+      data.originStop ||
+      data.boardingStop ||
+      data.nearestStop;
+    const destinationStop =
+      data.destinationStop || data.dropoffStop || data.alightingStop;
+    const place =
+      data.destinationPlace ||
+      data.place ||
+      data.targetPlace ||
+      data.suggestedPlaces?.[0];
 
     const added = [];
-    if (pickup && normalizeLatLng(pickup, { allowOutsideCentral: true, source: "plan-pickup-test" })) {
-      added.push(addPlanMarker(pickup, `Điểm đón: ${pickup.name || pickup.stopName || "bến gần bạn"}`, "🚏", "pickup"));
+    if (
+      pickup &&
+      normalizeLatLng(pickup, {
+        allowOutsideCentral: true,
+        source: "plan-pickup-test",
+      })
+    ) {
+      added.push(
+        addPlanMarker(
+          pickup,
+          `Điểm đón: ${pickup.name || pickup.stopName || "bến gần bạn"}`,
+          "🚏",
+          "pickup",
+        ),
+      );
     }
-    if (destinationStop && normalizeLatLng(destinationStop, { allowOutsideCentral: true, source: "plan-destination-stop-test" })) {
-      added.push(addPlanMarker(destinationStop, `Điểm xuống: ${destinationStop.name || destinationStop.stopName || "bến gần điểm đến"}`, "🏁", "dropoff"));
+    if (
+      destinationStop &&
+      normalizeLatLng(destinationStop, {
+        allowOutsideCentral: true,
+        source: "plan-destination-stop-test",
+      })
+    ) {
+      added.push(
+        addPlanMarker(
+          destinationStop,
+          `Điểm xuống: ${destinationStop.name || destinationStop.stopName || "bến gần điểm đến"}`,
+          "🏁",
+          "dropoff",
+        ),
+      );
     }
-    if (place && normalizeLatLng(place, { allowOutsideCentral: true, source: "plan-place-test" })) {
-      added.push(addPlanMarker(place, `Điểm đến: ${place.name || "địa điểm"}`, "📍", "destination"));
+    if (
+      place &&
+      normalizeLatLng(place, {
+        allowOutsideCentral: true,
+        source: "plan-place-test",
+      })
+    ) {
+      added.push(
+        addPlanMarker(
+          place,
+          `Điểm đến: ${place.name || "địa điểm"}`,
+          "📍",
+          "destination",
+        ),
+      );
     }
 
     const validMarkers = added.filter(Boolean);
     if (validMarkers.length) {
       try {
-        const group = L.featureGroup(validMarkers.concat(routeLines.filter((line) => !routeId || line._smartBusRouteId === routeId)));
+        const group = L.featureGroup(
+          validMarkers.concat(
+            routeLines.filter(
+              (line) => !routeId || line._smartBusRouteId === routeId,
+            ),
+          ),
+        );
         map.fitBounds(group.getBounds(), { padding: [34, 34], maxZoom: 15 });
       } catch {}
-      setTimeout(() => validMarkers[validMarkers.length - 1]?.openPopup?.(), 350);
+      setTimeout(
+        () => validMarkers[validMarkers.length - 1]?.openPopup?.(),
+        350,
+      );
     } else if (routeId) {
       const line = routeLines.find((item) => item._smartBusRouteId === routeId);
-      if (line) try { map.fitBounds(line.getBounds(), { padding: [34, 34], maxZoom: 14 }); } catch {}
+      if (line)
+        try {
+          map.fitBounds(line.getBounds(), { padding: [34, 34], maxZoom: 14 });
+        } catch {}
     }
     window.safeInvalidateSmartBusMap?.(250);
   }
 
   function focusPlace(place) {
     if (!map || !place) return;
-    const ll = safeLeafletLatLng(place, { source: `focus-place:${place?.id || place?.name || "?"}` });
+    const ll = safeLeafletLatLng(place, {
+      source: `focus-place:${place?.id || place?.name || "?"}`,
+    });
     if (!ll) return;
-    const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>📍</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
+    const icon = L.divIcon({
+      className: "stop-location-icon",
+      html: `<div class="stop-location-dot"><span>📍</span></div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 30],
+      popupAnchor: [0, -30],
+    });
     try {
       if (nearestStopMarker) {
-        if (!safeMarkerSetLatLng(nearestStopMarker, ll, { source: `focus-place-marker:${place?.id || place?.name || "?"}` })) return;
+        if (
+          !safeMarkerSetLatLng(nearestStopMarker, ll, {
+            source: `focus-place-marker:${place?.id || place?.name || "?"}`,
+          })
+        )
+          return;
       } else {
-        nearestStopMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 460 }).addTo(map);
+        nearestStopMarker = L.marker(ll, {
+          icon,
+          pane: "focusPane",
+          zIndexOffset: 460,
+        }).addTo(map);
       }
-      nearestStopMarker.bindPopup(`<b>${escapeHtml(place.name || "Địa điểm")}</b><br/>${escapeHtml(place.provinceName || place.province || "")}`);
-      safeMapFlyTo(map, ll, 15, { duration: 1.1 }, { source: `focus-place:${place?.id || place?.name || "?"}` });
+      nearestStopMarker.bindPopup(
+        `<b>${escapeHtml(place.name || "Địa điểm")}</b><br/>${escapeHtml(place.provinceName || place.province || "")}`,
+      );
+      safeMapFlyTo(
+        map,
+        ll,
+        15,
+        { duration: 1.1 },
+        { source: `focus-place:${place?.id || place?.name || "?"}` },
+      );
       window.safeInvalidateSmartBusMap?.(300);
-      setTimeout(() => { try { nearestStopMarker?.openPopup?.(); } catch {} }, 400);
+      setTimeout(() => {
+        try {
+          nearestStopMarker?.openPopup?.();
+        } catch {}
+      }, 400);
     } catch (err) {
       console.warn("[SmartBus] Không thể focus địa điểm:", err?.message || err);
     }
@@ -1543,19 +2237,48 @@ const MapModule = (() => {
 
   function focusStop(stop) {
     if (!map || !stop) return;
-    const ll = safeLeafletLatLng(stop, { source: `focus-stop:${stop?.id || stop?.name || "?"}` });
+    const ll = safeLeafletLatLng(stop, {
+      source: `focus-stop:${stop?.id || stop?.name || "?"}`,
+    });
     if (!ll) return;
-    const icon = L.divIcon({ className: "stop-location-icon", html: `<div class="stop-location-dot"><span>🚏</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] });
+    const icon = L.divIcon({
+      className: "stop-location-icon",
+      html: `<div class="stop-location-dot"><span>🚏</span></div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 30],
+      popupAnchor: [0, -30],
+    });
     try {
       if (nearestStopMarker) {
-        if (!safeMarkerSetLatLng(nearestStopMarker, ll, { source: `focus-stop-marker:${stop?.id || stop?.name || "?"}` })) return;
+        if (
+          !safeMarkerSetLatLng(nearestStopMarker, ll, {
+            source: `focus-stop-marker:${stop?.id || stop?.name || "?"}`,
+          })
+        )
+          return;
       } else {
-        nearestStopMarker = L.marker(ll, { icon, pane: "focusPane", zIndexOffset: 450 }).addTo(map);
+        nearestStopMarker = L.marker(ll, {
+          icon,
+          pane: "focusPane",
+          zIndexOffset: 450,
+        }).addTo(map);
       }
-      nearestStopMarker.bindPopup(`<b>${escapeHtml(stop.name || "Bến gần nhất")}</b><br/>${escapeHtml(stop.address || "Điểm đón gợi ý")}`);
-      safeMapFlyTo(map, ll, 15, { duration: 1.1 }, { source: `focus-stop:${stop?.id || stop?.name || "?"}` });
+      nearestStopMarker.bindPopup(
+        `<b>${escapeHtml(stop.name || "Bến gần nhất")}</b><br/>${escapeHtml(stop.address || "Điểm đón gợi ý")}`,
+      );
+      safeMapFlyTo(
+        map,
+        ll,
+        15,
+        { duration: 1.1 },
+        { source: `focus-stop:${stop?.id || stop?.name || "?"}` },
+      );
       window.safeInvalidateSmartBusMap?.(300);
-      setTimeout(() => { try { nearestStopMarker?.openPopup?.(); } catch {} }, 450);
+      setTimeout(() => {
+        try {
+          nearestStopMarker?.openPopup?.();
+        } catch {}
+      }, 450);
     } catch (err) {
       console.warn("[SmartBus] Không thể focus bến:", err?.message || err);
     }
@@ -1568,9 +2291,25 @@ const MapModule = (() => {
     else if (shouldFit) fitVisibleRoutes();
     drawStops();
   }
-  function invalidate() { map && setTimeout(() => map.invalidateSize(true), 150); }
+  function invalidate() {
+    map && setTimeout(() => map.invalidateSize(true), 150);
+  }
 
-  return { init, updateMarkers, drawStops, focusBus, redrawRoutes, invalidate, highlightRoute, clearRouteHighlight, clearTravelPlan, showTravelPlan, markUserLocation, focusStop, focusPlace };
+  return {
+    init,
+    updateMarkers,
+    drawStops,
+    focusBus,
+    redrawRoutes,
+    invalidate,
+    highlightRoute,
+    clearRouteHighlight,
+    clearTravelPlan,
+    showTravelPlan,
+    markUserLocation,
+    focusStop,
+    focusPlace,
+  };
 })();
 
 /* ----------------------------------------------------------
@@ -1580,14 +2319,23 @@ function safeInvalidateSmartBusMap(delay = 200) {
   setTimeout(() => {
     const liveMap = window.smartBusMap || window.map || null;
     if (liveMap && typeof liveMap.invalidateSize === "function") {
-      try { liveMap.invalidateSize(true); } catch (err) { console.warn("SmartBus map invalidate failed", err); }
+      try {
+        liveMap.invalidateSize(true);
+      } catch (err) {
+        console.warn("SmartBus map invalidate failed", err);
+      }
     }
   }, delay);
 }
 window.safeInvalidateSmartBusMap = safeInvalidateSmartBusMap;
 window.addEventListener("load", () => safeInvalidateSmartBusMap(350));
-window.addEventListener("resize", debounce(() => safeInvalidateSmartBusMap(250), 120));
-window.addEventListener("orientationchange", () => safeInvalidateSmartBusMap(550));
+window.addEventListener(
+  "resize",
+  debounce(() => safeInvalidateSmartBusMap(250), 120),
+);
+window.addEventListener("orientationchange", () =>
+  safeInvalidateSmartBusMap(550),
+);
 
 /* ----------------------------------------------------------
    11. FILTER HELPER – chia sẻ giữa map và list
@@ -1598,25 +2346,55 @@ function filterBus(bus) {
   const f = State.mapFilters;
   if (f.buses === "none") return false;
   if (f.buses === "active" && bus.status !== "active") return false;
-  if ((f.buses === "route" || f.routeId) && f.routeId && bus.routeId !== f.routeId) return false;
-  if ((f.buses === "province" || f.province) && f.province && route?.provinceCode !== f.province) return false;
+  if (
+    (f.buses === "route" || f.routeId) &&
+    f.routeId &&
+    bus.routeId !== f.routeId
+  )
+    return false;
+  if (
+    (f.buses === "province" || f.province) &&
+    f.province &&
+    route?.provinceCode !== f.province
+  )
+    return false;
   if (f.buses === "nearby") {
     if (!State.userLocation) return false;
-    const path = normalizePathPoints(getPath(bus.routeId), { source: `filter-bus:${bus.routeId}` });
-    const apiPoint = normalizeLatLng(bus, { source: `filter-bus-api:${bus.uid || bus.id || "?"}` });
-    const pos = apiPoint && (!path.length || distanceFromPathMeters(apiPoint, path) <= 2500)
-      ? apiPoint
-      : getPositionOnPath(path, bus.progress);
-    if (!pos || getDistanceMeters([State.userLocation.lat, State.userLocation.lng], pos) > 5000) return false;
+    const path = normalizePathPoints(getPath(bus.routeId), {
+      source: `filter-bus:${bus.routeId}`,
+    });
+    const apiPoint = normalizeLatLng(bus, {
+      source: `filter-bus-api:${bus.uid || bus.id || "?"}`,
+    });
+    const pos =
+      apiPoint &&
+      (!path.length || distanceFromPathMeters(apiPoint, path) <= 2500)
+        ? apiPoint
+        : getPositionOnPath(path, bus.progress);
+    if (
+      !pos ||
+      getDistanceMeters([State.userLocation.lat, State.userLocation.lng], pos) >
+        5000
+    )
+      return false;
   }
-  const matchCrowd = State.filterCrowding === "all" || bus.crowding === State.filterCrowding;
+  const matchCrowd =
+    State.filterCrowding === "all" || bus.crowding === State.filterCrowding;
   const matchSearch =
     !q ||
     String(bus.routeId).toLowerCase().includes(q) ||
-    String(route?.displayCode || "").toLowerCase().includes(q) ||
-    String(bus.plate || "").toLowerCase().includes(q) ||
-    String(route?.name || "").toLowerCase().includes(q) ||
-    String(route?.provinceName || "").toLowerCase().includes(q);
+    String(route?.displayCode || "")
+      .toLowerCase()
+      .includes(q) ||
+    String(bus.plate || "")
+      .toLowerCase()
+      .includes(q) ||
+    String(route?.name || "")
+      .toLowerCase()
+      .includes(q) ||
+    String(route?.provinceName || "")
+      .toLowerCase()
+      .includes(q);
   return matchCrowd && matchSearch;
 }
 
@@ -1827,7 +2605,9 @@ const BusTableUI = {
     if (routeSel) {
       const cur = routeSel.value;
       const province = provinceSel?.value || "";
-      const routes = ROUTES.filter((r) => !province || r.provinceCode === province);
+      const routes = ROUTES.filter(
+        (r) => !province || r.provinceCode === province,
+      );
       routeSel.innerHTML = `<option value="">Tất cả tuyến</option>${routes.map((r) => `<option value="${r.id}">Tuyến ${routeLabel(r)} · ${this._esc(r.name)}</option>`).join("")}`;
       if (routes.some((r) => r.id === cur)) routeSel.value = cur;
     }
@@ -1839,11 +2619,18 @@ const BusTableUI = {
     this.renderVehicleTable();
   },
   routeFilter() {
-    return { province: $("#bus-view-province")?.value || "", routeId: $("#bus-view-route")?.value || "" };
+    return {
+      province: $("#bus-view-province")?.value || "",
+      routeId: $("#bus-view-route")?.value || "",
+    };
   },
   visibleRoutes() {
     const f = this.routeFilter();
-    return ROUTES.filter((r) => (!f.province || r.provinceCode === f.province) && (!f.routeId || r.id === f.routeId));
+    return ROUTES.filter(
+      (r) =>
+        (!f.province || r.provinceCode === f.province) &&
+        (!f.routeId || r.id === f.routeId),
+    );
   },
   renderRouteCatalog() {
     const box = $("#route-catalog-list");
@@ -1851,11 +2638,21 @@ const BusTableUI = {
     if (!box) return;
     const routes = this.visibleRoutes();
     if (count) count.textContent = `${routes.length} tuyến`;
-    if (!routes.length) { box.innerHTML = `<div class="empty-state">Không có tuyến phù hợp bộ lọc.</div>`; return; }
-    box.innerHTML = routes.map((r) => {
-      const stopCount = LOCAL_STOPS.filter((s) => s.routeId === r.id || (s.routes || []).some((x) => x.id === r.id)).length || (r.path?.length || 0);
-      const buses = State.buses.filter((b) => b.routeId === r.id);
-      return `<article class="route-catalog-card" style="--route-color:${r.color}">
+    if (!routes.length) {
+      box.innerHTML = `<div class="empty-state">Không có tuyến phù hợp bộ lọc.</div>`;
+      return;
+    }
+    box.innerHTML = routes
+      .map((r) => {
+        const stopCount =
+          LOCAL_STOPS.filter(
+            (s) =>
+              s.routeId === r.id || (s.routes || []).some((x) => x.id === r.id),
+          ).length ||
+          r.path?.length ||
+          0;
+        const buses = State.buses.filter((b) => b.routeId === r.id);
+        return `<article class="route-catalog-card" style="--route-color:${r.color}">
         <div class="route-catalog-top"><span>Tuyến ${this._esc(routeLabel(r))}</span><b>${this._esc(r.provinceName || r.provinceCode || "")}</b></div>
         <h4>${this._esc(r.name)}</h4>
         <p>${this._esc(r.originName || "Điểm đầu")} → ${this._esc(r.destinationName || "Điểm cuối")}</p>
@@ -1869,10 +2666,26 @@ const BusTableUI = {
         </div>
         <div class="route-catalog-actions"><button type="button" class="btn-ghost" data-route-focus="${r.id}">Xem trên bản đồ</button><button type="button" class="btn-ghost" data-route-chat="${r.id}">Hỏi chatbot</button><button type="button" class="btn-ghost" data-route-fav="${r.id}">💚 Lưu tuyến</button></div>
       </article>`;
-    }).join("");
-    $$('[data-route-focus]').forEach((btn) => btn.addEventListener("click", () => { Nav.go("dashboard"); setTimeout(() => MapModule.highlightRoute(btn.dataset.routeFocus), 250); }));
-    $$('[data-route-chat]').forEach((btn) => btn.addEventListener("click", () => SmartBusAssistant.sendQuestion?.(`Tuyến ${btn.dataset.routeChat} đi đâu, giờ chạy thế nào?`)));
-    $$('[data-route-fav]').forEach((btn) => btn.addEventListener("click", () => TravelUI.toggleFavoriteRoute(btn.dataset.routeFav, true)));
+      })
+      .join("");
+    $$("[data-route-focus]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        Nav.go("dashboard");
+        setTimeout(() => MapModule.highlightRoute(btn.dataset.routeFocus), 250);
+      }),
+    );
+    $$("[data-route-chat]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        SmartBusAssistant.sendQuestion?.(
+          `Tuyến ${btn.dataset.routeChat} đi đâu, giờ chạy thế nào?`,
+        ),
+      ),
+    );
+    $$("[data-route-fav]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        TravelUI.toggleFavoriteRoute(btn.dataset.routeFav, true),
+      ),
+    );
   },
   renderVehicleTable() {
     const tbody = $("#bus-table-body");
@@ -1880,14 +2693,20 @@ const BusTableUI = {
     const f = this.routeFilter();
     const data = State.buses.filter(filterBus).filter((b) => {
       const route = routeById(b.routeId);
-      return (!f.province || route?.provinceCode === f.province) && (!f.routeId || b.routeId === f.routeId);
+      return (
+        (!f.province || route?.provinceCode === f.province) &&
+        (!f.routeId || b.routeId === f.routeId)
+      );
     });
     tbody.innerHTML = data
       .map((bus) => {
         const c = CROWDING[bus.crowding];
         const route = routeById(bus.routeId);
         const path = getPath(bus.routeId);
-        const pos = (Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng))) ? [Number(bus.lat), Number(bus.lng)] : getPositionOnPath(path, bus.progress) || [0, 0];
+        const pos =
+          Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng))
+            ? [Number(bus.lat), Number(bus.lng)]
+            : getPositionOnPath(path, bus.progress) || [0, 0];
         const isResting = bus.status === "resting";
         const restMins =
           isResting && bus.restUntil
@@ -1906,13 +2725,18 @@ const BusTableUI = {
       })
       .join("");
 
-    $$('[data-bus-row]').forEach((row) => {
+    $$("[data-bus-row]").forEach((row) => {
       row.addEventListener("click", () =>
         Events.emit("bus:select", row.dataset.busRow),
       );
     });
   },
-  _esc(v) { return String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); },
+  _esc(v) {
+    return String(v ?? "").replace(
+      /[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+    );
+  },
 };
 
 // 12e. ANALYTICS
@@ -1975,12 +2799,23 @@ const AnalyticsUI = {
         .filter(Boolean)
         .slice(0, 8)
         .map((a) => ({
-          title: a.description || a.title || a.label || a.actionType || a.text || "Hoạt động SmartBus",
+          title:
+            a.description ||
+            a.title ||
+            a.label ||
+            a.actionType ||
+            a.text ||
+            "Hoạt động SmartBus",
           time: a.createdAt || a.time || new Date().toISOString(),
           source,
         }));
       if (!clean.length) return false;
-      el.innerHTML = clean.map((a) => `<div class="tl-item"><div class="tl-dot" style="background:var(--teal)"></div><div class="tl-body"><div class="tl-title">${this._esc(a.title)}</div><div class="tl-time">${this._esc(this._formatTime(a.time))} · ${this._esc(a.source)}</div></div></div>`).join("");
+      el.innerHTML = clean
+        .map(
+          (a) =>
+            `<div class="tl-item"><div class="tl-dot" style="background:var(--teal)"></div><div class="tl-body"><div class="tl-title">${this._esc(a.title)}</div><div class="tl-time">${this._esc(this._formatTime(a.time))} · ${this._esc(a.source)}</div></div></div>`,
+        )
+        .join("");
       return true;
     };
 
@@ -1991,16 +2826,36 @@ const AnalyticsUI = {
       return;
     }
 
+    if (!TokenStore.getAccessToken()) {
+      const localRows = this._localActivityRows();
+      if (renderRows(localRows, "local")) return;
+      el.innerHTML = `<div class="txt3 small">Chua co hoat dong gan day.</div>`;
+      return;
+    }
+
     el.innerHTML = `<div class="txt3 small">Đang tải hoạt động gần đây từ backend...</div>`;
     try {
-      const rows = await API.get('/stats/recent-activities?limit=8', { skipAuth: true, timeoutMs: 25000, cacheTtlMs: 30000 });
-      const list = Array.isArray(rows) ? rows : (rows?.data || rows?.activities || []);
+      const canViewAll = Auth.isAdmin?.(State.user);
+      const rows = await API.get(`/stats/recent-activities?limit=8&mine=${canViewAll ? "false" : "true"}`, {
+        timeoutMs: 25000,
+        cacheTtlMs: 30000,
+      });
+      const list = Array.isArray(rows)
+        ? rows
+        : rows?.data || rows?.activities || [];
       if (renderRows(list, "Backend SQL Server")) {
-        this._cache.set(cacheKey, { rows: list, source: "Backend SQL Server", expiresAt: Date.now() + 30000 });
+        this._cache.set(cacheKey, {
+          rows: list,
+          source: "Backend SQL Server",
+          expiresAt: Date.now() + 30000,
+        });
         return;
       }
     } catch (err) {
-      console.warn("[SmartBus] Không tải được hoạt động gần đây từ backend, dùng cache/local:", err?.message || err);
+      console.warn(
+        "[SmartBus] Không tải được hoạt động gần đây từ backend, dùng cache/local:",
+        err?.message || err,
+      );
     }
 
     const localRows = this._localActivityRows();
@@ -2008,33 +2863,53 @@ const AnalyticsUI = {
     el.innerHTML = `<div class="txt3 small">Chưa có hoạt động gần đây. Khi bạn gửi báo cáo, chat, lưu địa điểm hoặc admin duyệt review, dữ liệu sẽ cập nhật tại đây.</div>`;
   },
 
-  _esc(v) { return String(v ?? "").replace(/[&<>\"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[c]); },
+  _esc(v) {
+    return String(v ?? "").replace(
+      /[&<>\"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[c],
+    );
+  },
 
   _formatTime(value) {
     if (!value) return "vừa xong";
     const date = value instanceof Date ? value : new Date(value);
     if (!Number.isFinite(date.getTime())) return String(value);
-    return date.toLocaleString('vi-VN');
+    return date.toLocaleString("vi-VN");
   },
 
   _localActivityRows() {
     const rows = [];
-    (State.activityLog || []).forEach((item) => rows.push({
-      description: item.text || item.description || "Hoạt động SmartBus",
-      createdAt: item.createdAt || item.time || new Date().toISOString(),
-    }));
+    (State.activityLog || []).forEach((item) =>
+      rows.push({
+        description: item.text || item.description || "Hoạt động SmartBus",
+        createdAt: item.createdAt || item.time || new Date().toISOString(),
+      }),
+    );
     try {
-      const reports = JSON.parse(localStorage.getItem("danabus_reports") || "[]");
-      reports.slice(0, 5).forEach((r) => rows.push({
-        description: `Báo cáo tuyến ${r.route || "?"}: ${CROWDING[r.crowding]?.label || r.crowding || "đã gửi"}`,
-        createdAt: r.createdAt || r.time || new Date().toISOString(),
-      }));
+      const reports = JSON.parse(
+        localStorage.getItem("danabus_reports") || "[]",
+      );
+      reports.slice(0, 5).forEach((r) =>
+        rows.push({
+          description: `Báo cáo tuyến ${r.route || "?"}: ${CROWDING[r.crowding]?.label || r.crowding || "đã gửi"}`,
+          createdAt: r.createdAt || r.time || new Date().toISOString(),
+        }),
+      );
     } catch {}
-    if (State.dataSource === "sql" && (State.buses?.length || State.stops?.length || ROUTES?.length)) {
-      rows.push({ description: `Đã đồng bộ ${ROUTES.length} tuyến, ${State.stops.length} bến và ${State.buses.length} xe từ backend`, createdAt: new Date().toISOString() });
+    if (
+      State.dataSource === "sql" &&
+      (State.buses?.length || State.stops?.length || ROUTES?.length)
+    ) {
+      rows.push({
+        description: `Đã đồng bộ ${ROUTES.length} tuyến, ${State.stops.length} bến và ${State.buses.length} xe từ backend`,
+        createdAt: new Date().toISOString(),
+      });
     }
     if (this._tourismPlaces?.length) {
-      rows.push({ description: `Đã tải ${this._tourismPlaces.length} địa điểm du lịch`, createdAt: new Date().toISOString() });
+      rows.push({
+        description: `Đã tải ${this._tourismPlaces.length} địa điểm du lịch`,
+        createdAt: new Date().toISOString(),
+      });
     }
     return rows.slice(0, 8);
   },
@@ -2112,7 +2987,8 @@ const SmartBusGeo = (() => {
       btn.disabled = isLoading;
       btn.classList.toggle("loading", isLoading);
       if (isLoading) {
-        if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent.trim();
+        if (!btn.dataset.originalText)
+          btn.dataset.originalText = btn.textContent.trim();
         btn.textContent = "Đang lấy vị trí...";
       } else if (btn.dataset.originalText) {
         btn.textContent = btn.dataset.originalText;
@@ -2122,20 +2998,36 @@ const SmartBusGeo = (() => {
   }
 
   function errorMessage(err) {
-    if (!err) return "Không lấy được GPS. Hãy bật định vị trên điện thoại và thử lại.";
-    if (err.code === 1) return "Bạn chưa cấp quyền vị trí. Hãy bấm biểu tượng ổ khóa trên thanh địa chỉ và bật Location cho trang SmartBus.";
-    if (err.code === 2) return "Không xác định được vị trí. Hãy bật GPS, kiểm tra mạng và thử lại.";
-    if (err.code === 3) return "Lấy vị trí quá lâu. Hãy bật GPS ngoài trời hoặc thử lại sau.";
+    if (!err)
+      return "Không lấy được GPS. Hãy bật định vị trên điện thoại và thử lại.";
+    if (err.code === 1)
+      return "Bạn chưa cấp quyền vị trí. Hãy bấm biểu tượng ổ khóa trên thanh địa chỉ và bật Location cho trang SmartBus.";
+    if (err.code === 2)
+      return "Không xác định được vị trí. Hãy bật GPS, kiểm tra mạng và thử lại.";
+    if (err.code === 3)
+      return "Lấy vị trí quá lâu. Hãy bật GPS ngoài trời hoặc thử lại sau.";
     return "Không lấy được GPS. Hãy bật định vị trên điện thoại và thử lại.";
   }
 
   function get(options = {}) {
-    const { showToast = true, timeoutMs = 15000, statusEl = null, buttons = [], allowCache = true, onSuccess = null } = options;
+    const {
+      showToast = true,
+      timeoutMs = 15000,
+      statusEl = null,
+      buttons = [],
+      allowCache = true,
+      onSuccess = null,
+    } = options;
     if (isRequesting) return Promise.resolve(lastPosition);
     if (allowCache && lastPosition) return Promise.resolve(lastPosition);
 
-    if (!window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
-      const msg = "GPS cần HTTPS. Vui lòng mở SmartBus bằng link GitHub Pages HTTPS.";
+    if (
+      !window.isSecureContext &&
+      location.hostname !== "localhost" &&
+      location.hostname !== "127.0.0.1"
+    ) {
+      const msg =
+        "GPS cần HTTPS. Vui lòng mở SmartBus bằng link GitHub Pages HTTPS.";
       if (statusEl) statusEl.textContent = msg;
       if (showToast) Toast.show(msg, "warning", 5200);
       return Promise.resolve(null);
@@ -2162,9 +3054,13 @@ const SmartBusGeo = (() => {
             lng: Number(pos.coords.longitude),
             accuracy: Number(pos.coords.accuracy || 0),
           };
-          const gpsPoint = normalizeLatLng(gps, { allowOutsideCentral: true, source: "gps-success" });
+          const gpsPoint = normalizeLatLng(gps, {
+            allowOutsideCentral: true,
+            source: "gps-success",
+          });
           if (!gpsPoint) {
-            const msg = "GPS trả về tọa độ không hợp lệ. Hãy bật định vị và thử lại.";
+            const msg =
+              "GPS trả về tọa độ không hợp lệ. Hãy bật định vị và thử lại.";
             if (statusEl) statusEl.textContent = msg;
             if (showToast) Toast.show(msg, "warning", 4200);
             resolve(null);
@@ -2173,13 +3069,24 @@ const SmartBusGeo = (() => {
           gps.lat = gpsPoint[0];
           gps.lng = gpsPoint[1];
           lastPosition = gps;
-          if (statusEl) statusEl.textContent = `Đã có GPS – độ chính xác khoảng ${Math.round(gps.accuracy || 0)}m`;
-          if (normalizeLatLng(gps, { allowOutsideCentral: true, source: "manual-gps" })) MapModule.markUserLocation?.(gps.lat ?? gps.latitude ?? gps.coords?.latitude, gps.lng ?? gps.longitude ?? gps.coords?.longitude);
+          if (statusEl)
+            statusEl.textContent = `Đã có GPS – độ chính xác khoảng ${Math.round(gps.accuracy || 0)}m`;
+          if (
+            normalizeLatLng(gps, {
+              allowOutsideCentral: true,
+              source: "manual-gps",
+            })
+          )
+            MapModule.markUserLocation?.(
+              gps.lat ?? gps.latitude ?? gps.coords?.latitude,
+              gps.lng ?? gps.longitude ?? gps.coords?.longitude,
+            );
           State.userLocation = gps;
           window.smartBusUserLocation = gps;
           window.safeInvalidateSmartBusMap?.(200);
           if (typeof onSuccess === "function") onSuccess(gps);
-          if (showToast) Toast.show("Đã lấy vị trí hiện tại của bạn.", "success", 2600);
+          if (showToast)
+            Toast.show("Đã lấy vị trí hiện tại của bạn.", "success", 2600);
           resolve(gps);
         },
         (err) => {
@@ -2209,16 +3116,36 @@ const SmartBusGeo = (() => {
   return { get, setLoading, requestFromUserAction };
 })();
 window.SmartBusGeo = SmartBusGeo;
-window.requestSmartBusGpsFromUserAction = (button = null, extra = {}) => SmartBusGeo.requestFromUserAction(button, extra);
+window.requestSmartBusGpsFromUserAction = (button = null, extra = {}) =>
+  SmartBusGeo.requestFromUserAction(button, extra);
 
 function bindSmartBusGpsButtons() {
-  const selectors = ["#gis-gps-btn", "#nearby-gps-btn", "#place-near-me", "#chat-gps-btn", "[data-location-button]", ".near-me-btn", ".gps-btn", ".location-btn", "#getLocationBtn"];
+  const selectors = [
+    "#gis-gps-btn",
+    "#nearby-gps-btn",
+    "#place-near-me",
+    "#chat-gps-btn",
+    "[data-location-button]",
+    ".near-me-btn",
+    ".gps-btn",
+    ".location-btn",
+    "#getLocationBtn",
+  ];
   $$(selectors.join(",")).forEach((btn) => {
     if (!btn || btn.dataset.smartbusGpsBound === "true") return;
     const text = (btn.textContent || "").toLowerCase();
-    const isLocationButton = btn.id === "gis-gps-btn" || btn.id === "nearby-gps-btn" || btn.id === "place-near-me" || btn.id === "chat-gps-btn" ||
-      btn.hasAttribute("data-location-button") || btn.classList.contains("near-me-btn") || btn.classList.contains("gps-btn") || btn.classList.contains("location-btn") ||
-      text.includes("lấy vị trí") || text.includes("bến gần tôi") || text.includes("vị trí của tôi");
+    const isLocationButton =
+      btn.id === "gis-gps-btn" ||
+      btn.id === "nearby-gps-btn" ||
+      btn.id === "place-near-me" ||
+      btn.id === "chat-gps-btn" ||
+      btn.hasAttribute("data-location-button") ||
+      btn.classList.contains("near-me-btn") ||
+      btn.classList.contains("gps-btn") ||
+      btn.classList.contains("location-btn") ||
+      text.includes("lấy vị trí") ||
+      text.includes("bến gần tôi") ||
+      text.includes("vị trí của tôi");
     if (!isLocationButton) return;
     btn.dataset.smartbusGpsBound = "true";
   });
@@ -2226,7 +3153,6 @@ function bindSmartBusGpsButtons() {
 document.addEventListener("DOMContentLoaded", bindSmartBusGpsButtons);
 setTimeout(bindSmartBusGpsButtons, 500);
 setTimeout(bindSmartBusGpsButtons, 1500);
-
 
 /* ----------------------------------------------------------
    13b. PUBLIC LANDING PAGE – tổng quan trước đăng nhập
@@ -2236,9 +3162,13 @@ const Landing = {
     ["#landing-login-btn", "#landing-login-cta"].forEach((sel) =>
       $(sel)?.addEventListener("click", () => Auth.openLogin()),
     );
-    $("#landing-register-btn")?.addEventListener("click", () => Auth.openRegister());
+    $("#landing-register-btn")?.addEventListener("click", () =>
+      Auth.openRegister(),
+    );
     $("#landing-find-route-cta")?.addEventListener("click", () => {
-      document.querySelector("#landing-routes")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document
+        .querySelector("#landing-routes")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
       $("#landing-route-search")?.focus();
     });
     $("#landing-nearest-stop-cta")?.addEventListener("click", async () => {
@@ -2249,15 +3179,28 @@ const Landing = {
     $("#landing-chatbot-cta")?.addEventListener("click", () => {
       SmartBusAssistant.open?.();
       const input = $("#chat-input");
-      if (input) input.placeholder = "Bạn muốn đi đâu? Ví dụ: Hội An, Mỹ Khê, Cầu Rồng...";
-      SmartBusAssistant.addBotHint?.("Bạn muốn đi đâu? Ví dụ: Hội An, Mỹ Khê, Cầu Rồng, Đại Nội Huế hoặc Lý Sơn.");
+      if (input)
+        input.placeholder =
+          "Bạn muốn đi đâu? Ví dụ: Hội An, Mỹ Khê, Cầu Rồng...";
+      SmartBusAssistant.addBotHint?.(
+        "Bạn muốn đi đâu? Ví dụ: Hội An, Mỹ Khê, Cầu Rồng, Đại Nội Huế hoặc Lý Sơn.",
+      );
     });
-    $("#landing-route-search")?.addEventListener("input", debounce(() => this.renderRoutes(), 180));
-    $("#landing-province-filter")?.addEventListener("change", () => this.renderRoutes());
-    $$("[data-landing-q]").forEach((btn) => btn.addEventListener("click", () => {
-      SmartBusAssistant.open?.();
-      SmartBusAssistant.sendQuestion?.(btn.dataset.landingQ || btn.textContent || "");
-    }));
+    $("#landing-route-search")?.addEventListener(
+      "input",
+      debounce(() => this.renderRoutes(), 180),
+    );
+    $("#landing-province-filter")?.addEventListener("change", () =>
+      this.renderRoutes(),
+    );
+    $$("[data-landing-q]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        SmartBusAssistant.open?.();
+        SmartBusAssistant.sendQuestion?.(
+          btn.dataset.landingQ || btn.textContent || "",
+        );
+      }),
+    );
     this.populateProvinceFilter();
     this.renderStats();
     this.renderRoutes();
@@ -2275,16 +3218,26 @@ const Landing = {
   populateProvinceFilter() {
     const sel = $("#landing-province-filter");
     if (!sel) return;
-    const provinces = [...new Map(ROUTES.map((r) => [r.provinceCode, r.provinceName])).entries()];
-    sel.innerHTML = `<option value="">Tất cả tỉnh/thành</option>` + provinces.map(([code, name]) => `<option value="${this._esc(code)}">${this._esc(name)}</option>`).join("");
+    const provinces = [
+      ...new Map(ROUTES.map((r) => [r.provinceCode, r.provinceName])).entries(),
+    ];
+    sel.innerHTML =
+      `<option value="">Tất cả tỉnh/thành</option>` +
+      provinces
+        .map(
+          ([code, name]) =>
+            `<option value="${this._esc(code)}">${this._esc(name)}</option>`,
+        )
+        .join("");
   },
   async renderStats() {
     const statBox = $(".landing-stats");
     statBox?.classList.add("is-loading");
-    const provinceCount = new Set([
-      ...LOCAL_TOURISM_PLACES.map((p) => p.provinceCode).filter(Boolean),
-      ...ROUTES.map((r) => r.provinceCode).filter(Boolean),
-    ]).size || CONFIG.PROVINCES.length;
+    const provinceCount =
+      new Set([
+        ...LOCAL_TOURISM_PLACES.map((p) => p.provinceCode).filter(Boolean),
+        ...ROUTES.map((r) => r.provinceCode).filter(Boolean),
+      ]).size || CONFIG.PROVINCES.length;
     const fallback = {
       totalRoutes: ROUTES.length,
       totalStops: LOCAL_STOPS.length,
@@ -2294,16 +3247,36 @@ const Landing = {
     };
     let stats = fallback;
     try {
-      const data = await API.get("/stats/overview", { skipAuth: true, skipRefresh: true });
+      const data = await API.get("/stats/overview", {
+        skipAuth: true,
+        skipRefresh: true,
+      });
       stats = { ...fallback, ...(data || {}) };
     } catch (_err) {
       // Giữ số liệu fallback từ dữ liệu local đã nạp, không làm trắng trang chủ.
     }
-    this._countTo("#landing-stat-routes", stats.totalRoutes ?? stats.routes ?? fallback.totalRoutes);
-    this._countTo("#landing-stat-stops", stats.totalStops ?? stats.stops ?? fallback.totalStops);
-    this._countTo("#landing-stat-places", stats.totalTourismPlaces ?? stats.tourismPlaces ?? fallback.totalTourismPlaces);
-    this._countTo("#landing-stat-provinces", stats.totalProvinces ?? stats.provinces ?? fallback.totalProvinces);
-    this._countTo("#landing-stat-reviews", stats.totalReviews ?? stats.reviews ?? fallback.totalReviews);
+    this._countTo(
+      "#landing-stat-routes",
+      stats.totalRoutes ?? stats.routes ?? fallback.totalRoutes,
+    );
+    this._countTo(
+      "#landing-stat-stops",
+      stats.totalStops ?? stats.stops ?? fallback.totalStops,
+    );
+    this._countTo(
+      "#landing-stat-places",
+      stats.totalTourismPlaces ??
+        stats.tourismPlaces ??
+        fallback.totalTourismPlaces,
+    );
+    this._countTo(
+      "#landing-stat-provinces",
+      stats.totalProvinces ?? stats.provinces ?? fallback.totalProvinces,
+    );
+    this._countTo(
+      "#landing-stat-reviews",
+      stats.totalReviews ?? stats.reviews ?? fallback.totalReviews,
+    );
     setTimeout(() => statBox?.classList.remove("is-loading"), 300);
   },
   _countTo(selector, value) {
@@ -2325,17 +3298,37 @@ const Landing = {
     const q = ($("#landing-route-search")?.value || "").trim().toLowerCase();
     const province = $("#landing-province-filter")?.value || "";
     const routes = ROUTES.filter((r) => {
-      const text = `${r.id} ${r.name} ${r.provinceName} ${r.originName || ""} ${r.destinationName || ""}`.toLowerCase();
-      return (!province || r.provinceCode === province) && (!q || text.includes(q));
+      const text =
+        `${r.id} ${r.name} ${r.provinceName} ${r.originName || ""} ${r.destinationName || ""}`.toLowerCase();
+      return (
+        (!province || r.provinceCode === province) && (!q || text.includes(q))
+      );
     });
     if (!routes.length) {
       box.innerHTML = `<div class="landing-empty landing-empty-strong"><span class="empty-icon">🔎</span><b>Chưa tìm thấy tuyến phù hợp với bộ lọc hiện tại.</b><span>Hãy thử nhập mã tuyến, tỉnh/thành hoặc điểm đầu/cuối khác.</span><button class="landing-btn ghost" type="button" id="landing-clear-route-filter">Xóa bộ lọc</button></div>`;
-      $("#landing-clear-route-filter")?.addEventListener("click", () => { const i=$("#landing-route-search"); const s=$("#landing-province-filter"); if (i) i.value=""; if (s) s.value=""; this.renderRoutes(); });
+      $("#landing-clear-route-filter")?.addEventListener("click", () => {
+        const i = $("#landing-route-search");
+        const s = $("#landing-province-filter");
+        if (i) i.value = "";
+        if (s) s.value = "";
+        this.renderRoutes();
+      });
       return;
     }
-    box.innerHTML = `<div class="landing-preview-note">💡 Bạn có thể xem trước tuyến cơ bản. Đăng nhập để xem bản đồ, lưu tuyến và nhận gợi ý cá nhân.</div>` + routes.slice(0, 12).map((r) => {
-      const stopCount = LOCAL_STOPS.filter((s) => s.routeId === r.id || (s.routes || []).some((x) => x.id === r.id)).length || (r.path?.length || 0);
-      return `<article class="landing-route-card" style="--route-color:${this._esc(r.color)}">
+    box.innerHTML =
+      `<div class="landing-preview-note">💡 Bạn có thể xem trước tuyến cơ bản. Đăng nhập để xem bản đồ, lưu tuyến và nhận gợi ý cá nhân.</div>` +
+      routes
+        .slice(0, 12)
+        .map((r) => {
+          const stopCount =
+            LOCAL_STOPS.filter(
+              (s) =>
+                s.routeId === r.id ||
+                (s.routes || []).some((x) => x.id === r.id),
+            ).length ||
+            r.path?.length ||
+            0;
+          return `<article class="landing-route-card" style="--route-color:${this._esc(r.color)}">
         <div class="route-chip">${this._esc(r.provinceName || r.provinceCode || "Miền Trung")}</div>
         <h3>Tuyến ${this._esc(routeLabel(r))}</h3>
         <p>${this._esc(r.originName || "Điểm đầu")} → ${this._esc(r.destinationName || "Điểm cuối")}</p>
@@ -2347,19 +3340,48 @@ const Landing = {
           <button class="landing-card-action" type="button" data-route-chat-landing="${this._esc(r.id)}">Hỏi chatbot</button>
         </div>
       </article>`;
-    }).join("");
-    $$('[data-route-login]').forEach((btn) => btn.addEventListener('click', () => Auth.openLogin(`Đăng nhập để xem tuyến ${btn.dataset.routeLogin} trên bản đồ đầy đủ.`)));
-    $$('[data-route-map]').forEach((btn) => btn.addEventListener('click', () => Auth.openLogin(`Đăng nhập để mở tuyến ${btn.dataset.routeMap} trên bản đồ và lưu tuyến yêu thích.`)));
-    $$('[data-route-chat-landing]').forEach((btn) => btn.addEventListener('click', () => { SmartBusAssistant.open?.(); SmartBusAssistant.sendQuestion?.(`Tuyến ${btn.dataset.routeChatLanding} đi đâu, giờ chạy thế nào?`); }));
+        })
+        .join("");
+    $$("[data-route-login]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        Auth.openLogin(
+          `Đăng nhập để xem tuyến ${btn.dataset.routeLogin} trên bản đồ đầy đủ.`,
+        ),
+      ),
+    );
+    $$("[data-route-map]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        Auth.openLogin(
+          `Đăng nhập để mở tuyến ${btn.dataset.routeMap} trên bản đồ và lưu tuyến yêu thích.`,
+        ),
+      ),
+    );
+    $$("[data-route-chat-landing]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        SmartBusAssistant.open?.();
+        SmartBusAssistant.sendQuestion?.(
+          `Tuyến ${btn.dataset.routeChatLanding} đi đâu, giờ chạy thế nào?`,
+        );
+      }),
+    );
   },
   renderPlaces() {
     const box = $("#landing-place-list");
     if (!box) return;
-    box.innerHTML = LOCAL_TOURISM_PLACES.slice(0, 8).map((p) => `<article class="landing-place-card">
+    box.innerHTML = LOCAL_TOURISM_PLACES.slice(0, 8)
+      .map(
+        (p) => `<article class="landing-place-card">
       <div class="place-pin">📍</div><div><h4>${this._esc(p.name)}</h4><p>${this._esc(p.provinceName)} · ${this._esc(p.category || "Du lịch")}</p><span>Gần: ${this._esc(p.nearestRouteCode || "đang cập nhật")}</span></div>
-    </article>`).join("");
+    </article>`,
+      )
+      .join("");
   },
-  _esc(v) { return String(v ?? "").replace(/[&<>\"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[c]); },
+  _esc(v) {
+    return String(v ?? "").replace(
+      /[&<>\"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[c],
+    );
+  },
 };
 
 /* ----------------------------------------------------------
@@ -2375,7 +3397,9 @@ const Auth = {
 
   isAdmin(user = State.user || TokenStore.getUser()) {
     const role = String(user?.role || "").toLowerCase();
-    const roles = Array.isArray(user?.roles) ? user.roles.map((r) => String(r).toLowerCase()) : [];
+    const roles = Array.isArray(user?.roles)
+      ? user.roles.map((r) => String(r).toLowerCase())
+      : [];
     return role === "admin" || roles.includes("admin");
   },
 
@@ -2385,8 +3409,10 @@ const Auth = {
 
   _syncRoleUI(user = State.user) {
     const isAdmin = this.isAdmin(user);
-    $$('[data-admin-only]').forEach((el) => el.classList.toggle('hidden', !isAdmin));
-    if (!isAdmin && $('.view.active')?.id === 'view-admin') Nav.go('dashboard');
+    $$("[data-admin-only]").forEach((el) =>
+      el.classList.toggle("hidden", !isAdmin),
+    );
+    if (!isAdmin && $(".view.active")?.id === "view-admin") Nav.go("dashboard");
   },
 
   bind() {
@@ -2398,7 +3424,9 @@ const Auth = {
     } catch {}
 
     $("#login-close")?.addEventListener("click", () => this.closeAuthPanel());
-    $("#switch-to-register")?.addEventListener("click", () => this.openRegister());
+    $("#switch-to-register")?.addEventListener("click", () =>
+      this.openRegister(),
+    );
     $("#switch-to-login")?.addEventListener("click", () => this.openLogin());
 
     const saved = this._loadSession();
@@ -2434,7 +3462,11 @@ const Auth = {
       if (btn) btn.disabled = true;
 
       try {
-        const data = await API.post("/auth/login", { email, password: pw }, { skipAuth: true, skipRefresh: true });
+        const data = await API.post(
+          "/auth/login",
+          { email, password: pw },
+          { skipAuth: true, skipRefresh: true },
+        );
         const user = this._normalizeUser(data.user || data);
         TokenStore.save({ ...data, user }, remember);
         this._loginSuccess(user);
@@ -2468,7 +3500,10 @@ const Auth = {
     const title = $("#auth-panel-title");
     const sub = $("#auth-panel-sub");
     if (title) title.textContent = "Đăng nhập";
-    if (sub) sub.textContent = message || "Đăng nhập để vào dashboard quản lý tuyến, bản đồ, review và dữ liệu cá nhân.";
+    if (sub)
+      sub.textContent =
+        message ||
+        "Đăng nhập để vào dashboard quản lý tuyến, bản đồ, review và dữ liệu cá nhân.";
   },
 
   openRegister() {
@@ -2478,7 +3513,9 @@ const Auth = {
     const title = $("#auth-panel-title");
     const sub = $("#auth-panel-sub");
     if (title) title.textContent = "Đăng ký tài khoản";
-    if (sub) sub.textContent = "Tạo tài khoản để lưu tuyến, địa điểm yêu thích, review và lịch sử chatbot.";
+    if (sub)
+      sub.textContent =
+        "Tạo tài khoản để lưu tuyến, địa điểm yêu thích, review và lịch sử chatbot.";
   },
 
   closeAuthPanel() {
@@ -2491,12 +3528,22 @@ const Auth = {
     const email = $("#reg-email")?.value.trim() || "";
     const password = $("#reg-pw")?.value || "";
     const btn = $("#register-btn");
-    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) { Toast.show("Email đăng ký không hợp lệ", "error"); return; }
-    if (password.length < 6) { Toast.show("Mật khẩu phải có tối thiểu 6 ký tự", "error"); return; }
+    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      Toast.show("Email đăng ký không hợp lệ", "error");
+      return;
+    }
+    if (password.length < 6) {
+      Toast.show("Mật khẩu phải có tối thiểu 6 ký tự", "error");
+      return;
+    }
     btn?.classList.add("loading");
     if (btn) btn.disabled = true;
     try {
-      const data = await API.post("/auth/register", { fullName, email, password }, { skipAuth: true, skipRefresh: true });
+      const data = await API.post(
+        "/auth/register",
+        { fullName, email, password },
+        { skipAuth: true, skipRefresh: true },
+      );
       const user = this._normalizeUser(data.user || data);
       TokenStore.save({ ...data, user }, true);
       this._loginSuccess(user);
@@ -2532,7 +3579,8 @@ const Auth = {
     if (el(".sb-urole")) el(".sb-urole").textContent = normalized.roleLabel;
     this._syncRoleUI(normalized);
     App.start();
-    if (!options.silent) Toast.show(`Chào mừng, ${normalized.name}! 🚌`, "success");
+    if (!options.silent)
+      Toast.show(`Chào mừng, ${normalized.name}! 🚌`, "success");
   },
 
   _handleLoginError(err) {
@@ -2590,7 +3638,8 @@ const Auth = {
   async logout() {
     const refreshToken = TokenStore.getRefreshToken();
     try {
-      if (refreshToken) await API.post("/auth/logout", { refreshToken }, { skipRefresh: true });
+      if (refreshToken)
+        await API.post("/auth/logout", { refreshToken }, { skipRefresh: true });
     } catch (_err) {}
     this.forceLogout("Đã đăng xuất", "info");
   },
@@ -2638,7 +3687,11 @@ const Nav = {
 
   go(view) {
     if (view === "admin" && !Auth.isAdmin()) {
-      Toast.show("Bạn không có quyền truy cập chức năng quản trị nội dung.", "warning", 3500);
+      Toast.show(
+        "Bạn không có quyền truy cập chức năng quản trị nội dung.",
+        "warning",
+        3500,
+      );
       view = "dashboard";
     }
     $$(".view").forEach((v) => v.classList.remove("active"));
@@ -2683,58 +3736,94 @@ const Nav = {
       this._toggleSidebar();
     });
     $("#overlay")?.addEventListener("click", () => this._closeSidebar());
-    $("#overlay")?.addEventListener("touchstart", () => this._closeSidebar(), { passive: true });
-    $("#sidebar")?.addEventListener("click", (event) => event.stopPropagation());
-    document.addEventListener("pointerdown", (event) => {
-      if (!document.body.classList.contains("sidebar-open")) return;
-      const sidebar = $("#sidebar");
-      const menuBtn = $("#menu-btn");
-      const target = event.target;
-      if (sidebar?.contains(target) || menuBtn?.contains(target)) return;
-      this._closeSidebar();
-    }, true);
+    $("#overlay")?.addEventListener("touchstart", () => this._closeSidebar(), {
+      passive: true,
+    });
+    $("#sidebar")?.addEventListener("click", (event) =>
+      event.stopPropagation(),
+    );
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (!document.body.classList.contains("sidebar-open")) return;
+        const sidebar = $("#sidebar");
+        const menuBtn = $("#menu-btn");
+        const target = event.target;
+        if (sidebar?.contains(target) || menuBtn?.contains(target)) return;
+        this._closeSidebar();
+      },
+      true,
+    );
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && document.body.classList.contains("sidebar-open")) this._closeSidebar();
+      if (
+        event.key === "Escape" &&
+        document.body.classList.contains("sidebar-open")
+      )
+        this._closeSidebar();
     });
     window.addEventListener("resize", () => {
       this._bindSidebarScroller();
-      if (window.innerWidth > 900 && document.body.classList.contains("sidebar-open")) this._closeSidebar();
+      if (
+        window.innerWidth > 900 &&
+        document.body.classList.contains("sidebar-open")
+      )
+        this._closeSidebar();
     });
     $("#logout-btn")?.addEventListener("click", () => Auth.logout());
   },
 
   _bindSidebarScroller() {
     const sidebar = $("#sidebar");
-    const scroller = $("#sidebar-scroll") || sidebar?.querySelector(".sb-scroll") || sidebar;
+    const scroller =
+      $("#sidebar-scroll") || sidebar?.querySelector(".sb-scroll") || sidebar;
     if (!sidebar || !scroller || scroller.dataset.scrollBound === "1") return;
     scroller.dataset.scrollBound = "1";
 
-    scroller.addEventListener("wheel", (event) => {
-      if (!document.body.classList.contains("sidebar-open")) return;
-      const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
-      if (max <= 1) return;
-      event.preventDefault();
-      event.stopPropagation();
-      scroller.scrollTop = Math.max(0, Math.min(max, scroller.scrollTop + event.deltaY));
-    }, { passive: false });
+    scroller.addEventListener(
+      "wheel",
+      (event) => {
+        if (!document.body.classList.contains("sidebar-open")) return;
+        const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+        if (max <= 1) return;
+        event.preventDefault();
+        event.stopPropagation();
+        scroller.scrollTop = Math.max(
+          0,
+          Math.min(max, scroller.scrollTop + event.deltaY),
+        );
+      },
+      { passive: false },
+    );
 
     let startY = 0;
     let startTop = 0;
-    scroller.addEventListener("touchstart", (event) => {
-      if (!event.touches?.length) return;
-      startY = event.touches[0].clientY;
-      startTop = scroller.scrollTop;
-    }, { passive: true });
+    scroller.addEventListener(
+      "touchstart",
+      (event) => {
+        if (!event.touches?.length) return;
+        startY = event.touches[0].clientY;
+        startTop = scroller.scrollTop;
+      },
+      { passive: true },
+    );
 
-    scroller.addEventListener("touchmove", (event) => {
-      if (!document.body.classList.contains("sidebar-open") || !event.touches?.length) return;
-      const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
-      if (max <= 1) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const delta = startY - event.touches[0].clientY;
-      scroller.scrollTop = Math.max(0, Math.min(max, startTop + delta));
-    }, { passive: false });
+    scroller.addEventListener(
+      "touchmove",
+      (event) => {
+        if (
+          !document.body.classList.contains("sidebar-open") ||
+          !event.touches?.length
+        )
+          return;
+        const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+        if (max <= 1) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const delta = startY - event.touches[0].clientY;
+        scroller.scrollTop = Math.max(0, Math.min(max, startTop + delta));
+      },
+      { passive: false },
+    );
   },
 
   _closeChatbotForMenu() {
@@ -2743,7 +3832,11 @@ const Nav = {
   },
 
   _toggleSidebar() {
-    if (document.body.classList.contains("sidebar-open") || $("#sidebar")?.classList.contains("open")) this._closeSidebar();
+    if (
+      document.body.classList.contains("sidebar-open") ||
+      $("#sidebar")?.classList.contains("open")
+    )
+      this._closeSidebar();
     else this._openSidebar();
   },
 
@@ -2802,7 +3895,8 @@ const ReportForm = {
     sel.innerHTML =
       `<option value="">-- Chọn tuyến --</option>` +
       ROUTES.map(
-        (r) => `<option value="${r.id}">Tuyến ${routeLabel(r)} – ${r.name}</option>`,
+        (r) =>
+          `<option value="${r.id}">Tuyến ${routeLabel(r)} – ${r.name}</option>`,
       ).join("");
   },
 
@@ -2911,7 +4005,10 @@ const ReportForm = {
 ---------------------------------------------------------- */
 const SearchFilter = {
   bind() {
-    const refresh = () => { this._refresh(); window.safeInvalidateSmartBusMap?.(180); };
+    const refresh = () => {
+      this._refresh();
+      window.safeInvalidateSmartBusMap?.(180);
+    };
 
     $("#search-inp")?.addEventListener("input", (e) => {
       State.searchQuery = e.target.value.trim();
@@ -2932,8 +4029,13 @@ const SearchFilter = {
       State.mapFilters.province = province;
       State.mapFilters.routeId = "";
       State.mapFilters.routes = "all";
-      const routeMode = $("#gis-route-mode"); if (routeMode) routeMode.value = "all";
-      Toast.show(`Đang tải dữ liệu ${provinceMeta(province).name}...`, "info", 1200);
+      const routeMode = $("#gis-route-mode");
+      if (routeMode) routeMode.value = "all";
+      Toast.show(
+        `Đang tải dữ liệu ${provinceMeta(province).name}...`,
+        "info",
+        1200,
+      );
       await DynamicData.load(province);
       const meta = provinceMeta(province);
       MapModule.invalidate();
@@ -2946,7 +4048,8 @@ const SearchFilter = {
 
     $("#gis-route-filter")?.addEventListener("change", (e) => {
       State.mapFilters.routeId = e.target.value;
-      if (State.mapFilters.routeId && State.mapFilters.routes === "selected") MapModule.highlightRoute(State.mapFilters.routeId);
+      if (State.mapFilters.routeId && State.mapFilters.routes === "selected")
+        MapModule.highlightRoute(State.mapFilters.routeId);
       else MapModule.redrawRoutes();
       startRoadGeometryLoader();
       refresh();
@@ -2962,9 +4065,15 @@ const SearchFilter = {
 
     $("#gis-route-mode")?.addEventListener("change", (e) => {
       State.mapFilters.routes = e.target.value || "all";
-      if (State.mapFilters.routes === "selected" && State.mapFilters.routeId) MapModule.highlightRoute(State.mapFilters.routeId);
-      else if (State.mapFilters.routes === "selected" && !State.mapFilters.routeId) { Toast.show("Vui lòng chọn một tuyến để hiển thị", "warning", 3000); MapModule.redrawRoutes(); }
-      else MapModule.redrawRoutes();
+      if (State.mapFilters.routes === "selected" && State.mapFilters.routeId)
+        MapModule.highlightRoute(State.mapFilters.routeId);
+      else if (
+        State.mapFilters.routes === "selected" &&
+        !State.mapFilters.routeId
+      ) {
+        Toast.show("Vui lòng chọn một tuyến để hiển thị", "warning", 3000);
+        MapModule.redrawRoutes();
+      } else MapModule.redrawRoutes();
       refresh();
     });
 
@@ -2977,7 +4086,13 @@ const SearchFilter = {
       State.mapFilters.labels = e.target.checked;
       State.mapFilters.showStopLabels = e.target.checked;
       MapModule.drawStops();
-      Toast.show(e.target.checked ? "Đã bật tên bến khi zoom gần" : "Đã ẩn toàn bộ tên bến", "info", 1800);
+      Toast.show(
+        e.target.checked
+          ? "Đã bật tên bến khi zoom gần"
+          : "Đã ẩn toàn bộ tên bến",
+        "info",
+        1800,
+      );
     });
 
     $("#gis-gps-btn")?.addEventListener("click", async (event) => {
@@ -2991,10 +4106,23 @@ const SearchFilter = {
         onSuccess: () => refresh(),
       });
       if (!gps) {
-        Toast.show("Không lấy được GPS. Hãy bật quyền Location cho trình duyệt rồi thử lại.", "warning", 4500);
+        Toast.show(
+          "Không lấy được GPS. Hãy bật quyền Location cho trình duyệt rồi thử lại.",
+          "warning",
+          4500,
+        );
         return;
       }
-      if (normalizeLatLng(gps, { allowOutsideCentral: true, source: "manual-gps" })) MapModule.markUserLocation?.(gps.lat ?? gps.latitude ?? gps.coords?.latitude, gps.lng ?? gps.longitude ?? gps.coords?.longitude);
+      if (
+        normalizeLatLng(gps, {
+          allowOutsideCentral: true,
+          source: "manual-gps",
+        })
+      )
+        MapModule.markUserLocation?.(
+          gps.lat ?? gps.latitude ?? gps.coords?.latitude,
+          gps.lng ?? gps.longitude ?? gps.coords?.longitude,
+        );
       window.safeInvalidateSmartBusMap?.(300);
     });
 
@@ -3042,15 +4170,27 @@ const TravelUI = {
   _populateRouteFilter() {
     const sel = $("#place-route");
     if (!sel) return;
-    sel.innerHTML = `<option value="">Mọi tuyến bus</option>` + ROUTES.map((r) => `<option value="${r.id}">Tuyến ${routeLabel(r)} – ${this._esc(r.name)}</option>`).join("");
+    sel.innerHTML =
+      `<option value="">Mọi tuyến bus</option>` +
+      ROUTES.map(
+        (r) =>
+          `<option value="${r.id}">Tuyến ${routeLabel(r)} – ${this._esc(r.name)}</option>`,
+      ).join("");
   },
 
   _bindTourism() {
-    ["#place-search", "#place-province", "#place-category", "#place-route"].forEach((id) => {
+    [
+      "#place-search",
+      "#place-province",
+      "#place-category",
+      "#place-route",
+    ].forEach((id) => {
       const el = $(id);
       if (!el || el.dataset.bound) return;
       el.dataset.bound = "1";
-      el.addEventListener(id === "#place-search" ? "input" : "change", () => this._debouncedPlaces());
+      el.addEventListener(id === "#place-search" ? "input" : "change", () =>
+        this._debouncedPlaces(),
+      );
     });
     const nearBtn = $("#place-near-me");
     if (nearBtn && !nearBtn.dataset.bound) {
@@ -3063,7 +4203,11 @@ const TravelUI = {
           State.userLocation = { lat: safeGps.lat, lng: safeGps.lng };
         } else {
           this.gps = null;
-          Toast.show("Không lấy được GPS hợp lệ. SmartBus vẫn hiển thị địa điểm theo dữ liệu local.", "warning", 3500);
+          Toast.show(
+            "Không lấy được GPS hợp lệ. SmartBus vẫn hiển thị địa điểm theo dữ liệu local.",
+            "warning",
+            3500,
+          );
         }
         this.renderPlaces();
       });
@@ -3098,7 +4242,10 @@ const TravelUI = {
     }
     ["#community-province", "#community-category"].forEach((id) => {
       const el = $(id);
-      if (el && !el.dataset.bound) { el.dataset.bound = "1"; el.addEventListener("change", () => this.renderCommunity()); }
+      if (el && !el.dataset.bound) {
+        el.dataset.bound = "1";
+        el.addEventListener("change", () => this.renderCommunity());
+      }
     });
     const form = $("#community-review-form");
     if (form && !form.dataset.bound) {
@@ -3107,8 +4254,13 @@ const TravelUI = {
     }
   },
 
-  _debouncedPlaces: debounce(function () { TravelUI._placesLoaded = false; TravelUI.renderPlaces(); }, 450),
-  _debouncedCommunity: debounce(function () { TravelUI.renderCommunity(); }, 450),
+  _debouncedPlaces: debounce(function () {
+    TravelUI._placesLoaded = false;
+    TravelUI.renderPlaces();
+  }, 450),
+  _debouncedCommunity: debounce(function () {
+    TravelUI.renderCommunity();
+  }, 450),
 
   async _getGps(showToast = false, allowCache = true) {
     if (allowCache && this.gps) return this.gps;
@@ -3124,26 +4276,42 @@ const TravelUI = {
   },
 
   _defaultNearbyGps() {
-    return { lat: 16.0544, lng: 108.2022, accuracy: null, isFallback: true, label: "Trung tâm Đà Nẵng" };
+    return {
+      lat: 16.0544,
+      lng: 108.2022,
+      accuracy: null,
+      isFallback: true,
+      label: "Trung tâm Đà Nẵng",
+    };
   },
 
   _safeNearbyGps(gps) {
     const candidate = gps?.coords
-      ? { lat: gps.coords.latitude, lng: gps.coords.longitude, accuracy: gps.coords.accuracy }
+      ? {
+          lat: gps.coords.latitude,
+          lng: gps.coords.longitude,
+          accuracy: gps.coords.accuracy,
+        }
       : gps;
-    const ll = normalizeLatLng(candidate, { allowOutsideCentral: true, source: "nearby-user-gps" });
+    const ll = normalizeLatLng(candidate, {
+      allowOutsideCentral: true,
+      source: "nearby-user-gps",
+    });
     if (!ll) return null;
     return {
       ...(typeof candidate === "object" && candidate ? candidate : {}),
       lat: Number(ll[0]),
       lng: Number(ll[1]),
-      accuracy: candidate?.accuracy ?? gps?.accuracy ?? gps?.coords?.accuracy ?? null,
+      accuracy:
+        candidate?.accuracy ?? gps?.accuracy ?? gps?.coords?.accuracy ?? null,
       isFallback: Boolean(candidate?.isFallback || gps?.isFallback),
     };
   },
 
   _normalizeNearbyStop(stop, gps, index = 0) {
-    const ll = normalizeLatLng(stop, { source: `nearby-local:${stop?.id || stop?.externalStopCode || index}` });
+    const ll = normalizeLatLng(stop, {
+      source: `nearby-local:${stop?.id || stop?.externalStopCode || index}`,
+    });
     if (!ll) return null;
     const safeGps = this._safeNearbyGps(gps) || this._defaultNearbyGps();
     const distanceMeters = Number.isFinite(Number(stop.distanceMeters))
@@ -3155,14 +4323,22 @@ const TravelUI = {
     return {
       ...stop,
       id: stop.id || stop.externalStopCode || `local-stop-${index + 1}`,
-      code: stop.code || stop.externalStopCode || stop.id || `STOP-${index + 1}`,
-      name: stop.name || 'Bến xe buýt',
-      address: stop.address || stop.nearbyLandmark || stop.provinceName || '',
-      province: stop.province || stop.provinceName || '',
-      provinceName: stop.provinceName || stop.province || '',
-      provinceCode: stop.provinceCode || stop.province_code || '',
-      routeId: stop.routeId || primaryRoute?.id || primaryRoute?.routeCode || null,
-      routeCode: stop.routeCode || stop.routeDisplayCode || primaryRoute?.displayCode || primaryRoute?.routeCode || primaryRoute?.id || null,
+      code:
+        stop.code || stop.externalStopCode || stop.id || `STOP-${index + 1}`,
+      name: stop.name || "Bến xe buýt",
+      address: stop.address || stop.nearbyLandmark || stop.provinceName || "",
+      province: stop.province || stop.provinceName || "",
+      provinceName: stop.provinceName || stop.province || "",
+      provinceCode: stop.provinceCode || stop.province_code || "",
+      routeId:
+        stop.routeId || primaryRoute?.id || primaryRoute?.routeCode || null,
+      routeCode:
+        stop.routeCode ||
+        stop.routeDisplayCode ||
+        primaryRoute?.displayCode ||
+        primaryRoute?.routeCode ||
+        primaryRoute?.id ||
+        null,
       routeName: stop.routeName || primaryRoute?.name || null,
       routes,
       lat: ll[0],
@@ -3171,7 +4347,8 @@ const TravelUI = {
       longitude: ll[1],
       distanceMeters,
       distanceKm: Number((distanceMeters / 1000).toFixed(2)),
-      walkingMinutes: stop.walkingMinutes || Math.max(1, Math.ceil(distanceMeters / 75)),
+      walkingMinutes:
+        stop.walkingMinutes || Math.max(1, Math.ceil(distanceMeters / 75)),
     };
   },
 
@@ -3187,17 +4364,21 @@ const TravelUI = {
     try {
       if (!this._nearbyStaticStops) {
         const candidates = [
-          '/SmartBus-Travel/data/import/smartbus-bus-data.normalized.json',
-          './data/import/smartbus-bus-data.normalized.json',
-          'data/import/smartbus-bus-data.normalized.json',
-          '../data/import/smartbus-bus-data.normalized.json',
-          '../backend-api/data/import/smartbus-bus-data.normalized.json',
+          "/SmartBus-Travel/data/import/smartbus-bus-data.normalized.json",
+          "./data/import/smartbus-bus-data.normalized.json",
+          "data/import/smartbus-bus-data.normalized.json",
+          "../data/import/smartbus-bus-data.normalized.json",
+          "../backend-api/data/import/smartbus-bus-data.normalized.json",
         ];
         let payload = null;
         let lastError = null;
         for (const url of candidates) {
           try {
-            const res = await fetchWithTimeout(url, { cache: 'force-cache' }, 6000);
+            const res = await fetchWithTimeout(
+              url,
+              { cache: "force-cache" },
+              6000,
+            );
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             payload = await res.json();
             break;
@@ -3207,32 +4388,59 @@ const TravelUI = {
           }
         }
         if (!payload) {
-          console.warn('[SmartBus] Không đọc được JSON tĩnh:', lastError?.message || lastError);
+          console.warn(
+            "[SmartBus] Không đọc được JSON tĩnh:",
+            lastError?.message || lastError,
+          );
           return [];
         }
         const routes = Array.isArray(payload.routes) ? payload.routes : [];
-        const routeStops = Array.isArray(payload.routeStops) ? payload.routeStops : [];
+        const routeStops = Array.isArray(payload.routeStops)
+          ? payload.routeStops
+          : [];
         const stops = Array.isArray(payload.stops) ? payload.stops : [];
-        const routeByCode = new Map(routes.map((route) => [String(route.routeCode || route.id || route.displayCode || '').trim(), route]));
+        const routeByCode = new Map(
+          routes.map((route) => [
+            String(
+              route.routeCode || route.id || route.displayCode || "",
+            ).trim(),
+            route,
+          ]),
+        );
         const routesByStop = new Map();
         routeStops.forEach((item) => {
-          const stopKey = String(item.externalStopCode || item.stopCode || item.stopId || item.stopName || '').trim();
-          const routeCode = String(item.routeCode || item.routeNumber || item.routeId || '').trim();
+          const stopKey = String(
+            item.externalStopCode ||
+              item.stopCode ||
+              item.stopId ||
+              item.stopName ||
+              "",
+          ).trim();
+          const routeCode = String(
+            item.routeCode || item.routeNumber || item.routeId || "",
+          ).trim();
           if (!stopKey || !routeCode) return;
-          const route = routeByCode.get(routeCode) || { routeCode, displayCode: routeCode, name: routeCode };
+          const route = routeByCode.get(routeCode) || {
+            routeCode,
+            displayCode: routeCode,
+            name: routeCode,
+          };
           const value = {
             id: route.routeCode || route.id || routeCode,
             routeCode: route.routeCode || routeCode,
             displayCode: route.displayCode || route.routeNumber || routeCode,
             name: route.name || routeCode,
-            color: route.color || '#2563eb',
+            color: route.color || "#2563eb",
           };
           const list = routesByStop.get(stopKey) || [];
-          if (!list.some((r) => String(r.id) === String(value.id))) list.push(value);
+          if (!list.some((r) => String(r.id) === String(value.id)))
+            list.push(value);
           routesByStop.set(stopKey, list);
         });
         this._nearbyStaticStops = stops.map((stop, index) => {
-          const stopKey = String(stop.externalStopCode || stop.id || stop.name || '').trim();
+          const stopKey = String(
+            stop.externalStopCode || stop.id || stop.name || "",
+          ).trim();
           const linkedRoutes = routesByStop.get(stopKey) || [];
           const firstRoute = linkedRoutes[0] || null;
           return {
@@ -3243,7 +4451,7 @@ const TravelUI = {
             routeCode: firstRoute?.displayCode || firstRoute?.routeCode || null,
             routeName: firstRoute?.name || null,
             routes: linkedRoutes,
-            province: stop.provinceName || stop.province || '',
+            province: stop.provinceName || stop.province || "",
             latitude: stop.lat ?? stop.latitude,
             longitude: stop.lng ?? stop.longitude,
           };
@@ -3255,7 +4463,7 @@ const TravelUI = {
         .sort((a, b) => a.distanceMeters - b.distanceMeters)
         .slice(0, limit);
     } catch (err) {
-      console.warn('Không thể xử lý dữ liệu bến local dự phòng:', err);
+      console.warn("Không thể xử lý dữ liệu bến local dự phòng:", err);
       return [];
     }
   },
@@ -3267,34 +4475,44 @@ const TravelUI = {
     try {
       const rows = await API.get(
         `/stops/nearby?lat=${encodeURIComponent(safeGps.lat)}&lng=${encodeURIComponent(safeGps.lng)}&limit=${limit}`,
-        { timeoutMs: 25000, skipAuth: true }
+        { timeoutMs: 25000, skipAuth: true },
       );
 
-      const stops = Array.isArray(rows) ? rows : (rows.nearestStops || rows.data || []);
+      const stops = Array.isArray(rows)
+        ? rows
+        : rows.nearestStops || rows.data || [];
       const normalized = stops
         .map((stop, i) => this._normalizeNearbyStop(stop, safeGps, i))
         .filter(Boolean);
       if (normalized.length) {
-        return { stops: normalized, source: 'Backend SQL Server' };
+        return { stops: normalized, source: "Backend SQL Server" };
       }
     } catch (err) {
-      console.warn('[SmartBus] API /stops/nearby fail, thử dữ liệu local:', err?.message || err);
+      console.warn(
+        "[SmartBus] API /stops/nearby fail, thử dữ liệu local:",
+        err?.message || err,
+      );
     }
 
     // Tầng 2: Dữ liệu bến đã load trong State.stops
     try {
       const loaded = this._nearbyFromLoadedMapData(safeGps, limit);
-      if (loaded.length) return { stops: loaded, source: 'Dữ liệu bản đồ đã tải' };
+      if (loaded.length)
+        return { stops: loaded, source: "Dữ liệu bản đồ đã tải" };
     } catch (err) {
-      console.warn('[SmartBus] State.stops fallback fail:', err?.message || err);
+      console.warn(
+        "[SmartBus] State.stops fallback fail:",
+        err?.message || err,
+      );
     }
 
     // Tầng 3: Fetch file JSON tĩnh, không cho lỗi JSON làm chết UI
     try {
       const local = await this._nearbyFromStaticBusJson(safeGps, limit);
-      if (local.length) return { stops: local, source: 'Dữ liệu bến local (243 bến)' };
+      if (local.length)
+        return { stops: local, source: "Dữ liệu bến local (243 bến)" };
     } catch (err) {
-      console.warn('[SmartBus] Fetch JSON tĩnh fail:', err?.message || err);
+      console.warn("[SmartBus] Fetch JSON tĩnh fail:", err?.message || err);
     }
 
     // Tầng 4: Hardcoded fallback — 20 bến Đà Nẵng nhúng thẳng vào code
@@ -3306,44 +4524,205 @@ const TravelUI = {
           .filter(Boolean)
           .sort((a, b) => a.distanceMeters - b.distanceMeters)
           .slice(0, limit);
-        if (sorted.length) return { stops: sorted, source: 'Dữ liệu bến Đà Nẵng (offline)' };
+        if (sorted.length)
+          return { stops: sorted, source: "Dữ liệu bến Đà Nẵng (offline)" };
       }
     } catch (err) {
-      console.warn('[SmartBus] Hardcoded fallback fail:', err?.message || err);
+      console.warn("[SmartBus] Hardcoded fallback fail:", err?.message || err);
     }
 
-    return { stops: [], source: 'Không tìm thấy dữ liệu bến' };
+    return { stops: [], source: "Không tìm thấy dữ liệu bến" };
   },
 
   _getHardcodedStops() {
-  return [
-    { id: 'DN_BEN_XE_TRUNG_TAM', name: 'Bến xe Trung tâm Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0739, lng: 108.1537, address: 'Bến xe Trung tâm Đà Nẵng' },
-    { id: 'DN_NAM_TRAN', name: 'Nam Trân', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0750, lng: 108.1700, address: 'Nam Trân, Đà Nẵng' },
-    { id: 'DN_LY_THAI_TONG', name: 'Lý Thái Tông Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0840, lng: 108.1700, address: 'Lý Thái Tông, Đà Nẵng' },
-    { id: 'DN_CAU_THUAN_PHUOC', name: 'Cầu Thuận Phước', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0910, lng: 108.2240, address: 'Cầu Thuận Phước, Đà Nẵng' },
-    { id: 'DN_HOANG_SA', name: 'Hoàng Sa', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0980, lng: 108.2590, address: 'Hoàng Sa, Đà Nẵng' },
-    { id: 'DN_MY_KHE', name: 'Bãi biển Mỹ Khê', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0670, lng: 108.2470, address: 'Mỹ Khê, Đà Nẵng' },
-    { id: 'DN_CAU_RONG', name: 'Cầu Rồng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0610, lng: 108.2280, address: 'Cầu Rồng, Đà Nẵng' },
-    { id: 'DN_NGU_HANH_SON', name: 'Ngũ Hành Sơn', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0030, lng: 108.2630, address: 'Ngũ Hành Sơn, Đà Nẵng' },
-    { id: 'DN_SON_TRA', name: 'Bán đảo Sơn Trà', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.1050, lng: 108.2680, address: 'Sơn Trà, Đà Nẵng' },
-    { id: 'DN_HOI_AN_BUS', name: 'Bến xe Hội An', provinceCode: 'QN_CU', provinceName: 'Hội An', lat: 15.8750, lng: 108.3300, address: 'Bến xe Hội An, Quảng Nam' },
-    { id: 'DN_AIRPORT', name: 'Sân bay Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0440, lng: 108.1990, address: 'Sân bay Quốc tế Đà Nẵng' },
-    { id: 'DN_CHO_CON', name: 'Chợ Cồn', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0680, lng: 108.2200, address: 'Chợ Cồn, Đà Nẵng' },
-    { id: 'DN_BACH_DANG', name: 'Bạch Đằng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0670, lng: 108.2250, address: 'Đường Bạch Đằng, Đà Nẵng' },
-    { id: 'DN_HAI_CHAU', name: 'Hải Châu', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0600, lng: 108.2180, address: 'Quận Hải Châu, Đà Nẵng' },
-    { id: 'DN_THANH_KHE', name: 'Thanh Khê', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0800, lng: 108.1900, address: 'Quận Thanh Khê, Đà Nẵng' },
-    { id: 'DN_CAM_LE', name: 'Cẩm Lệ', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0200, lng: 108.2050, address: 'Quận Cẩm Lệ, Đà Nẵng' },
-    { id: 'DN_LIEN_CHIEU', name: 'Liên Chiểu', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.1200, lng: 108.1600, address: 'Quận Liên Chiểu, Đà Nẵng' },
-    { id: 'DN_HOA_VANG', name: 'Hòa Vang', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 15.9800, lng: 108.1400, address: 'Huyện Hòa Vang, Đà Nẵng' },
-    { id: 'DN_VINCOM', name: 'Vincom Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0550, lng: 108.2100, address: 'Vincom Center Đà Nẵng' },
-    { id: 'DN_BIG_C', name: 'Big C Đà Nẵng', provinceCode: 'DN', provinceName: 'Đà Nẵng', lat: 16.0580, lng: 108.2020, address: 'Big C Đà Nẵng' }
-  ];
-},
+    return [
+      {
+        id: "DN_BEN_XE_TRUNG_TAM",
+        name: "Bến xe Trung tâm Đà Nẵng",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.0739,
+        lng: 108.1537,
+        address: "Bến xe Trung tâm Đà Nẵng",
+      },
+      {
+        id: "DN_NAM_TRAN",
+        name: "Nam Trân",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.075,
+        lng: 108.17,
+        address: "Nam Trân, Đà Nẵng",
+      },
+      {
+        id: "DN_LY_THAI_TONG",
+        name: "Lý Thái Tông Đà Nẵng",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.084,
+        lng: 108.17,
+        address: "Lý Thái Tông, Đà Nẵng",
+      },
+      {
+        id: "DN_CAU_THUAN_PHUOC",
+        name: "Cầu Thuận Phước",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.091,
+        lng: 108.224,
+        address: "Cầu Thuận Phước, Đà Nẵng",
+      },
+      {
+        id: "DN_HOANG_SA",
+        name: "Hoàng Sa",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.098,
+        lng: 108.259,
+        address: "Hoàng Sa, Đà Nẵng",
+      },
+      {
+        id: "DN_MY_KHE",
+        name: "Bãi biển Mỹ Khê",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.067,
+        lng: 108.247,
+        address: "Mỹ Khê, Đà Nẵng",
+      },
+      {
+        id: "DN_CAU_RONG",
+        name: "Cầu Rồng",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.061,
+        lng: 108.228,
+        address: "Cầu Rồng, Đà Nẵng",
+      },
+      {
+        id: "DN_NGU_HANH_SON",
+        name: "Ngũ Hành Sơn",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.003,
+        lng: 108.263,
+        address: "Ngũ Hành Sơn, Đà Nẵng",
+      },
+      {
+        id: "DN_SON_TRA",
+        name: "Bán đảo Sơn Trà",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.105,
+        lng: 108.268,
+        address: "Sơn Trà, Đà Nẵng",
+      },
+      {
+        id: "DN_HOI_AN_BUS",
+        name: "Bến xe Hội An",
+        provinceCode: "QN_CU",
+        provinceName: "Hội An",
+        lat: 15.875,
+        lng: 108.33,
+        address: "Bến xe Hội An, Quảng Nam",
+      },
+      {
+        id: "DN_AIRPORT",
+        name: "Sân bay Đà Nẵng",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.044,
+        lng: 108.199,
+        address: "Sân bay Quốc tế Đà Nẵng",
+      },
+      {
+        id: "DN_CHO_CON",
+        name: "Chợ Cồn",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.068,
+        lng: 108.22,
+        address: "Chợ Cồn, Đà Nẵng",
+      },
+      {
+        id: "DN_BACH_DANG",
+        name: "Bạch Đằng",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.067,
+        lng: 108.225,
+        address: "Đường Bạch Đằng, Đà Nẵng",
+      },
+      {
+        id: "DN_HAI_CHAU",
+        name: "Hải Châu",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.06,
+        lng: 108.218,
+        address: "Quận Hải Châu, Đà Nẵng",
+      },
+      {
+        id: "DN_THANH_KHE",
+        name: "Thanh Khê",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.08,
+        lng: 108.19,
+        address: "Quận Thanh Khê, Đà Nẵng",
+      },
+      {
+        id: "DN_CAM_LE",
+        name: "Cẩm Lệ",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.02,
+        lng: 108.205,
+        address: "Quận Cẩm Lệ, Đà Nẵng",
+      },
+      {
+        id: "DN_LIEN_CHIEU",
+        name: "Liên Chiểu",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.12,
+        lng: 108.16,
+        address: "Quận Liên Chiểu, Đà Nẵng",
+      },
+      {
+        id: "DN_HOA_VANG",
+        name: "Hòa Vang",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 15.98,
+        lng: 108.14,
+        address: "Huyện Hòa Vang, Đà Nẵng",
+      },
+      {
+        id: "DN_VINCOM",
+        name: "Vincom Đà Nẵng",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.055,
+        lng: 108.21,
+        address: "Vincom Center Đà Nẵng",
+      },
+      {
+        id: "DN_BIG_C",
+        name: "Big C Đà Nẵng",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        lat: 16.058,
+        lng: 108.202,
+        address: "Big C Đà Nẵng",
+      },
+    ];
+  },
 
-  _renderNearbyStops(box, stops, gps, source = 'Backend SQL Server') {
+  _renderNearbyStops(box, stops, gps, source = "Backend SQL Server") {
     const safeGps = this._safeNearbyGps(gps) || this._defaultNearbyGps();
     const gpsText = safeGps.isFallback
-      ? 'Đang dùng vị trí dự phòng: Trung tâm Đà Nẵng'
+      ? "Đang dùng vị trí dự phòng: Trung tâm Đà Nẵng"
       : `lat ${Number(safeGps.lat).toFixed(5)}, lng ${Number(safeGps.lng).toFixed(5)}`;
     const cleanStops = (Array.isArray(stops) ? stops : [])
       .map((stop, index) => this._normalizeNearbyStop(stop, safeGps, index))
@@ -3361,42 +4740,71 @@ const TravelUI = {
       return;
     }
 
-    box.innerHTML = `<div class="travel-card wide success-state"><div class="travel-kicker">Đã lấy vị trí của bạn</div><p>Nguồn: ${this._esc(source)} · ${this._esc(gpsText)}</p></div>` + cleanStops.map((stop, idx) => {
-      const meters = Number(stop.distanceMeters || 0);
-      const distance = meters >= 1000 ? `${(meters / 1000).toFixed(1)}km` : `${Math.max(1, Math.round(meters))}m`;
-      const routeText = stop.routeName ? `Tuyến ${this._esc(stop.routeCode || stop.routeId || '')} · ${this._esc(stop.routeName)}` : (stop.routeCode || stop.routeId ? `Tuyến ${this._esc(stop.routeCode || stop.routeId)}` : 'Tuyến liên quan đang cập nhật');
-      return `<article class="travel-card${idx === 0 ? ' wide' : ''}">
-        <div class="travel-kicker">${idx === 0 ? 'Bến gần nhất' : `Gợi ý #${idx + 1}`}</div>
-        <h4>${this._esc(stop.name || 'Bến xe buýt')}</h4>
-        <p>${this._esc(stop.address || stop.province || stop.provinceName || '')}</p>
-        <div class="travel-meta"><span>${distance}</span><span>Đi bộ ${this._esc(stop.walkingMinutes || '?')} phút</span><span>${routeText}</span></div>
+    box.innerHTML =
+      `<div class="travel-card wide success-state"><div class="travel-kicker">Đã lấy vị trí của bạn</div><p>Nguồn: ${this._esc(source)} · ${this._esc(gpsText)}</p></div>` +
+      cleanStops
+        .map((stop, idx) => {
+          const meters = Number(stop.distanceMeters || 0);
+          const distance =
+            meters >= 1000
+              ? `${(meters / 1000).toFixed(1)}km`
+              : `${Math.max(1, Math.round(meters))}m`;
+          const routeText = stop.routeName
+            ? `Tuyến ${this._esc(stop.routeCode || stop.routeId || "")} · ${this._esc(stop.routeName)}`
+            : stop.routeCode || stop.routeId
+              ? `Tuyến ${this._esc(stop.routeCode || stop.routeId)}`
+              : "Tuyến liên quan đang cập nhật";
+          return `<article class="travel-card${idx === 0 ? " wide" : ""}">
+        <div class="travel-kicker">${idx === 0 ? "Bến gần nhất" : `Gợi ý #${idx + 1}`}</div>
+        <h4>${this._esc(stop.name || "Bến xe buýt")}</h4>
+        <p>${this._esc(stop.address || stop.province || stop.provinceName || "")}</p>
+        <div class="travel-meta"><span>${distance}</span><span>Đi bộ ${this._esc(stop.walkingMinutes || "?")} phút</span><span>${routeText}</span></div>
         <div class="travel-actions"><button class="btn-ghost" data-nearby-stop-map="${this._esc(stop.id)}">Xem trên bản đồ</button></div>
       </article>`;
-    }).join('');
+        })
+        .join("");
     this._nearbyStops = cleanStops;
-    if (!safeGps.isFallback) MapModule.markUserLocation?.(safeGps.lat, safeGps.lng);
-    setTimeout(() => MapModule.focusStop?.(cleanStops[0]), safeGps.isFallback ? 300 : 1500);
-    $$('[data-nearby-stop-map]').forEach((btn) => btn.addEventListener('click', () => {
-      const stop = (this._nearbyStops || []).find((item) => String(item.id) === String(btn.dataset.nearbyStopMap));
-      if (!stop) return;
-      Nav.go('dashboard');
-      setTimeout(() => MapModule.focusStop?.(stop), 300);
-    }));
+    if (!safeGps.isFallback)
+      MapModule.markUserLocation?.(safeGps.lat, safeGps.lng);
+    setTimeout(
+      () => MapModule.focusStop?.(cleanStops[0]),
+      safeGps.isFallback ? 300 : 1500,
+    );
+    $$("[data-nearby-stop-map]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const stop = (this._nearbyStops || []).find(
+          (item) => String(item.id) === String(btn.dataset.nearbyStopMap),
+        );
+        if (!stop) return;
+        Nav.go("dashboard");
+        setTimeout(() => MapModule.focusStop?.(stop), 300);
+      }),
+    );
   },
 
   async renderNearestStop(forceGps = false) {
     const box = $("#nearby-stop-result");
     if (!box) return;
-    showLoading(box, forceGps ? "Đang lấy vị trí và tìm bến gần nhất..." : "Đang tìm bến gần nhất...");
+    showLoading(
+      box,
+      forceGps
+        ? "Đang lấy vị trí và tìm bến gần nhất..."
+        : "Đang tìm bến gần nhất...",
+    );
     if (forceGps) this.gps = null;
 
     let gps = null;
     try {
-      const rawGps = forceGps ? await this._getGps(true, false) : this.gps || await this._getGps(false, true);
+      const rawGps = forceGps
+        ? await this._getGps(true, false)
+        : this.gps || (await this._getGps(false, true));
       gps = this._safeNearbyGps(rawGps);
       if (gps) this.gps = gps;
     } catch (err) {
-      console.warn('[SmartBus] Không lấy được GPS hợp lệ, dùng vị trí dự phòng để tránh lỗi:', err?.message || err);
+      console.warn(
+        "[SmartBus] Không lấy được GPS hợp lệ, dùng vị trí dự phòng để tránh lỗi:",
+        err?.message || err,
+      );
     }
 
     if (!gps) {
@@ -3407,7 +4815,7 @@ const TravelUI = {
     try {
       const result = await this._getNearbyStopsTrietDe(gps, 5);
       const stops = Array.isArray(result?.stops) ? result.stops : [];
-      const source = result?.source || 'Không tìm thấy dữ liệu bến';
+      const source = result?.source || "Không tìm thấy dữ liệu bến";
       if (!stops.length) {
         box.innerHTML = `
           <div class="travel-card wide empty-state">
@@ -3420,7 +4828,7 @@ const TravelUI = {
       }
       this._renderNearbyStops(box, stops, gps, source);
     } catch (err) {
-      console.error('[SmartBus] Bến gần tôi lỗi không mong đợi:', err);
+      console.error("[SmartBus] Bến gần tôi lỗi không mong đợi:", err);
       try {
         const safeGps = this._safeNearbyGps(gps) || this._defaultNearbyGps();
         const hc = this._getHardcodedStops();
@@ -3430,7 +4838,12 @@ const TravelUI = {
           .sort((a, b) => a.distanceMeters - b.distanceMeters)
           .slice(0, 5);
         if (fallback.length) {
-          this._renderNearbyStops(box, fallback, safeGps, 'Dữ liệu bến Đà Nẵng (dự phòng)');
+          this._renderNearbyStops(
+            box,
+            fallback,
+            safeGps,
+            "Dữ liệu bến Đà Nẵng (dự phòng)",
+          );
           return;
         }
       } catch (_e) {}
@@ -3457,7 +4870,14 @@ const TravelUI = {
     const safeGps = this._safeNearbyGps(this.gps);
     if (safeGps) this.gps = safeGps;
 
-    const params = new URLSearchParams({ q: qRaw, province: provinceRaw, category: catRaw, routeId: routeRaw, limit: "24", offset: "0" });
+    const params = new URLSearchParams({
+      q: qRaw,
+      province: provinceRaw,
+      category: catRaw,
+      routeId: routeRaw,
+      limit: "24",
+      offset: "0",
+    });
     if (safeGps) {
       params.set("lat", safeGps.lat);
       params.set("lng", safeGps.lng);
@@ -3469,17 +4889,36 @@ const TravelUI = {
 
     try {
       if (!places) {
-        const data = await API.get(`/tourism/places?${params.toString()}`, { timeoutMs: 12000, skipAuth: true, skipRefresh: true });
+        const data = await API.get(`/tourism/places?${params.toString()}`, {
+          timeoutMs: 12000,
+          skipAuth: true,
+          skipRefresh: true,
+        });
         places = this._extractPlaceRows(data)
-          .map((place, index) => this._normalizeTourismPlace(place, index, safeGps))
+          .map((place, index) =>
+            this._normalizeTourismPlace(place, index, safeGps),
+          )
           .filter(Boolean);
         if (!places.length) throw new Error("Backend trả 0 địa điểm");
         this._placesCache.set(cacheKey, places);
       }
     } catch (err) {
-      console.warn("[SmartBus] Tourism API lỗi/chậm, dùng dữ liệu local:", err?.message || err);
-      source = err?.code === "TIMEOUT" ? "API phản hồi quá lâu → dùng dữ liệu local" : "Dữ liệu local GitHub Pages";
-      places = await this._filterTourismPlaces({ qRaw, provinceRaw, catRaw, routeRaw, gps: safeGps, limit: 24 });
+      console.warn(
+        "[SmartBus] Tourism API lỗi/chậm, dùng dữ liệu local:",
+        err?.message || err,
+      );
+      source =
+        err?.code === "TIMEOUT"
+          ? "API phản hồi quá lâu → dùng dữ liệu local"
+          : "Dữ liệu local GitHub Pages";
+      places = await this._filterTourismPlaces({
+        qRaw,
+        provinceRaw,
+        catRaw,
+        routeRaw,
+        gps: safeGps,
+        limit: 24,
+      });
       this._placesCache.set(cacheKey, places);
     }
 
@@ -3487,7 +4926,8 @@ const TravelUI = {
       .map((place, index) => this._normalizeTourismPlace(place, index, safeGps))
       .filter(Boolean);
 
-    state && (state.innerHTML = `${source} · ${places.length} địa điểm phù hợp${safeGps ? " · đã sắp xếp theo vị trí gần bạn" : ""}${places.length >= 24 ? " · đang giới hạn 24 kết quả đầu để tải nhanh" : ""}`);
+    state &&
+      (state.innerHTML = `${source} · ${places.length} địa điểm phù hợp${safeGps ? " · đã sắp xếp theo vị trí gần bạn" : ""}${places.length >= 24 ? " · đang giới hạn 24 kết quả đầu để tải nhanh" : ""}`);
     if (!places.length) {
       list.innerHTML = `<div class="travel-card wide empty-state">
         <h4>Chưa có địa điểm phù hợp</h4>
@@ -3498,14 +4938,32 @@ const TravelUI = {
     }
 
     list.innerHTML = places.map((p) => this._placeCard(p)).join("");
-    $$('[data-place-chat]').forEach((btn) => btn.addEventListener('click', () => SmartBusAssistant.sendQuestion?.(`Tôi muốn đến ${btn.dataset.placeChat}`)));
-    $$('[data-place-reviews]').forEach((btn) => btn.addEventListener('click', () => { $("#community-search") && ($("#community-search").value = btn.dataset.placeReviews); Nav.go("reviews"); }));
-    $$('[data-place-map]').forEach((btn) => btn.addEventListener('click', () => this.showPlaceOnMap(btn.dataset.placeMap)));
-    $$('[data-place-fav]').forEach((btn) => btn.addEventListener('click', () => {
-      const id = btn.dataset.placeFav;
-      const key = Number.isFinite(Number(id)) ? Number(id) : String(id);
-      this.toggleFavoritePlace(id, !this._placeFavoriteIds.has(key), btn);
-    }));
+    $$("[data-place-chat]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        SmartBusAssistant.sendQuestion?.(
+          `Tôi muốn đến ${btn.dataset.placeChat}`,
+        ),
+      ),
+    );
+    $$("[data-place-reviews]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        $("#community-search") &&
+          ($("#community-search").value = btn.dataset.placeReviews);
+        Nav.go("reviews");
+      }),
+    );
+    $$("[data-place-map]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this.showPlaceOnMap(btn.dataset.placeMap),
+      ),
+    );
+    $$("[data-place-fav]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.placeFav;
+        const key = Number.isFinite(Number(id)) ? Number(id) : String(id);
+        this.toggleFavoritePlace(id, !this._placeFavoriteIds.has(key), btn);
+      }),
+    );
   },
 
   _extractPlaceRows(payload) {
@@ -3521,29 +4979,73 @@ const TravelUI = {
 
   _normalizeTourismPlace(place, index = 0, gps = null) {
     if (!place || typeof place !== "object") return null;
-    const ll = normalizeLatLng(place, { allowOutsideCentral: true, source: `tourism-place:${place.id || place.externalPlaceCode || place.name || index}` });
+    const ll = normalizeLatLng(place, {
+      allowOutsideCentral: true,
+      source: `tourism-place:${place.id || place.externalPlaceCode || place.name || index}`,
+    });
     const safeGps = this._safeNearbyGps(gps);
-    const id = place.id || place.placeId || place.externalPlaceCode || place.code || place.slug || `local-tourism-${index + 1}`;
+    const id =
+      place.id ||
+      place.placeId ||
+      place.externalPlaceCode ||
+      place.code ||
+      place.slug ||
+      `local-tourism-${index + 1}`;
     const normalized = {
       ...place,
       id,
       placeId: place.placeId || place.id || id,
       externalPlaceCode: place.externalPlaceCode || place.code || id,
       name: place.name || place.placeName || "Địa điểm du lịch",
-      description: place.shortDescription || place.description || place.summary || "Đang cập nhật mô tả.",
-      shortDescription: place.shortDescription || place.description || place.summary || "",
-      provinceCode: place.provinceCode || place.province_code || place.province || "",
-      provinceName: place.provinceName || place.province_name || place.province || "",
-      categoryCode: place.categoryCode || place.category_code || place.category || "general",
-      categoryName: place.categoryName || place.categoryRaw || place.category || place.categoryCode || "Du lịch",
-      category: place.category || place.categoryRaw || place.categoryName || place.categoryCode || "Du lịch",
+      description:
+        place.shortDescription ||
+        place.description ||
+        place.summary ||
+        "Đang cập nhật mô tả.",
+      shortDescription:
+        place.shortDescription || place.description || place.summary || "",
+      provinceCode:
+        place.provinceCode || place.province_code || place.province || "",
+      provinceName:
+        place.provinceName || place.province_name || place.province || "",
+      categoryCode:
+        place.categoryCode ||
+        place.category_code ||
+        place.category ||
+        "general",
+      categoryName:
+        place.categoryName ||
+        place.categoryRaw ||
+        place.category ||
+        place.categoryCode ||
+        "Du lịch",
+      category:
+        place.category ||
+        place.categoryRaw ||
+        place.categoryName ||
+        place.categoryCode ||
+        "Du lịch",
       averageRating: place.averageRating || place.rating || 4.6,
       reviewCount: place.reviewCount || place.reviewsCount || 0,
       imageUrl: place.imageUrl || place.image || place.thumbnail || "",
-      nearestStopName: place.nearestStopName || place.nearestStop?.name || place.nearestStop?.stop?.name || "",
-      nearestRouteCode: place.nearestRouteCode || place.routeCode || place.recommendedRoute?.id || place.nearestStop?.route?.id || "",
-      nearestRouteName: place.nearestRouteName || place.routeName || place.recommendedRoute?.name || "",
-      walkingMinutes: place.walkingMinutes || place.nearestStop?.walkingMinutes || null,
+      nearestStopName:
+        place.nearestStopName ||
+        place.nearestStop?.name ||
+        place.nearestStop?.stop?.name ||
+        "",
+      nearestRouteCode:
+        place.nearestRouteCode ||
+        place.routeCode ||
+        place.recommendedRoute?.id ||
+        place.nearestStop?.route?.id ||
+        "",
+      nearestRouteName:
+        place.nearestRouteName ||
+        place.routeName ||
+        place.recommendedRoute?.name ||
+        "",
+      walkingMinutes:
+        place.walkingMinutes || place.nearestStop?.walkingMinutes || null,
     };
     if (ll) {
       normalized.lat = ll[0];
@@ -3551,7 +5053,9 @@ const TravelUI = {
       normalized.latitude = ll[0];
       normalized.longitude = ll[1];
       if (safeGps) {
-        const meters = Math.round(getDistanceMeters([safeGps.lat, safeGps.lng], ll));
+        const meters = Math.round(
+          getDistanceMeters([safeGps.lat, safeGps.lng], ll),
+        );
         if (Number.isFinite(meters)) {
           normalized.distanceMeters = meters;
           normalized.distanceKm = Number((meters / 1000).toFixed(2));
@@ -3562,7 +5066,12 @@ const TravelUI = {
       normalized.nearestStop = {
         name: normalized.nearestStopName,
         walkingMinutes: normalized.walkingMinutes,
-        route: normalized.nearestRouteCode ? { id: normalized.nearestRouteCode, name: normalized.nearestRouteName } : null,
+        route: normalized.nearestRouteCode
+          ? {
+              id: normalized.nearestRouteCode,
+              name: normalized.nearestRouteName,
+            }
+          : null,
       };
     }
     return normalized;
@@ -3571,46 +5080,171 @@ const TravelUI = {
   async _loadStaticTourismPlaces() {
     if (this._tourismStaticPlaces) return this._tourismStaticPlaces;
     const candidates = [
-      '/SmartBus-Travel/data/import/smartbus-tourism-data.normalized.json',
-      './data/import/smartbus-tourism-data.normalized.json',
-      'data/import/smartbus-tourism-data.normalized.json',
-      '../data/import/smartbus-tourism-data.normalized.json',
-      '../backend-api/data/import/smartbus-tourism-data.normalized.json',
+      "/SmartBus-Travel/data/import/smartbus-tourism-data.normalized.json",
+      "./data/import/smartbus-tourism-data.normalized.json",
+      "data/import/smartbus-tourism-data.normalized.json",
+      "../data/import/smartbus-tourism-data.normalized.json",
+      "../backend-api/data/import/smartbus-tourism-data.normalized.json",
     ];
     let lastError = null;
     for (const url of candidates) {
       try {
-        const res = await fetchWithTimeout(url, { cache: 'no-store' }, 8000);
+        const res = await fetchWithTimeout(url, { cache: "no-store" }, 8000);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const payload = await res.json();
         const rows = this._extractPlaceRows(payload);
         if (rows.length) {
-          this._tourismStaticPlaces = rows.map((place, index) => this._normalizeTourismPlace(place, index, null)).filter(Boolean);
+          this._tourismStaticPlaces = rows
+            .map((place, index) =>
+              this._normalizeTourismPlace(place, index, null),
+            )
+            .filter(Boolean);
           return this._tourismStaticPlaces;
         }
       } catch (err) {
         lastError = err;
       }
     }
-    console.warn('[SmartBus] Không đọc được tourism JSON tĩnh:', lastError?.message || lastError);
+    console.warn(
+      "[SmartBus] Không đọc được tourism JSON tĩnh:",
+      lastError?.message || lastError,
+    );
     this._tourismStaticPlaces = [];
     return [];
   },
 
   _getHardcodedTourismPlaces() {
     return [
-      { id: 'DN-MY-KHE', name: 'Biển Mỹ Khê', provinceCode: 'DN', provinceName: 'Đà Nẵng', categoryCode: 'beach', categoryName: 'Biển', description: 'Bãi biển nổi tiếng gần trung tâm Đà Nẵng, thuận tiện check-in và tắm biển.', lat: 16.067, lng: 108.247, nearestRouteCode: 'DN-01', nearestStopName: 'Mỹ Khê', walkingMinutes: 8, averageRating: 4.8, reviewCount: 32, bestTime: 'Sáng sớm hoặc chiều mát', foodSuggestions: 'Hải sản Mỹ Khê' },
-      { id: 'DN-CAU-RONG', name: 'Cầu Rồng', provinceCode: 'DN', provinceName: 'Đà Nẵng', categoryCode: 'checkin', categoryName: 'Check-in', description: 'Biểu tượng trung tâm Đà Nẵng, đẹp về đêm và cuối tuần có trình diễn.', lat: 16.061, lng: 108.228, nearestRouteCode: 'DN-02', nearestStopName: 'Cầu Rồng', walkingMinutes: 5, averageRating: 4.7, reviewCount: 26, bestTime: 'Buổi tối', foodSuggestions: 'Ăn vặt Sơn Trà, Hải Châu' },
-      { id: 'DN-NGU-HANH-SON', name: 'Ngũ Hành Sơn', provinceCode: 'DN', provinceName: 'Đà Nẵng', categoryCode: 'culture', categoryName: 'Văn hóa', description: 'Cụm núi đá vôi, chùa và hang động nổi tiếng phía Nam Đà Nẵng.', lat: 16.003, lng: 108.263, nearestRouteCode: 'DN-04', nearestStopName: 'Ngũ Hành Sơn', walkingMinutes: 10, averageRating: 4.6, reviewCount: 19, bestTime: 'Sáng hoặc chiều mát', foodSuggestions: 'Mì Quảng, hải sản Non Nước' },
-      { id: 'QN-HOI-AN', name: 'Phố cổ Hội An', provinceCode: 'QN_CU', provinceName: 'Quảng Nam cũ / Hội An', categoryCode: 'culture', categoryName: 'Di sản', description: 'Khu phố cổ nổi tiếng với đèn lồng, ẩm thực và kiến trúc di sản.', lat: 15.8801, lng: 108.338, nearestRouteCode: 'QN-01', nearestStopName: 'Bến xe Hội An', walkingMinutes: 12, averageRating: 4.9, reviewCount: 45, bestTime: 'Chiều tối', foodSuggestions: 'Cao lầu, mì Quảng, bánh mì Hội An' },
-      { id: 'HUE-DAI-NOI', name: 'Đại Nội Huế', provinceCode: 'HUE', provinceName: 'Huế', categoryCode: 'culture', categoryName: 'Di tích', description: 'Quần thể di tích Cố đô Huế, phù hợp tham quan văn hóa lịch sử.', lat: 16.469, lng: 107.577, nearestRouteCode: 'HUE-01', nearestStopName: 'Đại Nội', walkingMinutes: 6, averageRating: 4.8, reviewCount: 38, bestTime: 'Sáng sớm', foodSuggestions: 'Bún bò Huế, chè Huế' },
-      { id: 'QNG-LY-SON', name: 'Đảo Lý Sơn', provinceCode: 'QNG', provinceName: 'Quảng Ngãi', categoryCode: 'island', categoryName: 'Đảo biển', description: 'Điểm đến biển đảo nổi bật của Quảng Ngãi, cần kết hợp tàu ra đảo.', lat: 15.383, lng: 109.116, nearestRouteCode: 'QNG-01', nearestStopName: 'Cảng Sa Kỳ', walkingMinutes: 20, averageRating: 4.7, reviewCount: 24, bestTime: 'Tháng 3-8', foodSuggestions: 'Hải sản, gỏi tỏi Lý Sơn' },
+      {
+        id: "DN-MY-KHE",
+        name: "Biển Mỹ Khê",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        categoryCode: "beach",
+        categoryName: "Biển",
+        description:
+          "Bãi biển nổi tiếng gần trung tâm Đà Nẵng, thuận tiện check-in và tắm biển.",
+        lat: 16.067,
+        lng: 108.247,
+        nearestRouteCode: "DN-01",
+        nearestStopName: "Mỹ Khê",
+        walkingMinutes: 8,
+        averageRating: 4.8,
+        reviewCount: 32,
+        bestTime: "Sáng sớm hoặc chiều mát",
+        foodSuggestions: "Hải sản Mỹ Khê",
+      },
+      {
+        id: "DN-CAU-RONG",
+        name: "Cầu Rồng",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        categoryCode: "checkin",
+        categoryName: "Check-in",
+        description:
+          "Biểu tượng trung tâm Đà Nẵng, đẹp về đêm và cuối tuần có trình diễn.",
+        lat: 16.061,
+        lng: 108.228,
+        nearestRouteCode: "DN-02",
+        nearestStopName: "Cầu Rồng",
+        walkingMinutes: 5,
+        averageRating: 4.7,
+        reviewCount: 26,
+        bestTime: "Buổi tối",
+        foodSuggestions: "Ăn vặt Sơn Trà, Hải Châu",
+      },
+      {
+        id: "DN-NGU-HANH-SON",
+        name: "Ngũ Hành Sơn",
+        provinceCode: "DN",
+        provinceName: "Đà Nẵng",
+        categoryCode: "culture",
+        categoryName: "Văn hóa",
+        description:
+          "Cụm núi đá vôi, chùa và hang động nổi tiếng phía Nam Đà Nẵng.",
+        lat: 16.003,
+        lng: 108.263,
+        nearestRouteCode: "DN-04",
+        nearestStopName: "Ngũ Hành Sơn",
+        walkingMinutes: 10,
+        averageRating: 4.6,
+        reviewCount: 19,
+        bestTime: "Sáng hoặc chiều mát",
+        foodSuggestions: "Mì Quảng, hải sản Non Nước",
+      },
+      {
+        id: "QN-HOI-AN",
+        name: "Phố cổ Hội An",
+        provinceCode: "QN_CU",
+        provinceName: "Quảng Nam cũ / Hội An",
+        categoryCode: "culture",
+        categoryName: "Di sản",
+        description:
+          "Khu phố cổ nổi tiếng với đèn lồng, ẩm thực và kiến trúc di sản.",
+        lat: 15.8801,
+        lng: 108.338,
+        nearestRouteCode: "QN-01",
+        nearestStopName: "Bến xe Hội An",
+        walkingMinutes: 12,
+        averageRating: 4.9,
+        reviewCount: 45,
+        bestTime: "Chiều tối",
+        foodSuggestions: "Cao lầu, mì Quảng, bánh mì Hội An",
+      },
+      {
+        id: "HUE-DAI-NOI",
+        name: "Đại Nội Huế",
+        provinceCode: "HUE",
+        provinceName: "Huế",
+        categoryCode: "culture",
+        categoryName: "Di tích",
+        description:
+          "Quần thể di tích Cố đô Huế, phù hợp tham quan văn hóa lịch sử.",
+        lat: 16.469,
+        lng: 107.577,
+        nearestRouteCode: "HUE-01",
+        nearestStopName: "Đại Nội",
+        walkingMinutes: 6,
+        averageRating: 4.8,
+        reviewCount: 38,
+        bestTime: "Sáng sớm",
+        foodSuggestions: "Bún bò Huế, chè Huế",
+      },
+      {
+        id: "QNG-LY-SON",
+        name: "Đảo Lý Sơn",
+        provinceCode: "QNG",
+        provinceName: "Quảng Ngãi",
+        categoryCode: "island",
+        categoryName: "Đảo biển",
+        description:
+          "Điểm đến biển đảo nổi bật của Quảng Ngãi, cần kết hợp tàu ra đảo.",
+        lat: 15.383,
+        lng: 109.116,
+        nearestRouteCode: "QNG-01",
+        nearestStopName: "Cảng Sa Kỳ",
+        walkingMinutes: 20,
+        averageRating: 4.7,
+        reviewCount: 24,
+        bestTime: "Tháng 3-8",
+        foodSuggestions: "Hải sản, gỏi tỏi Lý Sơn",
+      },
     ];
   },
 
-  async _filterTourismPlaces({ qRaw = "", provinceRaw = "", catRaw = "", routeRaw = "", gps = null, limit = 24 } = {}) {
+  async _filterTourismPlaces({
+    qRaw = "",
+    provinceRaw = "",
+    catRaw = "",
+    routeRaw = "",
+    gps = null,
+    limit = 24,
+  } = {}) {
     let rows = await this._loadStaticTourismPlaces();
-    if (!rows.length) rows = this._getHardcodedTourismPlaces().map((place, index) => this._normalizeTourismPlace(place, index, gps)).filter(Boolean);
+    if (!rows.length)
+      rows = this._getHardcodedTourismPlaces()
+        .map((place, index) => this._normalizeTourismPlace(place, index, gps))
+        .filter(Boolean);
     const safeGps = this._safeNearbyGps(gps);
     const q = this._norm(qRaw);
     const province = this._norm(provinceRaw);
@@ -3620,42 +5254,94 @@ const TravelUI = {
       .map((place, index) => this._normalizeTourismPlace(place, index, safeGps))
       .filter(Boolean)
       .filter((p) => {
-        const text = this._norm(`${p.name} ${p.provinceName} ${p.provinceCode} ${p.description} ${p.shortDescription} ${p.nearestRouteCode || ""} ${p.categoryName || ""} ${p.categoryCode || ""} ${p.foodSuggestions || ""}`);
+        const text = this._norm(
+          `${p.name} ${p.provinceName} ${p.provinceCode} ${p.description} ${p.shortDescription} ${p.nearestRouteCode || ""} ${p.categoryName || ""} ${p.categoryCode || ""} ${p.foodSuggestions || ""}`,
+        );
         if (q && !text.includes(q)) return false;
-        if (province && this._norm(`${p.provinceCode} ${p.provinceName}`).indexOf(province) === -1) return false;
-        if (cat && this._norm(`${p.categoryCode} ${p.categoryName} ${p.category}`).indexOf(cat) === -1) return false;
-        if (route && this._norm(`${p.nearestRouteCode || ""} ${p.nearestRouteName || ""} ${p.routeId || ""}`).indexOf(route) === -1) return false;
+        if (
+          province &&
+          this._norm(`${p.provinceCode} ${p.provinceName}`).indexOf(
+            province,
+          ) === -1
+        )
+          return false;
+        if (
+          cat &&
+          this._norm(
+            `${p.categoryCode} ${p.categoryName} ${p.category}`,
+          ).indexOf(cat) === -1
+        )
+          return false;
+        if (
+          route &&
+          this._norm(
+            `${p.nearestRouteCode || ""} ${p.nearestRouteName || ""} ${p.routeId || ""}`,
+          ).indexOf(route) === -1
+        )
+          return false;
         return true;
       });
     if (safeGps) {
       filtered.sort((a, b) => {
-        const da = Number.isFinite(Number(a.distanceMeters)) ? Number(a.distanceMeters) : Number.POSITIVE_INFINITY;
-        const db = Number.isFinite(Number(b.distanceMeters)) ? Number(b.distanceMeters) : Number.POSITIVE_INFINITY;
+        const da = Number.isFinite(Number(a.distanceMeters))
+          ? Number(a.distanceMeters)
+          : Number.POSITIVE_INFINITY;
+        const db = Number.isFinite(Number(b.distanceMeters))
+          ? Number(b.distanceMeters)
+          : Number.POSITIVE_INFINITY;
         return da - db;
       });
     }
     return filtered.slice(0, limit);
   },
 
-  _filterLocalPlaces({ qRaw = "", provinceRaw = "", catRaw = "", routeRaw = "" } = {}) {
+  _filterLocalPlaces({
+    qRaw = "",
+    provinceRaw = "",
+    catRaw = "",
+    routeRaw = "",
+  } = {}) {
     return LOCAL_TOURISM_PLACES.filter((p) => {
-      const text = this._norm(`${p.name} ${p.provinceName} ${p.description} ${p.nearestRouteCode || ""} ${p.categoryName || ""} ${p.foodSuggestions || ""}`);
+      const text = this._norm(
+        `${p.name} ${p.provinceName} ${p.description} ${p.nearestRouteCode || ""} ${p.categoryName || ""} ${p.foodSuggestions || ""}`,
+      );
       if (qRaw && !text.includes(this._norm(qRaw))) return false;
       if (provinceRaw && p.provinceCode !== provinceRaw) return false;
-      if (catRaw && p.categoryCode !== catRaw && p.category !== catRaw) return false;
-      if (routeRaw && !(String(p.nearestRouteCode || "").includes(routeRaw) || String(p.nearestRouteCode || "").includes(routeLabel(routeRaw)))) return false;
+      if (catRaw && p.categoryCode !== catRaw && p.category !== catRaw)
+        return false;
+      if (
+        routeRaw &&
+        !(
+          String(p.nearestRouteCode || "").includes(routeRaw) ||
+          String(p.nearestRouteCode || "").includes(routeLabel(routeRaw))
+        )
+      )
+        return false;
       return true;
     });
   },
 
   _norm(v) {
-    return String(v || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
+    return String(v || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/đ/g, "d");
   },
 
   _placeCard(p) {
-    const route = p.recommendedRoute || p.nearestStop?.route || (p.nearestRouteCode ? { id: p.nearestRouteCode } : null);
-    const stop = p.nearestStop?.stop || (p.nearestStopName ? { name: p.nearestStopName } : null);
-    const distanceText = p.distanceMeters ? `${Math.round(p.distanceMeters / 100) / 10} km` : (p.nearestDistanceKm ? `${p.nearestDistanceKm} km tới hub/trạm` : "");
+    const route =
+      p.recommendedRoute ||
+      p.nearestStop?.route ||
+      (p.nearestRouteCode ? { id: p.nearestRouteCode } : null);
+    const stop =
+      p.nearestStop?.stop ||
+      (p.nearestStopName ? { name: p.nearestStopName } : null);
+    const distanceText = p.distanceMeters
+      ? `${Math.round(p.distanceMeters / 100) / 10} km`
+      : p.nearestDistanceKm
+        ? `${p.nearestDistanceKm} km tới hub/trạm`
+        : "";
     const walkText = p.nearestStop?.walkingMinutes || p.walkingMinutes;
     return `<article class="travel-card">
       <div class="travel-kicker">${this._esc(p.categoryName || p.category || "Du lịch")}</div>
@@ -3663,21 +5349,26 @@ const TravelUI = {
       <p>${this._esc(p.description || "")}</p>
       <div class="travel-meta"><span>⭐ ${p.averageRating || 0}</span><span>${p.reviewCount || 0} review</span>${distanceText ? `<span>${this._esc(distanceText)}</span>` : ""}</div>
       <div class="travel-meta">${route ? `<span>Bus ${this._esc(route.id || route.routeCode || route)}</span>` : ""}${stop ? `<span>Bến/hub: ${this._esc(stop.name)}</span>` : ""}${walkText ? `<span>Đi bộ/chuyển tiếp ${this._esc(walkText)} phút</span>` : ""}</div>
-      ${(p.foodSuggestions || p.bestTime) ? `<p class="travel-small">${this._esc(p.bestTime || "")} ${p.foodSuggestions ? ` · Ẩm thực: ${this._esc(p.foodSuggestions)}` : ""}</p>` : ""}
-      <div class="travel-actions"><button class="btn-ghost" data-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-place-reviews="${this._esc(p.name)}">Xem review</button><button class="btn-ghost" data-place-map="${this._esc(p.id)}">Hiện trên bản đồ</button><button class="btn-ghost" data-place-fav="${this._esc(p.id)}">${this._placeFavoriteIds.has(Number(p.id)) ? '✅ Đã lưu' : '🔖 Lưu địa điểm'}</button></div>
+      ${p.foodSuggestions || p.bestTime ? `<p class="travel-small">${this._esc(p.bestTime || "")} ${p.foodSuggestions ? ` · Ẩm thực: ${this._esc(p.foodSuggestions)}` : ""}</p>` : ""}
+      <div class="travel-actions"><button class="btn-ghost" data-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-place-reviews="${this._esc(p.name)}">Xem review</button><button class="btn-ghost" data-place-map="${this._esc(p.id)}">Hiện trên bản đồ</button><button class="btn-ghost" data-place-fav="${this._esc(p.id)}">${this._placeFavoriteIds.has(Number(p.id)) ? "✅ Đã lưu" : "🔖 Lưu địa điểm"}</button></div>
     </article>`;
   },
 
   renderTripIntro() {
     this._bindTrip();
     const box = $("#trip-result");
-    if (box && !box.innerHTML.trim()) box.innerHTML = this._empty("Chọn thời gian, sở thích rồi bấm “Tạo lịch trình”.");
+    if (box && !box.innerHTML.trim())
+      box.innerHTML = this._empty(
+        "Chọn thời gian, sở thích rồi bấm “Tạo lịch trình”.",
+      );
   },
 
   _tripProvinceFromInput(body = {}, gps = null) {
     const explicit = String(body.province || body.provinceCode || "").trim();
     if (explicit) return explicit;
-    const interestText = this._norm([...(body.interests || []), body.keyword || ""].join(" "));
+    const interestText = this._norm(
+      [...(body.interests || []), body.keyword || ""].join(" "),
+    );
     if (/hoi an|quang nam|pho co/.test(interestText)) return "QN_CU";
     if (/hue|dai noi|lang vua/.test(interestText)) return "HUE";
     if (/ly son|quang ngai|sa ky/.test(interestText)) return "QNG";
@@ -3686,89 +5377,284 @@ const TravelUI = {
     if (!safeGps) return "DN";
     const anchors = [
       { code: "DN", lat: 16.0544, lng: 108.2022 },
-      { code: "QN_CU", lat: 15.8801, lng: 108.3380 },
+      { code: "QN_CU", lat: 15.8801, lng: 108.338 },
       { code: "HUE", lat: 16.4637, lng: 107.5909 },
       { code: "QNG", lat: 15.1205, lng: 108.7923 },
-      { code: "QT", lat: 16.7500, lng: 107.1900 },
+      { code: "QT", lat: 16.75, lng: 107.19 },
     ];
-    return anchors
-      .map((a) => ({ ...a, meters: getDistanceMeters([safeGps.lat, safeGps.lng], [a.lat, a.lng]) }))
-      .sort((a, b) => a.meters - b.meters)[0]?.code || "DN";
+    return (
+      anchors
+        .map((a) => ({
+          ...a,
+          meters: getDistanceMeters([safeGps.lat, safeGps.lng], [a.lat, a.lng]),
+        }))
+        .sort((a, b) => a.meters - b.meters)[0]?.code || "DN"
+    );
   },
 
   _tripCategoryPrefs(interests = [], timeAvailable = "") {
-    const text = this._norm(`${Array.isArray(interests) ? interests.join(" ") : interests} ${timeAvailable}`);
+    const text = this._norm(
+      `${Array.isArray(interests) ? interests.join(" ") : interests} ${timeAvailable}`,
+    );
     const prefs = [];
-    const push = (...items) => items.forEach((x) => { if (x && !prefs.includes(x)) prefs.push(x); });
-    if (/bien|tam bien|hai san|dao/.test(text)) push("beach", "nature", "food", "checkin");
-    if (/van hoa|lich su|di san|pho co|bao tang/.test(text)) push("culture", "spiritual", "checkin", "food");
-    if (/check|song ao|chup anh/.test(text)) push("checkin", "culture", "beach", "shopping");
-    if (/mua sam|cho|shopping|dac san/.test(text)) push("shopping", "food", "checkin", "culture");
-    if (/vui choi|giai tri|tre em/.test(text)) push("entertainment", "checkin", "shopping", "food");
-    if (/tam linh|chua|thanh dia/.test(text)) push("spiritual", "culture", "nature", "food");
-    if (/tiet kiem|re|low/.test(text)) push("culture", "checkin", "beach", "food");
-    if (!prefs.length) push("culture", "checkin", "food", "beach", "nature", "shopping", "spiritual", "entertainment", "general");
-    push("culture", "checkin", "food", "beach", "nature", "shopping", "spiritual", "entertainment", "general");
+    const push = (...items) =>
+      items.forEach((x) => {
+        if (x && !prefs.includes(x)) prefs.push(x);
+      });
+    if (/bien|tam bien|hai san|dao/.test(text))
+      push("beach", "nature", "food", "checkin");
+    if (/van hoa|lich su|di san|pho co|bao tang/.test(text))
+      push("culture", "spiritual", "checkin", "food");
+    if (/check|song ao|chup anh/.test(text))
+      push("checkin", "culture", "beach", "shopping");
+    if (/mua sam|cho|shopping|dac san/.test(text))
+      push("shopping", "food", "checkin", "culture");
+    if (/vui choi|giai tri|tre em/.test(text))
+      push("entertainment", "checkin", "shopping", "food");
+    if (/tam linh|chua|thanh dia/.test(text))
+      push("spiritual", "culture", "nature", "food");
+    if (/tiet kiem|re|low/.test(text))
+      push("culture", "checkin", "beach", "food");
+    if (!prefs.length)
+      push(
+        "culture",
+        "checkin",
+        "food",
+        "beach",
+        "nature",
+        "shopping",
+        "spiritual",
+        "entertainment",
+        "general",
+      );
+    push(
+      "culture",
+      "checkin",
+      "food",
+      "beach",
+      "nature",
+      "shopping",
+      "spiritual",
+      "entertainment",
+      "general",
+    );
     return prefs;
   },
 
   _tripSlots(timeAvailable = "1 ngày") {
     const t = this._norm(timeAvailable);
-    if (/3 ngay|ba ngay/.test(t)) return [
-      { day: 1, timeBlock: "Ngày 1 · Buổi sáng", suggestedStart: "08:00", role: "main", duration: 120 },
-      { day: 1, timeBlock: "Ngày 1 · Buổi chiều", suggestedStart: "14:30", role: "nearby", duration: 90 },
-      { day: 1, timeBlock: "Ngày 1 · Buổi tối", suggestedStart: "18:30", role: "food", duration: 90 },
-      { day: 2, timeBlock: "Ngày 2 · Buổi sáng", suggestedStart: "08:00", role: "main", duration: 150 },
-      { day: 2, timeBlock: "Ngày 2 · Buổi chiều", suggestedStart: "14:30", role: "nearby", duration: 90 },
-      { day: 2, timeBlock: "Ngày 2 · Buổi tối", suggestedStart: "18:30", role: "checkin", duration: 75 },
-      { day: 3, timeBlock: "Ngày 3 · Buổi sáng", suggestedStart: "08:30", role: "light", duration: 90 },
-      { day: 3, timeBlock: "Ngày 3 · Buổi chiều", suggestedStart: "14:00", role: "shopping", duration: 75 },
-    ];
-    if (/2 ngay|hai ngay|cuoi tuan|weekend/.test(t)) return [
-      { day: 1, timeBlock: "Ngày 1 · Buổi sáng", suggestedStart: "08:00", role: "main", duration: 120 },
-      { day: 1, timeBlock: "Ngày 1 · Buổi trưa", suggestedStart: "11:30", role: "food", duration: 75 },
-      { day: 1, timeBlock: "Ngày 1 · Buổi chiều", suggestedStart: "14:30", role: "nearby", duration: 105 },
-      { day: 1, timeBlock: "Ngày 1 · Buổi tối", suggestedStart: "18:30", role: "checkin", duration: 90 },
-      { day: 2, timeBlock: "Ngày 2 · Buổi sáng", suggestedStart: "08:30", role: "main", duration: 120 },
-      { day: 2, timeBlock: "Ngày 2 · Buổi chiều", suggestedStart: "14:00", role: "shopping", duration: 90 },
-    ];
-    if (/1 buoi|nua ngay|nửa ngày|half/.test(t)) return [
-      { day: 1, timeBlock: "Điểm chính", suggestedStart: "08:30", role: "main", duration: 105 },
-      { day: 1, timeBlock: "Điểm gần kề", suggestedStart: "10:30", role: "nearby", duration: 75 },
-    ];
+    if (/3 ngay|ba ngay/.test(t))
+      return [
+        {
+          day: 1,
+          timeBlock: "Ngày 1 · Buổi sáng",
+          suggestedStart: "08:00",
+          role: "main",
+          duration: 120,
+        },
+        {
+          day: 1,
+          timeBlock: "Ngày 1 · Buổi chiều",
+          suggestedStart: "14:30",
+          role: "nearby",
+          duration: 90,
+        },
+        {
+          day: 1,
+          timeBlock: "Ngày 1 · Buổi tối",
+          suggestedStart: "18:30",
+          role: "food",
+          duration: 90,
+        },
+        {
+          day: 2,
+          timeBlock: "Ngày 2 · Buổi sáng",
+          suggestedStart: "08:00",
+          role: "main",
+          duration: 150,
+        },
+        {
+          day: 2,
+          timeBlock: "Ngày 2 · Buổi chiều",
+          suggestedStart: "14:30",
+          role: "nearby",
+          duration: 90,
+        },
+        {
+          day: 2,
+          timeBlock: "Ngày 2 · Buổi tối",
+          suggestedStart: "18:30",
+          role: "checkin",
+          duration: 75,
+        },
+        {
+          day: 3,
+          timeBlock: "Ngày 3 · Buổi sáng",
+          suggestedStart: "08:30",
+          role: "light",
+          duration: 90,
+        },
+        {
+          day: 3,
+          timeBlock: "Ngày 3 · Buổi chiều",
+          suggestedStart: "14:00",
+          role: "shopping",
+          duration: 75,
+        },
+      ];
+    if (/2 ngay|hai ngay|cuoi tuan|weekend/.test(t))
+      return [
+        {
+          day: 1,
+          timeBlock: "Ngày 1 · Buổi sáng",
+          suggestedStart: "08:00",
+          role: "main",
+          duration: 120,
+        },
+        {
+          day: 1,
+          timeBlock: "Ngày 1 · Buổi trưa",
+          suggestedStart: "11:30",
+          role: "food",
+          duration: 75,
+        },
+        {
+          day: 1,
+          timeBlock: "Ngày 1 · Buổi chiều",
+          suggestedStart: "14:30",
+          role: "nearby",
+          duration: 105,
+        },
+        {
+          day: 1,
+          timeBlock: "Ngày 1 · Buổi tối",
+          suggestedStart: "18:30",
+          role: "checkin",
+          duration: 90,
+        },
+        {
+          day: 2,
+          timeBlock: "Ngày 2 · Buổi sáng",
+          suggestedStart: "08:30",
+          role: "main",
+          duration: 120,
+        },
+        {
+          day: 2,
+          timeBlock: "Ngày 2 · Buổi chiều",
+          suggestedStart: "14:00",
+          role: "shopping",
+          duration: 90,
+        },
+      ];
+    if (/1 buoi|nua ngay|nửa ngày|half/.test(t))
+      return [
+        {
+          day: 1,
+          timeBlock: "Điểm chính",
+          suggestedStart: "08:30",
+          role: "main",
+          duration: 105,
+        },
+        {
+          day: 1,
+          timeBlock: "Điểm gần kề",
+          suggestedStart: "10:30",
+          role: "nearby",
+          duration: 75,
+        },
+      ];
     return [
-      { day: 1, timeBlock: "Buổi sáng", suggestedStart: "08:00", role: "main", duration: 120 },
-      { day: 1, timeBlock: "Buổi trưa", suggestedStart: "11:30", role: "food", duration: 75 },
-      { day: 1, timeBlock: "Buổi chiều", suggestedStart: "14:30", role: "nearby", duration: 105 },
-      { day: 1, timeBlock: "Buổi tối", suggestedStart: "18:30", role: "checkin", duration: 90 },
+      {
+        day: 1,
+        timeBlock: "Buổi sáng",
+        suggestedStart: "08:00",
+        role: "main",
+        duration: 120,
+      },
+      {
+        day: 1,
+        timeBlock: "Buổi trưa",
+        suggestedStart: "11:30",
+        role: "food",
+        duration: 75,
+      },
+      {
+        day: 1,
+        timeBlock: "Buổi chiều",
+        suggestedStart: "14:30",
+        role: "nearby",
+        duration: 105,
+      },
+      {
+        day: 1,
+        timeBlock: "Buổi tối",
+        suggestedStart: "18:30",
+        role: "checkin",
+        duration: 90,
+      },
     ];
   },
 
   _tripCategoryForSlot(slot = {}, prefs = []) {
     if (slot.role === "food") return ["food", "shopping", "general", ...prefs];
-    if (slot.role === "checkin") return ["checkin", "culture", "shopping", "beach", ...prefs];
-    if (slot.role === "shopping") return ["shopping", "food", "checkin", ...prefs];
-    if (slot.role === "light") return ["culture", "shopping", "checkin", "food", ...prefs];
-    if (slot.role === "nearby") return [...prefs, "checkin", "culture", "nature", "beach", "shopping", "food"];
-    return [...prefs, "culture", "beach", "nature", "checkin", "spiritual", "entertainment"];
+    if (slot.role === "checkin")
+      return ["checkin", "culture", "shopping", "beach", ...prefs];
+    if (slot.role === "shopping")
+      return ["shopping", "food", "checkin", ...prefs];
+    if (slot.role === "light")
+      return ["culture", "shopping", "checkin", "food", ...prefs];
+    if (slot.role === "nearby")
+      return [
+        ...prefs,
+        "checkin",
+        "culture",
+        "nature",
+        "beach",
+        "shopping",
+        "food",
+      ];
+    return [
+      ...prefs,
+      "culture",
+      "beach",
+      "nature",
+      "checkin",
+      "spiritual",
+      "entertainment",
+    ];
   },
 
   _tripDistanceMeters(a, b) {
-    const pa = normalizeLatLng(a, { allowOutsideCentral: true, source: "trip-distance-a" });
-    const pb = normalizeLatLng(b, { allowOutsideCentral: true, source: "trip-distance-b" });
+    const pa = normalizeLatLng(a, {
+      allowOutsideCentral: true,
+      source: "trip-distance-a",
+    });
+    const pb = normalizeLatLng(b, {
+      allowOutsideCentral: true,
+      source: "trip-distance-b",
+    });
     if (!pa || !pb) return Number.POSITIVE_INFINITY;
     return getDistanceMeters(pa, pb);
   },
 
   _tripPlaceCategory(place = {}) {
-    const text = this._norm(`${place.categoryCode || ""} ${place.category || ""} ${place.categoryName || ""} ${place.name || ""} ${place.foodSuggestions || ""}`);
+    const text = this._norm(
+      `${place.categoryCode || ""} ${place.category || ""} ${place.categoryName || ""} ${place.name || ""} ${place.foodSuggestions || ""}`,
+    );
     if (/bien|beach|dao|hai san/.test(text)) return "beach";
-    if (/food|am thuc|ẩm thực|cho|mua sam|dac san|shopping/.test(text)) return text.includes("cho") || text.includes("shopping") ? "shopping" : "food";
-    if (/check|cau rong|song ao|quang truong|bieu tuong/.test(text)) return "checkin";
+    if (/food|am thuc|ẩm thực|cho|mua sam|dac san|shopping/.test(text))
+      return text.includes("cho") || text.includes("shopping")
+        ? "shopping"
+        : "food";
+    if (/check|cau rong|song ao|quang truong|bieu tuong/.test(text))
+      return "checkin";
     if (/chua|tam linh|spiritual|thanh dia/.test(text)) return "spiritual";
-    if (/vui choi|giai tri|entertainment|cong vien/.test(text)) return "entertainment";
+    if (/vui choi|giai tri|entertainment|cong vien/.test(text))
+      return "entertainment";
     if (/nui|thac|nature|rung|suoi|ho|son tra/.test(text)) return "nature";
-    if (/di tich|van hoa|lich su|di san|culture|pho co|bao tang/.test(text)) return "culture";
+    if (/di tich|van hoa|lich su|di san|culture|pho co|bao tang/.test(text))
+      return "culture";
     return place.categoryCode || place.category || "general";
   },
 
@@ -3782,10 +5668,20 @@ const TravelUI = {
     let places = rows
       .map((p, idx) => this._normalizeTourismPlace(p, idx, safeGps))
       .filter(Boolean)
-      .filter((p) => !province || this._norm(`${p.provinceCode} ${p.provinceName}`).includes(this._norm(province)) || String(p.provinceCode || "").toUpperCase() === String(province).toUpperCase());
+      .filter(
+        (p) =>
+          !province ||
+          this._norm(`${p.provinceCode} ${p.provinceName}`).includes(
+            this._norm(province),
+          ) ||
+          String(p.provinceCode || "").toUpperCase() ===
+            String(province).toUpperCase(),
+      );
 
     if (!places.length) {
-      places = rows.map((p, idx) => this._normalizeTourismPlace(p, idx, safeGps)).filter(Boolean);
+      places = rows
+        .map((p, idx) => this._normalizeTourismPlace(p, idx, safeGps))
+        .filter(Boolean);
     }
 
     const selected = [];
@@ -3795,18 +5691,45 @@ const TravelUI = {
     for (const slot of slots) {
       const desired = this._tripCategoryForSlot(slot, prefs);
       const candidates = places
-        .filter((p) => !selected.some((x) => String(x.id) === String(p.id) || this._norm(x.name) === this._norm(p.name)))
+        .filter(
+          (p) =>
+            !selected.some(
+              (x) =>
+                String(x.id) === String(p.id) ||
+                this._norm(x.name) === this._norm(p.name),
+            ),
+        )
         .map((p) => {
           const category = this._tripPlaceCategory(p);
-          const categoryRank = desired.includes(category) ? desired.indexOf(category) : desired.length + 3;
-          const sameCatPenalty = Math.max(0, (categoryCount.get(category) || 0) - 1) * 30;
+          const categoryRank = desired.includes(category)
+            ? desired.indexOf(category)
+            : desired.length + 3;
+          const sameCatPenalty =
+            Math.max(0, (categoryCount.get(category) || 0) - 1) * 30;
           const meters = anchor ? this._tripDistanceMeters(anchor, p) : 0;
           const km = Number.isFinite(meters) ? meters / 1000 : 999;
           const distancePenalty = Math.min(45, km * 1.4);
-          const ratingBoost = Number(p.averageRating || 4.5) * 3 + Math.min(12, Number(p.reviewCount || 0) / 8);
-          const busBoost = p.nearestRouteCode || p.recommendedRoute || p.nearestStopName ? 8 : 0;
-          const foodFit = slot.role === "food" && (p.foodSuggestions || category === "food" || category === "shopping") ? -12 : 0;
-          const score = categoryRank * 18 + distancePenalty + sameCatPenalty - ratingBoost - busBoost + foodFit;
+          const ratingBoost =
+            Number(p.averageRating || 4.5) * 3 +
+            Math.min(12, Number(p.reviewCount || 0) / 8);
+          const busBoost =
+            p.nearestRouteCode || p.recommendedRoute || p.nearestStopName
+              ? 8
+              : 0;
+          const foodFit =
+            slot.role === "food" &&
+            (p.foodSuggestions ||
+              category === "food" ||
+              category === "shopping")
+              ? -12
+              : 0;
+          const score =
+            categoryRank * 18 +
+            distancePenalty +
+            sameCatPenalty -
+            ratingBoost -
+            busBoost +
+            foodFit;
           return { place: p, category, score, meters };
         })
         .sort((a, b) => a.score - b.score);
@@ -3814,34 +5737,64 @@ const TravelUI = {
       if (!chosen) break;
       const cat = this._tripPlaceCategory(chosen);
       categoryCount.set(cat, (categoryCount.get(cat) || 0) + 1);
-      selected.push({ ...chosen, _tripCategory: cat, _distanceFromPrevMeters: candidates[0]?.meters });
+      selected.push({
+        ...chosen,
+        _tripCategory: cat,
+        _distanceFromPrevMeters: candidates[0]?.meters,
+      });
       anchor = chosen;
     }
 
     const items = selected.map((p, index) => {
       const slot = slots[index] || slots[slots.length - 1] || {};
       const previous = index ? selected[index - 1] : safeGps;
-      const moveMeters = previous ? this._tripDistanceMeters(previous, p) : null;
-      const moveMinutes = Number.isFinite(moveMeters) ? Math.max(5, Math.round((moveMeters / 1000) / 22 * 60)) : null;
-      const stopName = p.nearestStopName || p.nearestStop?.stopName || p.nearestStop?.name || "bến gần nhất đang cập nhật";
-      const routeCode = p.nearestRouteCode || p.recommendedRoute?.id || p.recommendedRoute?.routeCode || "đang cập nhật";
+      const moveMeters = previous
+        ? this._tripDistanceMeters(previous, p)
+        : null;
+      const moveMinutes = Number.isFinite(moveMeters)
+        ? Math.max(5, Math.round((moveMeters / 1000 / 22) * 60))
+        : null;
+      const stopName =
+        p.nearestStopName ||
+        p.nearestStop?.stopName ||
+        p.nearestStop?.name ||
+        "bến gần nhất đang cập nhật";
+      const routeCode =
+        p.nearestRouteCode ||
+        p.recommendedRoute?.id ||
+        p.recommendedRoute?.routeCode ||
+        "đang cập nhật";
       return {
         ...p,
         order: index + 1,
         day: slot.day || 1,
         timeBlock: slot.timeBlock || `Điểm ${index + 1}`,
         suggestedStart: slot.suggestedStart || "08:00",
-        suggestedDurationMinutes: p.suggestedDurationMinutes || slot.duration || 90,
+        suggestedDurationMinutes:
+          p.suggestedDurationMinutes || slot.duration || 90,
         busRoute: p.recommendedRoute || { id: routeCode, routeCode },
-        stopDown: p.nearestStop || { stopName, name: stopName, walkingMinutes: p.walkingMinutes },
-        walkingMinutes: p.walkingMinutes || p.nearestStop?.walkingMinutes || null,
+        stopDown: p.nearestStop || {
+          stopName,
+          name: stopName,
+          walkingMinutes: p.walkingMinutes,
+        },
+        walkingMinutes:
+          p.walkingMinutes || p.nearestStop?.walkingMinutes || null,
         transferMinutes: moveMinutes,
         practicalNote: `${index === 0 ? "Bắt đầu bằng điểm chính" : "Điểm tiếp theo được chọn gần điểm trước"}; xuống tại ${stopName}, tuyến ${routeCode}. ${p.bestTime ? `Thời điểm hợp lý: ${p.bestTime}.` : ""}`,
       };
     });
 
-    const totalEstimatedTime = items.reduce((sum, it) => sum + Number(it.suggestedDurationMinutes || 90) + Number(it.walkingMinutes || 0) + Number(it.transferMinutes || 0), 0);
-    const provinceName = items[0]?.provinceName || province || "khu vực đã chọn";
+    const totalEstimatedTime = items.reduce(
+      (sum, it) =>
+        sum +
+        Number(it.suggestedDurationMinutes || 90) +
+        Number(it.walkingMinutes || 0) +
+        Number(it.transferMinutes || 0),
+      0,
+    );
+    const provinceName =
+      items[0]?.provinceName || province || "khu vực đã chọn";
     const title = `Lịch trình ${body.timeAvailable || "1 ngày"} tại ${provinceName}`;
     const summary = items.length
       ? `Đã sắp xếp ${items.length} điểm theo cụm gần nhau, hạn chế nhảy tỉnh xa, có xen kẽ tham quan - ăn uống/check-in - nghỉ nhẹ.`
@@ -3858,22 +5811,45 @@ const TravelUI = {
       items,
       places: items,
       stops: items,
-      mapPoints: items.map((p) => ({ name: p.name, lat: p.lat || p.latitude, lng: p.lng || p.longitude })),
+      mapPoints: items.map((p) => ({
+        name: p.name,
+        lat: p.lat || p.latitude,
+        lng: p.lng || p.longitude,
+      })),
       note: `Nguồn: ${reason}. Logic ưu tiên cùng tỉnh, gần tuyến/bến và giảm quãng đường vòng.`,
     };
   },
 
   _isTripPlanReasonable(plan = {}, body = {}, gps = null) {
-    const items = Array.isArray(plan?.items) ? plan.items : (Array.isArray(plan?.places) ? plan.places : []);
+    const items = Array.isArray(plan?.items)
+      ? plan.items
+      : Array.isArray(plan?.places)
+        ? plan.places
+        : [];
     if (!items.length) return false;
-    const names = items.map((it) => this._norm(it.name || it.placeName || "")).filter(Boolean);
+    const names = items
+      .map((it) => this._norm(it.name || it.placeName || ""))
+      .filter(Boolean);
     if (new Set(names).size < Math.min(2, names.length)) return false;
-    const validCoords = items.filter((it) => normalizeLatLng(it, { allowOutsideCentral: true, source: "trip-reasonable" })).length;
+    const validCoords = items.filter((it) =>
+      normalizeLatLng(it, {
+        allowOutsideCentral: true,
+        source: "trip-reasonable",
+      }),
+    ).length;
     if (validCoords < Math.min(2, items.length)) return false;
     const province = this._tripProvinceFromInput(body, gps);
     if (province) {
-      const sameProvince = items.filter((it) => this._norm(`${it.provinceCode || ""} ${it.provinceName || ""}`).includes(this._norm(province)) || String(it.provinceCode || "").toUpperCase() === String(province).toUpperCase()).length;
-      if (sameProvince && sameProvince < Math.ceil(items.length * 0.6)) return false;
+      const sameProvince = items.filter(
+        (it) =>
+          this._norm(
+            `${it.provinceCode || ""} ${it.provinceName || ""}`,
+          ).includes(this._norm(province)) ||
+          String(it.provinceCode || "").toUpperCase() ===
+            String(province).toUpperCase(),
+      ).length;
+      if (sameProvince && sameProvince < Math.ceil(items.length * 0.6))
+        return false;
     }
     for (let i = 1; i < items.length; i++) {
       const meters = this._tripDistanceMeters(items[i - 1], items[i]);
@@ -3883,8 +5859,13 @@ const TravelUI = {
   },
 
   _renderTripPlan(plan = {}, source = "SmartBus") {
-    const safeItems = (Array.isArray(plan.items) ? plan.items : (Array.isArray(plan.places) ? plan.places : []))
-      .map((it, index) => ({ ...it, order: it.order || index + 1 }));
+    const safeItems = (
+      Array.isArray(plan.items)
+        ? plan.items
+        : Array.isArray(plan.places)
+          ? plan.places
+          : []
+    ).map((it, index) => ({ ...it, order: it.order || index + 1 }));
     this._lastTripPlan = { ...plan, items: safeItems };
     const summaryCard = `<div class="travel-card wide">
       <div class="travel-kicker">${this._esc(plan.title || "Lịch trình SmartBus")}</div>
@@ -3892,29 +5873,71 @@ const TravelUI = {
       <p class="travel-small">${this._esc(plan.note || `Nguồn: ${source}`)}${plan.totalEstimatedTime ? ` · Tổng thời gian ước tính: ${this._esc(Math.round(plan.totalEstimatedTime))} phút` : ""}</p>
       <div class="travel-actions"><button class="btn-ghost" onclick="TravelUI.showTripOnMap()">Hiện lịch trình trên bản đồ</button><button class="btn-ghost" onclick="SmartBusAssistant.sendQuestion('Hỏi thêm về lịch trình này')">Hỏi chatbot về lịch trình này</button></div>
     </div>`;
-    if (!safeItems.length) return summaryCard + this._empty("Không đủ địa điểm để tạo lịch trình hợp lý. Hãy chọn tỉnh cụ thể hoặc đổi sở thích.");
-    return summaryCard + safeItems.map((it, i) => {
-      const route = it.busRoute || it.recommendedRoute || (it.nearestRouteCode ? { id: it.nearestRouteCode } : null);
-      const stopName = it.stopDown?.stopName || it.stopDown?.name || it.nearestStopName || it.nearestStop?.stopName || it.nearestStop?.name || "bến gần nhất đang cập nhật";
-      const moveText = it.transferMinutes ? `<span>Di chuyển ~${this._esc(it.transferMinutes)} phút</span>` : "";
-      return `<div class="travel-card">
+    if (!safeItems.length)
+      return (
+        summaryCard +
+        this._empty(
+          "Không đủ địa điểm để tạo lịch trình hợp lý. Hãy chọn tỉnh cụ thể hoặc đổi sở thích.",
+        )
+      );
+    return (
+      summaryCard +
+      safeItems
+        .map((it, i) => {
+          const route =
+            it.busRoute ||
+            it.recommendedRoute ||
+            (it.nearestRouteCode ? { id: it.nearestRouteCode } : null);
+          const stopName =
+            it.stopDown?.stopName ||
+            it.stopDown?.name ||
+            it.nearestStopName ||
+            it.nearestStop?.stopName ||
+            it.nearestStop?.name ||
+            "bến gần nhất đang cập nhật";
+          const moveText = it.transferMinutes
+            ? `<span>Di chuyển ~${this._esc(it.transferMinutes)} phút</span>`
+            : "";
+          return `<div class="travel-card">
         <div class="travel-kicker">${this._esc(it.timeBlock || `Điểm ${i + 1}`)} · ${this._esc(it.suggestedStart || "")}</div>
         <h4>${this._esc(it.name || it.placeName || "Địa điểm")}</h4>
         <p>${this._esc(it.description || it.shortDescription || "")}</p>
         <div class="travel-meta"><span>Ở lại ${this._esc(it.suggestedDurationMinutes || 90)} phút</span>${route ? `<span>Bus ${this._esc(route.id || route.routeCode || route.routeDisplayCode || route)}</span>` : ""}${it.walkingMinutes ? `<span>Đi bộ ${this._esc(it.walkingMinutes)} phút</span>` : ""}${moveText}</div>
         <p class="travel-small">${this._esc(it.practicalNote || `Xuống tại ${stopName}; ưu tiên cùng cụm để giảm thời gian di chuyển.`)}</p>
       </div>`;
-    }).join("");
+        })
+        .join("")
+    );
   },
 
   showTripOnMap() {
     const plan = this._lastTripPlan;
-    if (!plan || !Array.isArray(plan.items) || !plan.items.length) { Nav.go("dashboard"); return; }
+    if (!plan || !Array.isArray(plan.items) || !plan.items.length) {
+      Nav.go("dashboard");
+      return;
+    }
     Nav.go("dashboard");
     setTimeout(() => {
       try {
-        MapModule.showTravelPlan?.({ suggestedPlaces: plan.items, destinationPlace: plan.items[0], routePlan: { summary: plan.summary, legs: plan.items.map((x) => `${x.timeBlock || "Điểm"}: ${x.name || x.placeName}`) } }, {});
-      } catch (err) { console.warn("[SmartBus] Không thể hiển thị lịch trình trên bản đồ:", err?.message || err); }
+        MapModule.showTravelPlan?.(
+          {
+            suggestedPlaces: plan.items,
+            destinationPlace: plan.items[0],
+            routePlan: {
+              summary: plan.summary,
+              legs: plan.items.map(
+                (x) => `${x.timeBlock || "Điểm"}: ${x.name || x.placeName}`,
+              ),
+            },
+          },
+          {},
+        );
+      } catch (err) {
+        console.warn(
+          "[SmartBus] Không thể hiển thị lịch trình trên bản đồ:",
+          err?.message || err,
+        );
+      }
     }, 350);
   },
 
@@ -3922,34 +5945,68 @@ const TravelUI = {
     const box = $("#trip-result");
     const submitBtn = $("#trip-form button[type='submit']");
     if (!box) return;
-    box.innerHTML = this._loading("Đang tạo lịch trình hợp lý... SmartBus đang gom địa điểm theo tỉnh, nhóm gần nhau và tuyến bus liên quan.");
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.dataset.originalText = submitBtn.textContent; submitBtn.textContent = "Đang tạo..."; }
-    const rawGps = this.gps || await this._getGps(false);
+    box.innerHTML = this._loading(
+      "Đang tạo lịch trình hợp lý... SmartBus đang gom địa điểm theo tỉnh, nhóm gần nhau và tuyến bus liên quan.",
+    );
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.dataset.originalText = submitBtn.textContent;
+      submitBtn.textContent = "Đang tạo...";
+    }
+    const rawGps = this.gps || (await this._getGps(false));
     const gps = this._safeNearbyGps(rawGps);
     if (gps) this.gps = gps;
     const body = {
       timeAvailable: $("#trip-time")?.value || "1 buổi",
-      interests: ($("#trip-interests")?.value || "").split(",").map((x) => x.trim()).filter(Boolean),
+      interests: ($("#trip-interests")?.value || "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean),
       budget: $("#trip-budget")?.value || "low",
       province: $("#place-province")?.value || "",
       lat: gps?.lat ?? null,
       lng: gps?.lng ?? null,
     };
     try {
-      const backendPlan = await API.post("/trip-plans/generate", body, { timeoutMs: 12000, skipRefresh: true });
+      const backendPlan = await API.post("/trip-plans/generate", body, {
+        timeoutMs: 12000,
+        skipRefresh: true,
+      });
       const plan = this._isTripPlanReasonable(backendPlan, body, gps)
         ? backendPlan
-        : await this._buildLocalTripPlan(body, gps, "Backend trả lịch trình chưa hợp lý → đã cân bằng lại bằng dữ liệu local");
-      box.innerHTML = this._renderTripPlan(plan, plan.source || "Backend SQL Server");
+        : await this._buildLocalTripPlan(
+            body,
+            gps,
+            "Backend trả lịch trình chưa hợp lý → đã cân bằng lại bằng dữ liệu local",
+          );
+      box.innerHTML = this._renderTripPlan(
+        plan,
+        plan.source || "Backend SQL Server",
+      );
     } catch (err) {
-      console.warn("[SmartBus] Trip API lỗi/chậm, tạo lịch trình local:", err?.message || err);
-      const plan = await this._buildLocalTripPlan(body, gps, err?.code === "TIMEOUT" ? "Backend phản hồi chậm → dùng dữ liệu local" : "Dữ liệu local GitHub Pages");
-      box.innerHTML = this._renderTripPlan(plan, plan.source || "Dữ liệu local");
+      console.warn(
+        "[SmartBus] Trip API lỗi/chậm, tạo lịch trình local:",
+        err?.message || err,
+      );
+      const plan = await this._buildLocalTripPlan(
+        body,
+        gps,
+        err?.code === "TIMEOUT"
+          ? "Backend phản hồi chậm → dùng dữ liệu local"
+          : "Dữ liệu local GitHub Pages",
+      );
+      box.innerHTML = this._renderTripPlan(
+        plan,
+        plan.source || "Dữ liệu local",
+      );
     } finally {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = submitBtn.dataset.originalText || "Tạo lịch trình"; }
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent =
+          submitBtn.dataset.originalText || "Tạo lịch trình";
+      }
     }
   },
-
 
   async renderCommunity() {
     const box = $("#community-list");
@@ -3962,19 +6019,47 @@ const TravelUI = {
     const category = encodeURIComponent($("#community-category")?.value || "");
     try {
       // FIX: Gọi /reviews thay vì /community/reviews để nhất quán
-      const posts = await API.get(`/reviews?q=${q}&province=${province}&category=${category}&status=approved`, { skipAuth: true });
-      if (!posts.length) { box.innerHTML = this._empty("Chưa có review cộng đồng đã duyệt. Hãy đăng review đầu tiên!"); return; }
-      box.innerHTML = posts.map((p) => `<article class="travel-card"><div class="travel-kicker">${this._esc(p.category || "Review")} ${p.isSeed ? "· Bài gợi ý từ SmartBus" : "· Người dùng"}</div><h4>${this._esc(p.title)}</h4><p>${this._esc(p.shortCaption || p.content || "")}</p><div class="travel-meta"><span>⭐ ${this._esc(p.rating || 0)}/5</span><span>${this._esc(p.province || "")}</span><span>${this._esc(p.placeName || "")}</span></div><div class="travel-actions"><button class="btn-ghost" data-review-detail="${this._esc(p.id)}">Xem chi tiết</button><button class="btn-ghost" data-review-chat="${this._esc(p.placeName || p.title)}">Hỏi chatbot</button></div></article>`).join("");
-      $$('[data-review-chat]').forEach((btn) => btn.addEventListener('click', () => SmartBusAssistant.sendQuestion?.(`Địa điểm ${btn.dataset.reviewChat} có tuyến bus hoặc review gì?`)));
-      $$('[data-review-detail]').forEach((btn) => btn.addEventListener('click', async () => this.showReviewDetail(btn.dataset.reviewDetail)));
+      const posts = await API.get(
+        `/reviews?q=${q}&province=${province}&category=${category}&status=approved`,
+        { skipAuth: true },
+      );
+      if (!posts.length) {
+        box.innerHTML = this._empty(
+          "Chưa có review cộng đồng đã duyệt. Hãy đăng review đầu tiên!",
+        );
+        return;
+      }
+      box.innerHTML = posts
+        .map(
+          (p) =>
+            `<article class="travel-card"><div class="travel-kicker">${this._esc(p.category || "Review")} ${p.isSeed ? "· Bài gợi ý từ SmartBus" : "· Người dùng"}</div><h4>${this._esc(p.title)}</h4><p>${this._esc(p.shortCaption || p.content || "")}</p><div class="travel-meta"><span>⭐ ${this._esc(p.rating || 0)}/5</span><span>${this._esc(p.province || "")}</span><span>${this._esc(p.placeName || "")}</span></div><div class="travel-actions"><button class="btn-ghost" data-review-detail="${this._esc(p.id)}">Xem chi tiết</button><button class="btn-ghost" data-review-chat="${this._esc(p.placeName || p.title)}">Hỏi chatbot</button></div></article>`,
+        )
+        .join("");
+      $$("[data-review-chat]").forEach((btn) =>
+        btn.addEventListener("click", () =>
+          SmartBusAssistant.sendQuestion?.(
+            `Địa điểm ${btn.dataset.reviewChat} có tuyến bus hoặc review gì?`,
+          ),
+        ),
+      );
+      $$("[data-review-detail]").forEach((btn) =>
+        btn.addEventListener("click", async () =>
+          this.showReviewDetail(btn.dataset.reviewDetail),
+        ),
+      );
     } catch (err) {
-      box.innerHTML = this._empty("Chưa kết nối được backend review API hoặc chưa chạy migration community_reviews.");
+      box.innerHTML = this._empty(
+        "Chưa kết nối được backend review API hoặc chưa chạy migration community_reviews.",
+      );
     }
   },
 
   async submitCommunityReview(e) {
     e.preventDefault();
-    if (!TokenStore.getAccessToken()) { Auth.showLogin?.("Bạn cần đăng nhập trước khi đăng review."); return; }
+    if (!TokenStore.getAccessToken()) {
+      Auth.showLogin?.("Bạn cần đăng nhập trước khi đăng review.");
+      return;
+    }
     const body = {
       title: $("#review-title")?.value.trim(),
       placeName: $("#review-place")?.value.trim(),
@@ -3986,82 +6071,188 @@ const TravelUI = {
       tips: $("#review-tips")?.value.trim(),
       imageUrl: $("#review-image")?.value.trim(),
     };
-    if (!body.title || !body.placeName || !body.content || body.content.length < 30) { Toast.show("Tiêu đề, địa điểm và nội dung tối thiểu 30 ký tự là bắt buộc", "warning", 3500); return; }
+    if (
+      !body.title ||
+      !body.placeName ||
+      !body.content ||
+      body.content.length < 30
+    ) {
+      Toast.show(
+        "Tiêu đề, địa điểm và nội dung tối thiểu 30 ký tự là bắt buộc",
+        "warning",
+        3500,
+      );
+      return;
+    }
     try {
-      const created = await API.post('/reviews', body);
-      Toast.show(created?.status === 'pending' ? 'Đã gửi bài review và chờ Admin duyệt.' : 'Đã đăng bài review thành công', 'success', 2500);
+      const created = await API.post("/reviews", body);
+      Toast.show(
+        created?.status === "pending"
+          ? "Đã gửi bài review và chờ Admin duyệt."
+          : "Đã đăng bài review thành công",
+        "success",
+        2500,
+      );
       e.target.reset();
       this.renderCommunity();
-    } catch (err) { Toast.show(err.message || 'Không đăng được review', 'error', 3500); }
+    } catch (err) {
+      Toast.show(err.message || "Không đăng được review", "error", 3500);
+    }
   },
 
   async showReviewDetail(id) {
     try {
       const p = await API.get(`/reviews/${id}`, { skipAuth: true });
-      Toast.show(`${p.title}: ${p.tips || p.shortCaption || 'Đã mở chi tiết review.'}`, 'info', 6000);
-    } catch { Toast.show('Không tải được chi tiết review', 'error'); }
+      Toast.show(
+        `${p.title}: ${p.tips || p.shortCaption || "Đã mở chi tiết review."}`,
+        "info",
+        6000,
+      );
+    } catch {
+      Toast.show("Không tải được chi tiết review", "error");
+    }
   },
 
   async toggleFavoriteRoute(routeId, add = true) {
-    if (!TokenStore.getAccessToken()) { Auth.showLogin?.("Bạn cần đăng nhập để lưu tuyến yêu thích."); return; }
+    if (!TokenStore.getAccessToken()) {
+      Auth.showLogin?.("Bạn cần đăng nhập để lưu tuyến yêu thích.");
+      return;
+    }
     try {
-      if (add) await API.post('/favorite-routes', { routeId }); else await API.request(`/favorite-routes/${encodeURIComponent(routeId)}`, { method: 'DELETE' });
-      Toast.show(add ? 'Đã lưu tuyến yêu thích' : 'Đã bỏ lưu tuyến', 'success', 2200);
-      if ($('.view.active')?.id === 'view-favorite-routes') this.renderFavoriteRoutes();
-    } catch (err) { Toast.show(err.message || 'Không thao tác được tuyến yêu thích', 'error'); }
+      if (add) await API.post("/favorite-routes", { routeId });
+      else
+        await API.request(`/favorite-routes/${encodeURIComponent(routeId)}`, {
+          method: "DELETE",
+        });
+      Toast.show(
+        add ? "Đã lưu tuyến yêu thích" : "Đã bỏ lưu tuyến",
+        "success",
+        2200,
+      );
+      if ($(".view.active")?.id === "view-favorite-routes")
+        this.renderFavoriteRoutes();
+    } catch (err) {
+      Toast.show(err.message || "Không thao tác được tuyến yêu thích", "error");
+    }
   },
 
   async toggleFavoritePlace(placeId, add = true, button = null) {
-    if (!TokenStore.getAccessToken()) { Auth.showLogin?.("Bạn cần đăng nhập để lưu địa điểm yêu thích."); return; }
+    if (!TokenStore.getAccessToken()) {
+      Auth.showLogin?.("Bạn cần đăng nhập để lưu địa điểm yêu thích.");
+      return;
+    }
     const originalText = button?.textContent;
-    if (button) { button.disabled = true; button.textContent = add ? "Đang lưu..." : "Đang bỏ..."; }
+    if (button) {
+      button.disabled = true;
+      button.textContent = add ? "Đang lưu..." : "Đang bỏ...";
+    }
     try {
       if (add) {
-        try { await API.post(`/tourism/places/${encodeURIComponent(placeId)}/save`, {}); }
-        catch (_err) { await API.post('/favorite-places', { placeId }); }
+        try {
+          await API.post(
+            `/tourism/places/${encodeURIComponent(placeId)}/save`,
+            {},
+          );
+        } catch (_err) {
+          await API.post("/favorite-places", { placeId });
+        }
         this._placeFavoriteIds.add(Number(placeId));
       } else {
-        try { await API.request(`/tourism/places/${encodeURIComponent(placeId)}/save`, { method: 'DELETE' }); }
-        catch (_err) { await API.request(`/favorite-places/${encodeURIComponent(placeId)}`, { method: 'DELETE' }); }
+        try {
+          await API.request(
+            `/tourism/places/${encodeURIComponent(placeId)}/save`,
+            { method: "DELETE" },
+          );
+        } catch (_err) {
+          await API.request(`/favorite-places/${encodeURIComponent(placeId)}`, {
+            method: "DELETE",
+          });
+        }
         this._placeFavoriteIds.delete(Number(placeId));
       }
-      Toast.show(add ? 'Đã lưu địa điểm yêu thích' : 'Đã bỏ lưu địa điểm', 'success', 2200);
-      if (button) button.textContent = add ? '✅ Đã lưu' : '🔖 Lưu địa điểm';
-      if ($('.view.active')?.id === 'view-favorite-places') this.renderFavoritePlaces();
+      Toast.show(
+        add ? "Đã lưu địa điểm yêu thích" : "Đã bỏ lưu địa điểm",
+        "success",
+        2200,
+      );
+      if (button) button.textContent = add ? "✅ Đã lưu" : "🔖 Lưu địa điểm";
+      if ($(".view.active")?.id === "view-favorite-places")
+        this.renderFavoritePlaces();
     } catch (err) {
-      if (button) button.textContent = originalText || (add ? '🔖 Lưu địa điểm' : 'Bỏ yêu thích');
-      Toast.show(err.message || 'Không thao tác được địa điểm yêu thích', 'error');
+      if (button)
+        button.textContent =
+          originalText || (add ? "🔖 Lưu địa điểm" : "Bỏ yêu thích");
+      Toast.show(
+        err.message || "Không thao tác được địa điểm yêu thích",
+        "error",
+      );
     } finally {
       if (button) button.disabled = false;
     }
   },
 
-
   async _fetchPlace(placeId) {
     const key = String(placeId || "");
-    const cached = Array.from(this._placesCache.values()).flat().find((p) =>
-      String(p?.id) === key || String(p?.placeId) === key || String(p?.externalPlaceCode) === key || String(p?.slug) === key
-    );
+    const cached = Array.from(this._placesCache.values())
+      .flat()
+      .find(
+        (p) =>
+          String(p?.id) === key ||
+          String(p?.placeId) === key ||
+          String(p?.externalPlaceCode) === key ||
+          String(p?.slug) === key,
+      );
     if (cached) return cached;
     try {
       const local = await this._loadStaticTourismPlaces();
-      const found = local.find((p) => String(p?.id) === key || String(p?.placeId) === key || String(p?.externalPlaceCode) === key || String(p?.slug) === key);
+      const found = local.find(
+        (p) =>
+          String(p?.id) === key ||
+          String(p?.placeId) === key ||
+          String(p?.externalPlaceCode) === key ||
+          String(p?.slug) === key,
+      );
       if (found) return found;
     } catch {}
-    try { return await API.get(`/tourism/places/${encodeURIComponent(placeId)}`, { skipAuth: true, timeoutMs: 10000 }); } catch { return null; }
+    try {
+      return await API.get(`/tourism/places/${encodeURIComponent(placeId)}`, {
+        skipAuth: true,
+        timeoutMs: 10000,
+      });
+    } catch {
+      return null;
+    }
   },
 
   async showPlaceOnMap(placeId) {
     const place = await this._fetchPlace(placeId);
-    if (!place) { Toast.show('Không tải được thông tin địa điểm.', 'error'); return; }
+    if (!place) {
+      Toast.show("Không tải được thông tin địa điểm.", "error");
+      return;
+    }
     const lat = Number(place.latitude ?? place.lat);
     const lng = Number(place.longitude ?? place.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) { Toast.show('Địa điểm này chưa có tọa độ.', 'warning'); return; }
-    try { MapModule.clearTravelPlan?.(); MapModule.clearRouteHighlight?.(); } catch {}
-    Nav.go('dashboard');
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      Toast.show("Địa điểm này chưa có tọa độ.", "warning");
+      return;
+    }
+    try {
+      MapModule.clearTravelPlan?.();
+      MapModule.clearRouteHighlight?.();
+    } catch {}
+    Nav.go("dashboard");
     setTimeout(() => {
-      try { MapModule.focusPlace?.({ ...place, lat, lng, latitude: lat, longitude: lng }); }
-      catch (_err) { Toast.show('Không focus được bản đồ địa điểm.', 'error'); }
+      try {
+        MapModule.focusPlace?.({
+          ...place,
+          lat,
+          lng,
+          latitude: lat,
+          longitude: lng,
+        });
+      } catch (_err) {
+        Toast.show("Không focus được bản đồ địa điểm.", "error");
+      }
     }, 350);
   },
 
@@ -4071,11 +6262,37 @@ const TravelUI = {
     box.innerHTML = this._loading("Đang tải tuyến yêu thích...");
     try {
       const routes = await API.get("/favorite-routes");
-      if (!routes.length) { box.innerHTML = this._empty("Bạn chưa lưu tuyến nào. Vào Danh sách xe để bấm “Lưu tuyến”."); return; }
-      box.innerHTML = routes.map((r) => `<div class="travel-card"><div class="travel-kicker">Tuyến ${this._esc(routeLabel(r))} · ${this._esc(r.provinceName || r.provinceCode || '')}</div><h4>${this._esc(r.name || 'Tuyến không còn tồn tại')}</h4><p>${this._esc(r.originName || 'Điểm đầu')} → ${this._esc(r.destinationName || 'Điểm cuối')}</p><div class="travel-meta"><span>${this._esc(r.time || '')}</span><span>Xe hoạt động: ${this._esc(r.activeBusCount || r.vehicleCount || 0)}</span></div><div class="travel-actions"><button class="btn-ghost" data-fav-route-map="${this._esc(r.id)}">Xem trên bản đồ</button><button class="btn-ghost" data-fav-route-remove="${this._esc(r.id)}">Bỏ yêu thích</button></div></div>`).join("");
-      $$('[data-fav-route-map]').forEach((btn) => btn.addEventListener('click', () => { Nav.go('dashboard'); setTimeout(() => MapModule.highlightRoute(btn.dataset.favRouteMap), 250); }));
-      $$('[data-fav-route-remove]').forEach((btn) => btn.addEventListener('click', () => this.toggleFavoriteRoute(btn.dataset.favRouteRemove, false)));
-    } catch (_err) { box.innerHTML = this._empty("Bạn cần đăng nhập hoặc chạy migration favorites_routes để xem tuyến yêu thích."); }
+      if (!routes.length) {
+        box.innerHTML = this._empty(
+          "Bạn chưa lưu tuyến nào. Vào Danh sách xe để bấm “Lưu tuyến”.",
+        );
+        return;
+      }
+      box.innerHTML = routes
+        .map(
+          (r) =>
+            `<div class="travel-card"><div class="travel-kicker">Tuyến ${this._esc(routeLabel(r))} · ${this._esc(r.provinceName || r.provinceCode || "")}</div><h4>${this._esc(r.name || "Tuyến không còn tồn tại")}</h4><p>${this._esc(r.originName || "Điểm đầu")} → ${this._esc(r.destinationName || "Điểm cuối")}</p><div class="travel-meta"><span>${this._esc(r.time || "")}</span><span>Xe hoạt động: ${this._esc(r.activeBusCount || r.vehicleCount || 0)}</span></div><div class="travel-actions"><button class="btn-ghost" data-fav-route-map="${this._esc(r.id)}">Xem trên bản đồ</button><button class="btn-ghost" data-fav-route-remove="${this._esc(r.id)}">Bỏ yêu thích</button></div></div>`,
+        )
+        .join("");
+      $$("[data-fav-route-map]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          Nav.go("dashboard");
+          setTimeout(
+            () => MapModule.highlightRoute(btn.dataset.favRouteMap),
+            250,
+          );
+        }),
+      );
+      $$("[data-fav-route-remove]").forEach((btn) =>
+        btn.addEventListener("click", () =>
+          this.toggleFavoriteRoute(btn.dataset.favRouteRemove, false),
+        ),
+      );
+    } catch (_err) {
+      box.innerHTML = this._empty(
+        "Bạn cần đăng nhập hoặc chạy migration favorites_routes để xem tuyến yêu thích.",
+      );
+    }
   },
   async renderFavoritePlaces() {
     const box = $("#favorite-places-list");
@@ -4083,37 +6300,139 @@ const TravelUI = {
     box.innerHTML = this._loading("Đang tải địa điểm yêu thích...");
     try {
       let places;
-      try { places = await API.get("/users/me/favorite-places"); } catch (_e) { places = await API.get("/favorite-places"); }
-      if (!places.length) { box.innerHTML = this._empty("Bạn chưa lưu địa điểm nào. Vào trang Địa điểm du lịch để bấm “Lưu địa điểm”."); return; }
-      box.innerHTML = places.map((p) => `<div class="travel-card"><div class="travel-kicker">${this._esc(p.categoryName || p.category || 'Du lịch')} · ${this._esc(p.provinceName || p.provinceCode || '')}</div><h4>${this._esc(p.name || 'Địa điểm không còn tồn tại')}</h4><p>${this._esc(p.shortDescription || p.description || '')}</p><div class="travel-meta"><span>⭐ ${this._esc(p.averageRating || 0)}</span><span>${this._esc(p.reviewCount || 0)} review</span></div><div class="travel-actions"><button class="btn-ghost" data-fav-place-map="${this._esc(p.id)}">Xem trên bản đồ</button><button class="btn-ghost" data-fav-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-fav-place-remove="${this._esc(p.id)}">Bỏ yêu thích</button></div></div>`).join("");
-      $$('[data-fav-place-map]').forEach((btn) => btn.addEventListener('click', async () => { const p = await this._fetchPlace(btn.dataset.favPlaceMap); if (p) { Nav.go('dashboard'); setTimeout(() => MapModule.focusPlace?.(p), 250); } }));
-      $$('[data-fav-place-chat]').forEach((btn) => btn.addEventListener('click', () => SmartBusAssistant.sendQuestion?.(`Từ vị trí của tôi đến ${btn.dataset.favPlaceChat} đi tuyến nào?`)));
-      $$('[data-fav-place-remove]').forEach((btn) => btn.addEventListener('click', () => this.toggleFavoritePlace(btn.dataset.favPlaceRemove, false)));
-    } catch (_err) { box.innerHTML = this._empty("Bạn cần đăng nhập hoặc chạy migration favorites_places để xem địa điểm yêu thích."); }
+      try {
+        places = await API.get("/users/me/favorite-places");
+      } catch (_e) {
+        places = await API.get("/favorite-places");
+      }
+      if (!places.length) {
+        box.innerHTML = this._empty(
+          "Bạn chưa lưu địa điểm nào. Vào trang Địa điểm du lịch để bấm “Lưu địa điểm”.",
+        );
+        return;
+      }
+      box.innerHTML = places
+        .map(
+          (p) =>
+            `<div class="travel-card"><div class="travel-kicker">${this._esc(p.categoryName || p.category || "Du lịch")} · ${this._esc(p.provinceName || p.provinceCode || "")}</div><h4>${this._esc(p.name || "Địa điểm không còn tồn tại")}</h4><p>${this._esc(p.shortDescription || p.description || "")}</p><div class="travel-meta"><span>⭐ ${this._esc(p.averageRating || 0)}</span><span>${this._esc(p.reviewCount || 0)} review</span></div><div class="travel-actions"><button class="btn-ghost" data-fav-place-map="${this._esc(p.id)}">Xem trên bản đồ</button><button class="btn-ghost" data-fav-place-chat="${this._esc(p.name)}">Hỏi chatbot</button><button class="btn-ghost" data-fav-place-remove="${this._esc(p.id)}">Bỏ yêu thích</button></div></div>`,
+        )
+        .join("");
+      $$("[data-fav-place-map]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const p = await this._fetchPlace(btn.dataset.favPlaceMap);
+          if (p) {
+            Nav.go("dashboard");
+            setTimeout(() => MapModule.focusPlace?.(p), 250);
+          }
+        }),
+      );
+      $$("[data-fav-place-chat]").forEach((btn) =>
+        btn.addEventListener("click", () =>
+          SmartBusAssistant.sendQuestion?.(
+            `Từ vị trí của tôi đến ${btn.dataset.favPlaceChat} đi tuyến nào?`,
+          ),
+        ),
+      );
+      $$("[data-fav-place-remove]").forEach((btn) =>
+        btn.addEventListener("click", () =>
+          this.toggleFavoritePlace(btn.dataset.favPlaceRemove, false),
+        ),
+      );
+    } catch (_err) {
+      box.innerHTML = this._empty(
+        "Bạn cần đăng nhập hoặc chạy migration favorites_places để xem địa điểm yêu thích.",
+      );
+    }
   },
-  async renderChatHistory(activeTab = this._historyTab || 'chatbot') {
+  async renderChatHistory(activeTab = this._historyTab || "chatbot") {
     const box = $("#chat-history-list");
     if (!box) return;
     this._historyTab = activeTab;
     showLoading(box, "Đang tải lịch sử cá nhân...");
     try {
       const [chatRows, communityRows, activityRows] = await Promise.all([
-        API.get("/users/me/chat-history?limit=30").catch(() => API.get("/chat/history").catch(() => [])),
+        API.get("/users/me/chat-history?limit=30").catch(() =>
+          API.get("/chat/history").catch(() => []),
+        ),
         API.get("/users/me/community-history?limit=30").catch(() => []),
         API.get("/users/me/activity-history?limit=40").catch(() => []),
       ]);
       const tabs = [
-        { key: 'chatbot', label: 'Chatbot', empty: 'Chưa có lịch sử chat.', rows: (chatRows || []).map((r) => ({ kind: 'Chatbot', createdAt: r.createdAt, title: r.message || r.question || 'Câu hỏi chatbot', body: r.reply || r.botResponse || '', relatedPlaceName: r.relatedPlaceName, relatedRouteId: r.relatedRouteId })) },
-        { key: 'community', label: 'Cộng đồng review', empty: 'Chưa có hoạt động cộng đồng.', rows: (communityRows || []).map((r) => ({ kind: 'Cộng đồng review', createdAt: r.createdAt, title: r.title || r.placeName || 'Review cộng đồng', body: r.content || r.status || '', relatedPlaceName: r.placeName })) },
-        { key: 'activity', label: 'Hoạt động gần đây', empty: 'Chưa có hoạt động gần đây.', rows: (activityRows || []).map((r) => ({ kind: r.label || r.actionType || 'Hoạt động', createdAt: r.createdAt, title: r.label || r.actionType || 'Hoạt động', body: r.description || '', targetType: r.targetType, targetId: r.targetId })) },
+        {
+          key: "chatbot",
+          label: "Chatbot",
+          empty: "Chưa có lịch sử chat.",
+          rows: (chatRows || []).map((r) => ({
+            kind: "Chatbot",
+            createdAt: r.createdAt,
+            title: r.message || r.question || "Câu hỏi chatbot",
+            body: r.reply || r.botResponse || "",
+            relatedPlaceName: r.relatedPlaceName,
+            relatedRouteId: r.relatedRouteId,
+          })),
+        },
+        {
+          key: "community",
+          label: "Cộng đồng review",
+          empty: "Chưa có hoạt động cộng đồng.",
+          rows: (communityRows || []).map((r) => ({
+            kind: "Cộng đồng review",
+            createdAt: r.createdAt,
+            title: r.title || r.placeName || "Review cộng đồng",
+            body: r.content || r.status || "",
+            relatedPlaceName: r.placeName,
+          })),
+        },
+        {
+          key: "activity",
+          label: "Hoạt động gần đây",
+          empty: "Chưa có hoạt động gần đây.",
+          rows: (activityRows || []).map((r) => ({
+            kind: r.label || r.actionType || "Hoạt động",
+            createdAt: r.createdAt,
+            title: r.label || r.actionType || "Hoạt động",
+            body: r.description || "",
+            targetType: r.targetType,
+            targetId: r.targetId,
+          })),
+        },
       ];
       const selected = tabs.find((t) => t.key === activeTab) || tabs[0];
-      selected.rows.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-      box.innerHTML = `<div class="history-tabs">${tabs.map((t) => `<button class="history-tab ${t.key === selected.key ? 'active' : ''}" data-history-tab="${t.key}">${t.label}</button>`).join('')}</div>` +
-        (selected.rows.length ? selected.rows.slice(0, 40).map((r) => `<div class="travel-card"><div class="travel-kicker">${this._esc(r.createdAt ? new Date(r.createdAt).toLocaleString('vi-VN') : '')} · ${this._esc(r.kind)}</div><h4>${this._esc(r.title || '')}</h4><p>${this._esc(r.body || '')}</p><div class="travel-actions">${r.relatedPlaceName ? `<button class="btn-ghost" data-history-review="${this._esc(r.relatedPlaceName)}">Xem review cộng đồng</button>` : ''}${r.relatedRouteId ? `<button class="btn-ghost" data-history-route="${this._esc(r.relatedRouteId)}">Xem tuyến</button>` : ''}</div></div>`).join('') : this._empty(selected.empty));
-      $$('[data-history-tab]').forEach((btn) => btn.addEventListener('click', () => this.renderChatHistory(btn.dataset.historyTab)));
-      $$('[data-history-review]').forEach((btn) => btn.addEventListener('click', () => { $('#community-search') && ($('#community-search').value = btn.dataset.historyReview); Nav.go('reviews'); }));
-      $$('[data-history-route]').forEach((btn) => btn.addEventListener('click', () => { Nav.go('dashboard'); setTimeout(() => MapModule.highlightRoute(btn.dataset.historyRoute), 250); }));
+      selected.rows.sort(
+        (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+      );
+      box.innerHTML =
+        `<div class="history-tabs">${tabs.map((t) => `<button class="history-tab ${t.key === selected.key ? "active" : ""}" data-history-tab="${t.key}">${t.label}</button>`).join("")}</div>` +
+        (selected.rows.length
+          ? selected.rows
+              .slice(0, 40)
+              .map(
+                (r) =>
+                  `<div class="travel-card"><div class="travel-kicker">${this._esc(r.createdAt ? new Date(r.createdAt).toLocaleString("vi-VN") : "")} · ${this._esc(r.kind)}</div><h4>${this._esc(r.title || "")}</h4><p>${this._esc(r.body || "")}</p><div class="travel-actions">${r.relatedPlaceName ? `<button class="btn-ghost" data-history-review="${this._esc(r.relatedPlaceName)}">Xem review cộng đồng</button>` : ""}${r.relatedRouteId ? `<button class="btn-ghost" data-history-route="${this._esc(r.relatedRouteId)}">Xem tuyến</button>` : ""}</div></div>`,
+              )
+              .join("")
+          : this._empty(selected.empty));
+      $$("[data-history-tab]").forEach((btn) =>
+        btn.addEventListener("click", () =>
+          this.renderChatHistory(btn.dataset.historyTab),
+        ),
+      );
+      $$("[data-history-review]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          $("#community-search") &&
+            ($("#community-search").value = btn.dataset.historyReview);
+          Nav.go("reviews");
+        }),
+      );
+      $$("[data-history-route]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          Nav.go("dashboard");
+          setTimeout(
+            () => MapModule.highlightRoute(btn.dataset.historyRoute),
+            250,
+          );
+        }),
+      );
     } catch {
       showError(box, "Bạn cần đăng nhập để xem lịch sử cá nhân.");
     }
@@ -4153,13 +6472,21 @@ const TravelUI = {
   },
 
   _bindAdminShell() {
-    $$("[data-admin-tab]").forEach((btn) => btn.addEventListener("click", () => this._switchAdminTab(btn.dataset.adminTab)));
-    $("#admin-refresh-btn")?.addEventListener("click", () => this._switchAdminTab(this._adminTab));
+    $$("[data-admin-tab]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._switchAdminTab(btn.dataset.adminTab),
+      ),
+    );
+    $("#admin-refresh-btn")?.addEventListener("click", () =>
+      this._switchAdminTab(this._adminTab),
+    );
   },
 
   async _switchAdminTab(tab) {
     this._adminTab = tab || "reviews";
-    $$("[data-admin-tab]").forEach((btn) => btn.classList.toggle("active", btn.dataset.adminTab === this._adminTab));
+    $$("[data-admin-tab]").forEach((btn) =>
+      btn.classList.toggle("active", btn.dataset.adminTab === this._adminTab),
+    );
     if (this._adminTab === "reviews") return this._renderAdminReviews();
     if (this._adminTab === "community") return this._renderAdminCommunity();
     return this._renderAdminPlaces();
@@ -4174,12 +6501,20 @@ const TravelUI = {
     if (!box) return;
     box.innerHTML = this._loading("Đang tải review cộng đồng chờ duyệt...");
     const q = encodeURIComponent($("#admin-review-q")?.value || "");
-    const province = encodeURIComponent($("#admin-review-province")?.value || "");
-    const category = encodeURIComponent($("#admin-review-category")?.value || "");
-    const status = encodeURIComponent($("#admin-review-status")?.value || "pending");
+    const province = encodeURIComponent(
+      $("#admin-review-province")?.value || "",
+    );
+    const category = encodeURIComponent(
+      $("#admin-review-category")?.value || "",
+    );
+    const status = encodeURIComponent(
+      $("#admin-review-status")?.value || "pending",
+    );
     const sort = encodeURIComponent($("#admin-review-sort")?.value || "newest");
     try {
-      const rows = await API.get(`/admin/reviews?q=${q}&province=${province}&category=${category}&status=${status}&sort=${sort}`);
+      const rows = await API.get(
+        `/admin/reviews?q=${q}&province=${province}&category=${category}&status=${status}&sort=${sort}`,
+      );
       this._adminReviews = Array.isArray(rows) ? rows : [];
       box.innerHTML = `
         <div class="admin-filters">
@@ -4193,11 +6528,20 @@ const TravelUI = {
         ${this._adminReviews.length ? this._reviewTable(this._adminReviews) : this._empty("Hiện chưa có review cộng đồng nào chờ duyệt hoặc phù hợp bộ lọc.")}`;
       this._setSelectValue("#admin-review-status", decodeURIComponent(status));
       this._setSelectValue("#admin-review-sort", decodeURIComponent(sort));
-      $("#admin-review-filter-btn")?.addEventListener("click", () => this._renderAdminReviews());
-      ["#admin-review-q", "#admin-review-category"].forEach((sel) => $(sel)?.addEventListener("keydown", (e) => { if (e.key === "Enter") this._renderAdminReviews(); }));
+      $("#admin-review-filter-btn")?.addEventListener("click", () =>
+        this._renderAdminReviews(),
+      );
+      ["#admin-review-q", "#admin-review-category"].forEach((sel) =>
+        $(sel)?.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") this._renderAdminReviews();
+        }),
+      );
       this._bindAdminReviewActions();
     } catch (err) {
-      box.innerHTML = this._adminError(err, "Không tải được dữ liệu duyệt review cộng đồng. Vui lòng thử lại.");
+      box.innerHTML = this._adminError(
+        err,
+        "Không tải được dữ liệu duyệt review cộng đồng. Vui lòng thử lại.",
+      );
     }
   },
 
@@ -4206,189 +6550,348 @@ const TravelUI = {
   },
 
   _bindAdminReviewActions() {
-    $$('[data-admin-review-detail]').forEach((btn) => btn.addEventListener('click', () => this._showReviewAdminDetail(btn.dataset.adminReviewDetail)));
-    $$('[data-admin-review-approve]').forEach((btn) => btn.addEventListener('click', () => this._adminReviewStatus(btn.dataset.adminReviewApprove, 'approve')));
-    $$('[data-admin-review-hide]').forEach((btn) => btn.addEventListener('click', () => this._adminReviewStatus(btn.dataset.adminReviewHide, 'hide')));
-    $$('[data-admin-review-delete]').forEach((btn) => btn.addEventListener('click', () => this._adminDeleteReview(btn.dataset.adminReviewDelete)));
+    $$("[data-admin-review-detail]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._showReviewAdminDetail(btn.dataset.adminReviewDetail),
+      ),
+    );
+    $$("[data-admin-review-approve]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminReviewStatus(btn.dataset.adminReviewApprove, "approve"),
+      ),
+    );
+    $$("[data-admin-review-hide]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminReviewStatus(btn.dataset.adminReviewHide, "hide"),
+      ),
+    );
+    $$("[data-admin-review-delete]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminDeleteReview(btn.dataset.adminReviewDelete),
+      ),
+    );
   },
 
   _showReviewAdminDetail(id) {
     const r = this._adminReviews.find((x) => String(x.id) === String(id));
-    if (!r) return Toast.show('Không tìm thấy review', 'error');
-    this._showModal('Chi tiết review cộng đồng', `<div class="admin-detail"><h3>${this._esc(r.title)}</h3><p><b>Người đăng:</b> ${this._esc(r.authorName)} · <b>Địa điểm:</b> ${this._esc(r.placeName)}</p><p><b>Tỉnh:</b> ${this._esc(r.province)} · <b>Nhóm:</b> ${this._esc(r.category)} · <b>Rating:</b> ${this._esc(r.rating)}/5</p>${r.imageUrl ? `<img class="admin-detail-img" src="${this._esc(r.imageUrl)}" alt="Ảnh review">` : ''}<p><b>Nội dung:</b></p><p>${this._esc(r.content || '')}</p><p><b>Tips:</b> ${this._esc(r.tips || '')}</p><p><b>Tags:</b> ${this._esc(r.tags || '')}</p><p><b>Trạng thái:</b> ${this._esc(r.status)} ${r.isSeed ? '· Bài seed/demo' : ''}</p><p><b>Tạo lúc:</b> ${this._date(r.createdAt)}</p></div>`);
+    if (!r) return Toast.show("Không tìm thấy review", "error");
+    this._showModal(
+      "Chi tiết review cộng đồng",
+      `<div class="admin-detail"><h3>${this._esc(r.title)}</h3><p><b>Người đăng:</b> ${this._esc(r.authorName)} · <b>Địa điểm:</b> ${this._esc(r.placeName)}</p><p><b>Tỉnh:</b> ${this._esc(r.province)} · <b>Nhóm:</b> ${this._esc(r.category)} · <b>Rating:</b> ${this._esc(r.rating)}/5</p>${r.imageUrl ? `<img class="admin-detail-img" src="${this._esc(r.imageUrl)}" alt="Ảnh review">` : ""}<p><b>Nội dung:</b></p><p>${this._esc(r.content || "")}</p><p><b>Tips:</b> ${this._esc(r.tips || "")}</p><p><b>Tags:</b> ${this._esc(r.tags || "")}</p><p><b>Trạng thái:</b> ${this._esc(r.status)} ${r.isSeed ? "· Bài seed/demo" : ""}</p><p><b>Tạo lúc:</b> ${this._date(r.createdAt)}</p></div>`,
+    );
   },
 
   async _adminReviewStatus(id, action) {
-    const path = action === 'approve' ? `/admin/reviews/${id}/approve` : `/admin/reviews/${id}/reject`;
+    const path =
+      action === "approve"
+        ? `/admin/reviews/${id}/approve`
+        : `/admin/reviews/${id}/reject`;
     try {
-      await API.request(path, { method: 'POST' });
-      Toast.show(action === 'approve' ? 'Đã duyệt review cộng đồng thành công' : 'Đã từ chối review cộng đồng', 'success');
+      await API.request(path, { method: "POST" });
+      Toast.show(
+        action === "approve"
+          ? "Đã duyệt review cộng đồng thành công"
+          : "Đã từ chối review cộng đồng",
+        "success",
+      );
       await this._renderAdminReviews();
-    } catch (err) { this._handleAdminError(err, 'Thao tác thất bại, vui lòng thử lại'); }
+    } catch (err) {
+      this._handleAdminError(err, "Thao tác thất bại, vui lòng thử lại");
+    }
   },
 
   async _adminDeleteReview(id) {
     const r = this._adminReviews.find((x) => String(x.id) === String(id));
-    const message = r?.isSeed ? 'Đây là bài mẫu seed/demo. Bạn có chắc muốn ẩn review này không?' : 'Bạn có chắc muốn ẩn review này không?';
-    const ok = await this._confirmModal('Xác nhận xóa review', message);
+    const message = r?.isSeed
+      ? "Đây là bài mẫu seed/demo. Bạn có chắc muốn ẩn review này không?"
+      : "Bạn có chắc muốn ẩn review này không?";
+    const ok = await this._confirmModal("Xác nhận xóa review", message);
     if (!ok) return;
     try {
-      await API.request(`/admin/reviews/${id}`, { method: 'DELETE' });
-      Toast.show('Đã xóa review', 'success');
+      await API.request(`/admin/reviews/${id}`, { method: "DELETE" });
+      Toast.show("Đã xóa review", "success");
       await this._renderAdminReviews();
-    } catch (err) { this._handleAdminError(err, 'Thao tác thất bại, vui lòng thử lại'); }
+    } catch (err) {
+      this._handleAdminError(err, "Thao tác thất bại, vui lòng thử lại");
+    }
   },
 
   async _renderAdminCommunity() {
     const box = this._adminContent();
     if (!box) return;
-    box.innerHTML = this._loading('Đang tải bài cộng đồng chờ duyệt...');
+    box.innerHTML = this._loading("Đang tải bài cộng đồng chờ duyệt...");
     try {
-      const rows = await API.get('/admin/community-posts/pending');
+      const rows = await API.get("/admin/community-posts/pending");
       this._adminPosts = Array.isArray(rows) ? rows : [];
-      box.innerHTML = this._adminPosts.length ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>ID</th><th>Tiêu đề</th><th>Người gửi</th><th>Loại</th><th>Trạng thái</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody>${this._adminPosts.map((p) => `<tr><td>${this._esc(p.id)}</td><td>${this._esc(p.title || p.content || '')}</td><td>${this._esc(p.userName || '')}</td><td>${this._esc(p.topic || 'community')}</td><td>${this._statusBadge(p.status)}</td><td>${this._date(p.createdAt)}</td><td><div class="admin-actions"><button class="btn-ghost mini" data-admin-post-detail="${this._esc(p.id)}">Xem</button><button class="btn-ghost mini" data-admin-post-approve="${this._esc(p.id)}">Duyệt</button><button class="btn-ghost mini" data-admin-post-hide="${this._esc(p.id)}">Ẩn</button><button class="btn-ghost mini danger" data-admin-post-delete="${this._esc(p.id)}">Xóa</button></div></td></tr>`).join('')}</tbody></table></div>` : this._empty('Hiện chưa có bài cộng đồng nào chờ duyệt.');
+      box.innerHTML = this._adminPosts.length
+        ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>ID</th><th>Tiêu đề</th><th>Người gửi</th><th>Loại</th><th>Trạng thái</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody>${this._adminPosts.map((p) => `<tr><td>${this._esc(p.id)}</td><td>${this._esc(p.title || p.content || "")}</td><td>${this._esc(p.userName || "")}</td><td>${this._esc(p.topic || "community")}</td><td>${this._statusBadge(p.status)}</td><td>${this._date(p.createdAt)}</td><td><div class="admin-actions"><button class="btn-ghost mini" data-admin-post-detail="${this._esc(p.id)}">Xem</button><button class="btn-ghost mini" data-admin-post-approve="${this._esc(p.id)}">Duyệt</button><button class="btn-ghost mini" data-admin-post-hide="${this._esc(p.id)}">Ẩn</button><button class="btn-ghost mini danger" data-admin-post-delete="${this._esc(p.id)}">Xóa</button></div></td></tr>`).join("")}</tbody></table></div>`
+        : this._empty("Hiện chưa có bài cộng đồng nào chờ duyệt.");
       this._bindAdminPostActions();
     } catch (err) {
-      box.innerHTML = this._adminError(err, 'Không tải được dữ liệu bài cộng đồng. Vui lòng thử lại.');
+      box.innerHTML = this._adminError(
+        err,
+        "Không tải được dữ liệu bài cộng đồng. Vui lòng thử lại.",
+      );
     }
   },
 
   _bindAdminPostActions() {
-    $$('[data-admin-post-detail]').forEach((btn) => btn.addEventListener('click', () => this._showPostAdminDetail(btn.dataset.adminPostDetail)));
-    $$('[data-admin-post-approve]').forEach((btn) => btn.addEventListener('click', () => this._adminPostStatus(btn.dataset.adminPostApprove, 'approve')));
-    $$('[data-admin-post-hide]').forEach((btn) => btn.addEventListener('click', () => this._adminPostStatus(btn.dataset.adminPostHide, 'hide')));
-    $$('[data-admin-post-delete]').forEach((btn) => btn.addEventListener('click', () => this._adminDeletePost(btn.dataset.adminPostDelete)));
+    $$("[data-admin-post-detail]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._showPostAdminDetail(btn.dataset.adminPostDetail),
+      ),
+    );
+    $$("[data-admin-post-approve]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminPostStatus(btn.dataset.adminPostApprove, "approve"),
+      ),
+    );
+    $$("[data-admin-post-hide]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminPostStatus(btn.dataset.adminPostHide, "hide"),
+      ),
+    );
+    $$("[data-admin-post-delete]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminDeletePost(btn.dataset.adminPostDelete),
+      ),
+    );
   },
 
   _showPostAdminDetail(id) {
     const p = this._adminPosts.find((x) => String(x.id) === String(id));
-    if (!p) return Toast.show('Không tìm thấy bài cộng đồng', 'error');
-    this._showModal('Chi tiết bài cộng đồng', `<div class="admin-detail"><h3>${this._esc(p.title)}</h3><p><b>Người gửi:</b> ${this._esc(p.userName)} · <b>Loại:</b> ${this._esc(p.topic || '')}</p><p><b>Nội dung:</b></p><p>${this._esc(p.content || '')}</p><p><b>Tuyến:</b> ${this._esc(p.routeId || '')} · <b>Địa điểm ID:</b> ${this._esc(p.placeId || '')}</p><p><b>Trạng thái:</b> ${this._esc(p.status)} · <b>Tạo lúc:</b> ${this._date(p.createdAt)}</p></div>`);
+    if (!p) return Toast.show("Không tìm thấy bài cộng đồng", "error");
+    this._showModal(
+      "Chi tiết bài cộng đồng",
+      `<div class="admin-detail"><h3>${this._esc(p.title)}</h3><p><b>Người gửi:</b> ${this._esc(p.userName)} · <b>Loại:</b> ${this._esc(p.topic || "")}</p><p><b>Nội dung:</b></p><p>${this._esc(p.content || "")}</p><p><b>Tuyến:</b> ${this._esc(p.routeId || "")} · <b>Địa điểm ID:</b> ${this._esc(p.placeId || "")}</p><p><b>Trạng thái:</b> ${this._esc(p.status)} · <b>Tạo lúc:</b> ${this._date(p.createdAt)}</p></div>`,
+    );
   },
 
   async _adminPostStatus(id, action) {
-    const path = action === 'approve' ? `/admin/community-posts/${id}/approve` : `/admin/community-posts/${id}/reject`;
+    const path =
+      action === "approve"
+        ? `/admin/community-posts/${id}/approve`
+        : `/admin/community-posts/${id}/reject`;
     try {
-      await API.request(path, { method: 'POST' });
-      Toast.show(action === 'approve' ? 'Đã duyệt bài cộng đồng' : 'Đã ẩn bài cộng đồng', 'success');
+      await API.request(path, { method: "POST" });
+      Toast.show(
+        action === "approve" ? "Đã duyệt bài cộng đồng" : "Đã ẩn bài cộng đồng",
+        "success",
+      );
       await this._renderAdminCommunity();
-    } catch (err) { this._handleAdminError(err, 'Thao tác thất bại, vui lòng thử lại'); }
+    } catch (err) {
+      this._handleAdminError(err, "Thao tác thất bại, vui lòng thử lại");
+    }
   },
 
   async _adminDeletePost(id) {
-    const ok = await this._confirmModal('Xác nhận xóa bài', 'Bạn có chắc muốn xóa/ẩn bài cộng đồng này không?');
+    const ok = await this._confirmModal(
+      "Xác nhận xóa bài",
+      "Bạn có chắc muốn xóa/ẩn bài cộng đồng này không?",
+    );
     if (!ok) return;
     try {
-      await API.request(`/admin/community/${id}`, { method: 'DELETE' });
-      Toast.show('Đã xóa/ẩn bài cộng đồng', 'success');
+      await API.request(`/admin/community/${id}`, { method: "DELETE" });
+      Toast.show("Đã xóa/ẩn bài cộng đồng", "success");
       await this._renderAdminCommunity();
-    } catch (err) { this._handleAdminError(err, 'Thao tác thất bại, vui lòng thử lại'); }
+    } catch (err) {
+      this._handleAdminError(err, "Thao tác thất bại, vui lòng thử lại");
+    }
   },
 
   async _renderAdminPlaces() {
     const box = this._adminContent();
     if (!box) return;
-    box.innerHTML = this._loading('Đang tải địa điểm du lịch...');
+    box.innerHTML = this._loading("Đang tải địa điểm du lịch...");
     try {
-      const rows = await API.get('/admin/places?includeInactive=true');
-      const q = (this._adminPlaceQ || '').toLowerCase();
+      const rows = await API.get("/admin/places?includeInactive=true");
+      const q = (this._adminPlaceQ || "").toLowerCase();
       this._adminPlaces = Array.isArray(rows) ? rows : [];
-      const shown = q ? this._adminPlaces.filter((p) => `${p.name} ${p.provinceCode} ${p.categoryName} ${p.tags || ''}`.toLowerCase().includes(q)) : this._adminPlaces;
-      box.innerHTML = `<div class="admin-filters"><input id="admin-place-q" class="travel-input" placeholder="Tìm địa điểm, tỉnh, category..." value="${this._esc(this._adminPlaceQ || '')}" /><button class="btn-primary mini" id="admin-place-add">Thêm địa điểm</button></div>${shown.length ? this._placeAdminTable(shown) : this._empty('Chưa có địa điểm du lịch nào.')}`;
-      $('#admin-place-q')?.addEventListener('input', debounce((e) => { this._adminPlaceQ = e.target.value; this._renderAdminPlaces(); }, 350));
-      $('#admin-place-add')?.addEventListener('click', () => this._openPlaceForm());
+      const shown = q
+        ? this._adminPlaces.filter((p) =>
+            `${p.name} ${p.provinceCode} ${p.categoryName} ${p.tags || ""}`
+              .toLowerCase()
+              .includes(q),
+          )
+        : this._adminPlaces;
+      box.innerHTML = `<div class="admin-filters"><input id="admin-place-q" class="travel-input" placeholder="Tìm địa điểm, tỉnh, category..." value="${this._esc(this._adminPlaceQ || "")}" /><button class="btn-primary mini" id="admin-place-add">Thêm địa điểm</button></div>${shown.length ? this._placeAdminTable(shown) : this._empty("Chưa có địa điểm du lịch nào.")}`;
+      $("#admin-place-q")?.addEventListener(
+        "input",
+        debounce((e) => {
+          this._adminPlaceQ = e.target.value;
+          this._renderAdminPlaces();
+        }, 350),
+      );
+      $("#admin-place-add")?.addEventListener("click", () =>
+        this._openPlaceForm(),
+      );
       this._bindAdminPlaceActions();
     } catch (err) {
-      box.innerHTML = this._adminError(err, 'Không tải được dữ liệu địa điểm. Vui lòng thử lại.');
+      box.innerHTML = this._adminError(
+        err,
+        "Không tải được dữ liệu địa điểm. Vui lòng thử lại.",
+      );
     }
   },
 
   _placeAdminTable(rows) {
-    return `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>ID</th><th>Tên địa điểm</th><th>Tỉnh/khu vực</th><th>Category</th><th>Latitude</th><th>Longitude</th><th>Trạng thái</th><th>Tags</th><th>Thao tác</th></tr></thead><tbody>${rows.map((p) => `<tr><td>${this._esc(p.id)}</td><td>${this._esc(p.name || '')}</td><td>${this._esc(p.provinceName || p.provinceCode || '')}</td><td>${this._esc(p.categoryName || p.category || '')}</td><td>${this._esc(p.latitude ?? '')}</td><td>${this._esc(p.longitude ?? '')}</td><td>${this._statusBadge(p.isActive ? 'active' : 'inactive')}</td><td>${this._esc(p.tags || '')}</td><td><div class="admin-actions"><button class="btn-ghost mini" data-admin-place-detail="${this._esc(p.id)}">Xem</button><button class="btn-ghost mini" data-admin-place-edit="${this._esc(p.id)}">Sửa</button>${p.isActive ? `<button class="btn-ghost mini danger" data-admin-place-delete="${this._esc(p.id)}">Ẩn</button>` : `<button class="btn-ghost mini" data-admin-place-activate="${this._esc(p.id)}">Kích hoạt</button>`}</div></td></tr>`).join('')}</tbody></table></div>`;
+    return `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>ID</th><th>Tên địa điểm</th><th>Tỉnh/khu vực</th><th>Category</th><th>Latitude</th><th>Longitude</th><th>Trạng thái</th><th>Tags</th><th>Thao tác</th></tr></thead><tbody>${rows.map((p) => `<tr><td>${this._esc(p.id)}</td><td>${this._esc(p.name || "")}</td><td>${this._esc(p.provinceName || p.provinceCode || "")}</td><td>${this._esc(p.categoryName || p.category || "")}</td><td>${this._esc(p.latitude ?? "")}</td><td>${this._esc(p.longitude ?? "")}</td><td>${this._statusBadge(p.isActive ? "active" : "inactive")}</td><td>${this._esc(p.tags || "")}</td><td><div class="admin-actions"><button class="btn-ghost mini" data-admin-place-detail="${this._esc(p.id)}">Xem</button><button class="btn-ghost mini" data-admin-place-edit="${this._esc(p.id)}">Sửa</button>${p.isActive ? `<button class="btn-ghost mini danger" data-admin-place-delete="${this._esc(p.id)}">Ẩn</button>` : `<button class="btn-ghost mini" data-admin-place-activate="${this._esc(p.id)}">Kích hoạt</button>`}</div></td></tr>`).join("")}</tbody></table></div>`;
   },
 
   _bindAdminPlaceActions() {
-    $$('[data-admin-place-detail]').forEach((btn) => btn.addEventListener('click', () => this._showPlaceAdminDetail(btn.dataset.adminPlaceDetail)));
-    $$('[data-admin-place-edit]').forEach((btn) => btn.addEventListener('click', () => this._openPlaceForm(this._adminPlaces.find((p) => String(p.id) === String(btn.dataset.adminPlaceEdit)))));
-    $$('[data-admin-place-delete]').forEach((btn) => btn.addEventListener('click', () => this._adminDeletePlace(btn.dataset.adminPlaceDelete)));
-    $$('[data-admin-place-activate]').forEach((btn) => btn.addEventListener('click', () => this._adminActivatePlace(btn.dataset.adminPlaceActivate)));
+    $$("[data-admin-place-detail]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._showPlaceAdminDetail(btn.dataset.adminPlaceDetail),
+      ),
+    );
+    $$("[data-admin-place-edit]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._openPlaceForm(
+          this._adminPlaces.find(
+            (p) => String(p.id) === String(btn.dataset.adminPlaceEdit),
+          ),
+        ),
+      ),
+    );
+    $$("[data-admin-place-delete]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminDeletePlace(btn.dataset.adminPlaceDelete),
+      ),
+    );
+    $$("[data-admin-place-activate]").forEach((btn) =>
+      btn.addEventListener("click", () =>
+        this._adminActivatePlace(btn.dataset.adminPlaceActivate),
+      ),
+    );
   },
 
   _showPlaceAdminDetail(id) {
     const p = this._adminPlaces.find((x) => String(x.id) === String(id));
-    if (!p) return Toast.show('Không tìm thấy địa điểm', 'error');
-    this._showModal('Chi tiết địa điểm du lịch', `<div class="admin-detail"><h3>${this._esc(p.name)}</h3><p><b>Tỉnh:</b> ${this._esc(p.provinceName || p.provinceCode || '')} · <b>Nhóm:</b> ${this._esc(p.categoryName || p.category || '')}</p><p><b>Tọa độ:</b> ${this._esc(p.latitude)}, ${this._esc(p.longitude)}</p><p><b>Mô tả:</b></p><p>${this._esc(p.description || '')}</p><p><b>Tips:</b> ${this._esc(p.tips || p.nearbySuggestions || '')}</p><p><b>Thời điểm nên đi:</b> ${this._esc(p.bestTime || '')}</p><p><b>Tags:</b> ${this._esc(p.tags || '')}</p><p><b>Trạng thái:</b> ${p.isActive ? 'Đang hoạt động' : 'Đã ẩn'}</p></div>`);
+    if (!p) return Toast.show("Không tìm thấy địa điểm", "error");
+    this._showModal(
+      "Chi tiết địa điểm du lịch",
+      `<div class="admin-detail"><h3>${this._esc(p.name)}</h3><p><b>Tỉnh:</b> ${this._esc(p.provinceName || p.provinceCode || "")} · <b>Nhóm:</b> ${this._esc(p.categoryName || p.category || "")}</p><p><b>Tọa độ:</b> ${this._esc(p.latitude)}, ${this._esc(p.longitude)}</p><p><b>Mô tả:</b></p><p>${this._esc(p.description || "")}</p><p><b>Tips:</b> ${this._esc(p.tips || p.nearbySuggestions || "")}</p><p><b>Thời điểm nên đi:</b> ${this._esc(p.bestTime || "")}</p><p><b>Tags:</b> ${this._esc(p.tags || "")}</p><p><b>Trạng thái:</b> ${p.isActive ? "Đang hoạt động" : "Đã ẩn"}</p></div>`,
+    );
   },
 
   _openPlaceForm(place = null) {
     const isEdit = Boolean(place?.id);
     const html = `<form id="admin-place-form" class="admin-form">
       <div class="review-form-grid">
-        <input class="travel-input" name="name" placeholder="Tên địa điểm *" value="${this._esc(place?.name || '')}" required />
+        <input class="travel-input" name="name" placeholder="Tên địa điểm *" value="${this._esc(place?.name || "")}" required />
         <select class="travel-input" name="provinceCode"><option value="DN">Đà Nẵng</option><option value="QN_CU">Quảng Nam cũ / Hội An</option><option value="HUE">Huế</option><option value="QT">Quảng Trị</option><option value="QNG">Quảng Ngãi</option></select>
-        <input class="travel-input" name="category" placeholder="Category *" value="${this._esc(place?.categoryName || place?.category || '')}" required />
-        <input class="travel-input" name="latitude" placeholder="Latitude *" value="${this._esc(place?.latitude ?? '')}" required />
-        <input class="travel-input" name="longitude" placeholder="Longitude *" value="${this._esc(place?.longitude ?? '')}" required />
-        <input class="travel-input" name="imageUrl" placeholder="URL ảnh nếu có" value="${this._esc(place?.thumbnailUrl || place?.imageUrl || '')}" />
+        <input class="travel-input" name="category" placeholder="Category *" value="${this._esc(place?.categoryName || place?.category || "")}" required />
+        <input class="travel-input" name="latitude" placeholder="Latitude *" value="${this._esc(place?.latitude ?? "")}" required />
+        <input class="travel-input" name="longitude" placeholder="Longitude *" value="${this._esc(place?.longitude ?? "")}" required />
+        <input class="travel-input" name="imageUrl" placeholder="URL ảnh nếu có" value="${this._esc(place?.thumbnailUrl || place?.imageUrl || "")}" />
       </div>
-      <textarea class="travel-input" name="description" rows="3" placeholder="Mô tả">${this._esc(place?.description || '')}</textarea>
-      <textarea class="travel-input" name="tips" rows="2" placeholder="Tips/gợi ý">${this._esc(place?.tips || place?.nearbySuggestions || '')}</textarea>
-      <input class="travel-input" name="bestTime" placeholder="Thời điểm nên đi" value="${this._esc(place?.bestTime || '')}" />
-      <input class="travel-input" name="tags" placeholder="Tags, phân tách bằng dấu phẩy" value="${this._esc(place?.tags || '')}" />
-      <label class="admin-check"><input type="checkbox" name="isActive" ${place?.isActive === false ? '' : 'checked'} /> Địa điểm đang hoạt động</label>
-      <button class="btn-primary mini" type="submit">${isEdit ? 'Cập nhật địa điểm' : 'Thêm địa điểm'}</button>
+      <textarea class="travel-input" name="description" rows="3" placeholder="Mô tả">${this._esc(place?.description || "")}</textarea>
+      <textarea class="travel-input" name="tips" rows="2" placeholder="Tips/gợi ý">${this._esc(place?.tips || place?.nearbySuggestions || "")}</textarea>
+      <input class="travel-input" name="bestTime" placeholder="Thời điểm nên đi" value="${this._esc(place?.bestTime || "")}" />
+      <input class="travel-input" name="tags" placeholder="Tags, phân tách bằng dấu phẩy" value="${this._esc(place?.tags || "")}" />
+      <label class="admin-check"><input type="checkbox" name="isActive" ${place?.isActive === false ? "" : "checked"} /> Địa điểm đang hoạt động</label>
+      <button class="btn-primary mini" type="submit">${isEdit ? "Cập nhật địa điểm" : "Thêm địa điểm"}</button>
     </form>`;
-    this._showModal(isEdit ? 'Sửa địa điểm' : 'Thêm địa điểm', html, (modal) => {
-      const provinceSelect = modal.querySelector('[name="provinceCode"]');
-      if (provinceSelect) provinceSelect.value = place?.provinceCode || 'DN';
-      modal.querySelector('#admin-place-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fd = new FormData(e.target);
-        const body = Object.fromEntries(fd.entries());
-        body.latitude = Number(body.latitude);
-        body.longitude = Number(body.longitude);
-        body.isActive = e.target.elements.isActive.checked;
-        if (!body.name || !body.category || !Number.isFinite(body.latitude) || body.latitude < -90 || body.latitude > 90 || !Number.isFinite(body.longitude) || body.longitude < -180 || body.longitude > 180) {
-          Toast.show('Tên, category và tọa độ hợp lệ là bắt buộc', 'warning');
-          return;
-        }
-        if (body.imageUrl && !/^https?:\/\//i.test(body.imageUrl)) {
-          Toast.show('Image URL phải bắt đầu bằng http:// hoặc https://', 'warning');
-          return;
-        }
-        try {
-          if (isEdit) await API.request(`/admin/places/${place.id}`, { method: 'PUT', body: JSON.stringify(body) });
-          else await API.post('/admin/places', body);
-          Toast.show(isEdit ? 'Đã cập nhật địa điểm' : 'Đã thêm địa điểm', 'success');
-          this._closeModal();
-          await this._renderAdminPlaces();
-        } catch (err) { this._handleAdminError(err, 'Không lưu được địa điểm'); }
-      });
-    });
+    this._showModal(
+      isEdit ? "Sửa địa điểm" : "Thêm địa điểm",
+      html,
+      (modal) => {
+        const provinceSelect = modal.querySelector('[name="provinceCode"]');
+        if (provinceSelect) provinceSelect.value = place?.provinceCode || "DN";
+        modal
+          .querySelector("#admin-place-form")
+          ?.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const body = Object.fromEntries(fd.entries());
+            body.latitude = Number(body.latitude);
+            body.longitude = Number(body.longitude);
+            body.isActive = e.target.elements.isActive.checked;
+            if (
+              !body.name ||
+              !body.category ||
+              !Number.isFinite(body.latitude) ||
+              body.latitude < -90 ||
+              body.latitude > 90 ||
+              !Number.isFinite(body.longitude) ||
+              body.longitude < -180 ||
+              body.longitude > 180
+            ) {
+              Toast.show(
+                "Tên, category và tọa độ hợp lệ là bắt buộc",
+                "warning",
+              );
+              return;
+            }
+            if (body.imageUrl && !/^https?:\/\//i.test(body.imageUrl)) {
+              Toast.show(
+                "Image URL phải bắt đầu bằng http:// hoặc https://",
+                "warning",
+              );
+              return;
+            }
+            try {
+              if (isEdit)
+                await API.request(`/admin/places/${place.id}`, {
+                  method: "PUT",
+                  body: JSON.stringify(body),
+                });
+              else await API.post("/admin/places", body);
+              Toast.show(
+                isEdit ? "Đã cập nhật địa điểm" : "Đã thêm địa điểm",
+                "success",
+              );
+              this._closeModal();
+              await this._renderAdminPlaces();
+            } catch (err) {
+              this._handleAdminError(err, "Không lưu được địa điểm");
+            }
+          });
+      },
+    );
   },
 
   async _adminDeletePlace(id) {
-    const ok = await this._confirmModal('Xác nhận ẩn địa điểm', 'Bạn có chắc muốn ẩn/xóa mềm địa điểm này không?');
+    const ok = await this._confirmModal(
+      "Xác nhận ẩn địa điểm",
+      "Bạn có chắc muốn ẩn/xóa mềm địa điểm này không?",
+    );
     if (!ok) return;
     try {
-      await API.request(`/admin/places/${id}`, { method: 'DELETE' });
-      Toast.show('Đã ẩn địa điểm', 'success');
+      await API.request(`/admin/places/${id}`, { method: "DELETE" });
+      Toast.show("Đã ẩn địa điểm", "success");
       await this._renderAdminPlaces();
-    } catch (err) { this._handleAdminError(err, 'Không ẩn được địa điểm'); }
+    } catch (err) {
+      this._handleAdminError(err, "Không ẩn được địa điểm");
+    }
   },
 
   async _adminActivatePlace(id) {
     const p = this._adminPlaces.find((x) => String(x.id) === String(id));
     if (!p) return;
     try {
-      await API.request(`/admin/places/${id}`, { method: 'PUT', body: JSON.stringify({ ...p, provinceCode: p.provinceCode || 'DN', category: p.categoryName || p.category || 'Du lịch', imageUrl: p.thumbnailUrl || p.imageUrl || '', isActive: true }) });
-      Toast.show('Đã kích hoạt lại địa điểm', 'success');
+      await API.request(`/admin/places/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          ...p,
+          provinceCode: p.provinceCode || "DN",
+          category: p.categoryName || p.category || "Du lịch",
+          imageUrl: p.thumbnailUrl || p.imageUrl || "",
+          isActive: true,
+        }),
+      });
+      Toast.show("Đã kích hoạt lại địa điểm", "success");
       await this._renderAdminPlaces();
-    } catch (err) { this._handleAdminError(err, 'Không kích hoạt được địa điểm'); }
+    } catch (err) {
+      this._handleAdminError(err, "Không kích hoạt được địa điểm");
+    }
   },
 
-  _provinceOptions(selected = '') {
-    return CONFIG.PROVINCES.map((p) => `<option value="${this._esc(p.name)}" ${selected === p.name ? 'selected' : ''}>${this._esc(p.name)}</option>`).join('');
+  _provinceOptions(selected = "") {
+    return CONFIG.PROVINCES.map(
+      (p) =>
+        `<option value="${this._esc(p.name)}" ${selected === p.name ? "selected" : ""}>${this._esc(p.name)}</option>`,
+    ).join("");
   },
 
   _setSelectValue(selector, value) {
@@ -4397,54 +6900,105 @@ const TravelUI = {
   },
 
   _statusBadge(status, isSeed = false) {
-    const s = String(status || '').toLowerCase();
-    const label = { pending: 'Chờ duyệt', approved: 'Đã duyệt', approved_seed: 'Bài mẫu', hidden: 'Đã ẩn/Từ chối', rejected: 'Từ chối', active: 'Đang hoạt động', inactive: 'Đã ẩn' }[s] || status || 'Không rõ';
-    return `<span class="admin-status admin-status-${this._esc(s || 'unknown')}">${this._esc(label)}${isSeed ? ' · Seed' : ''}</span>`;
+    const s = String(status || "").toLowerCase();
+    const label =
+      {
+        pending: "Chờ duyệt",
+        approved: "Đã duyệt",
+        approved_seed: "Bài mẫu",
+        hidden: "Đã ẩn/Từ chối",
+        rejected: "Từ chối",
+        active: "Đang hoạt động",
+        inactive: "Đã ẩn",
+      }[s] ||
+      status ||
+      "Không rõ";
+    return `<span class="admin-status admin-status-${this._esc(s || "unknown")}">${this._esc(label)}${isSeed ? " · Seed" : ""}</span>`;
   },
 
   _date(value) {
-    if (!value) return '';
-    try { return new Date(value).toLocaleString('vi-VN'); } catch { return String(value); }
+    if (!value) return "";
+    try {
+      return new Date(value).toLocaleString("vi-VN");
+    } catch {
+      return String(value);
+    }
   },
 
   _adminError(err, fallback) {
-    const msg = err?.status === 401 ? 'Bạn cần đăng nhập để sử dụng chức năng này.' : err?.status === 403 ? 'Bạn không có quyền quản trị nội dung.' : (err?.message || fallback);
+    const msg =
+      err?.status === 401
+        ? "Bạn cần đăng nhập để sử dụng chức năng này."
+        : err?.status === 403
+          ? "Bạn không có quyền quản trị nội dung."
+          : err?.message || fallback;
     return `<div class="travel-card wide empty-state"><h4>${this._esc(fallback)}</h4><p>${this._esc(msg)}</p></div>`;
   },
 
   _handleAdminError(err, fallback) {
-    if (err?.status === 401) return Auth.forceLogout('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'warning');
-    if (err?.status === 403) return Toast.show('Bạn không có quyền quản trị nội dung.', 'error', 4000);
-    Toast.show(err?.message || fallback, 'error', 4000);
+    if (err?.status === 401)
+      return Auth.forceLogout(
+        "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+        "warning",
+      );
+    if (err?.status === 403)
+      return Toast.show("Bạn không có quyền quản trị nội dung.", "error", 4000);
+    Toast.show(err?.message || fallback, "error", 4000);
   },
 
   _showModal(title, html, onMount) {
     this._closeModal();
-    const el = document.createElement('div');
-    el.className = 'admin-modal-backdrop';
+    const el = document.createElement("div");
+    el.className = "admin-modal-backdrop";
     el.innerHTML = `<div class="admin-modal"><div class="admin-modal-head"><h3>${this._esc(title)}</h3><button class="btn-ghost mini" data-admin-modal-close>Đóng</button></div><div class="admin-modal-body">${html}</div></div>`;
     document.body.appendChild(el);
-    el.addEventListener('click', (e) => { if (e.target === el || e.target.closest('[data-admin-modal-close]')) this._closeModal(); });
-    if (typeof onMount === 'function') onMount(el);
+    el.addEventListener("click", (e) => {
+      if (e.target === el || e.target.closest("[data-admin-modal-close]"))
+        this._closeModal();
+    });
+    if (typeof onMount === "function") onMount(el);
     return el;
   },
 
   _closeModal() {
-    document.querySelector('.admin-modal-backdrop')?.remove();
+    document.querySelector(".admin-modal-backdrop")?.remove();
   },
 
   _confirmModal(title, message) {
     return new Promise((resolve) => {
-      this._showModal(title, `<p>${this._esc(message)}</p><div class="admin-confirm-actions"><button class="btn-ghost" data-confirm-no>Hủy</button><button class="btn-primary mini" data-confirm-yes>Đồng ý</button></div>`, (modal) => {
-        modal.querySelector('[data-confirm-no]')?.addEventListener('click', () => { this._closeModal(); resolve(false); });
-        modal.querySelector('[data-confirm-yes]')?.addEventListener('click', () => { this._closeModal(); resolve(true); });
-      });
+      this._showModal(
+        title,
+        `<p>${this._esc(message)}</p><div class="admin-confirm-actions"><button class="btn-ghost" data-confirm-no>Hủy</button><button class="btn-primary mini" data-confirm-yes>Đồng ý</button></div>`,
+        (modal) => {
+          modal
+            .querySelector("[data-confirm-no]")
+            ?.addEventListener("click", () => {
+              this._closeModal();
+              resolve(false);
+            });
+          modal
+            .querySelector("[data-confirm-yes]")
+            ?.addEventListener("click", () => {
+              this._closeModal();
+              resolve(true);
+            });
+        },
+      );
     });
   },
 
-  _loading(text) { return `<div class="travel-card wide skeleton">${this._esc(text)}</div>`; },
-  _empty(text) { return `<div class="travel-card wide empty-state">${this._esc(text)}</div>`; },
-  _esc(v) { return String(v ?? "").replace(/[&<>\"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[c]); },
+  _loading(text) {
+    return `<div class="travel-card wide skeleton">${this._esc(text)}</div>`;
+  },
+  _empty(text) {
+    return `<div class="travel-card wide empty-state">${this._esc(text)}</div>`;
+  },
+  _esc(v) {
+    return String(v ?? "").replace(
+      /[&<>\"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[c],
+    );
+  },
 };
 
 /* ----------------------------------------------------------
@@ -4489,9 +7043,16 @@ const App = {
     this._started = true;
 
     // 1. Ưu tiên tải dữ liệu thật từ SQL Server; fallback chỉ dùng khi backend chưa chạy.
-    State.mapFilters.province = State.mapFilters.province || CONFIG.DEFAULT_PROVINCE;
+    State.mapFilters.province =
+      State.mapFilters.province || CONFIG.DEFAULT_PROVINCE;
     const loadedSql = await DynamicData.load(State.mapFilters.province);
-    if (!State.buses.length) State.buses = createBuses().filter((b) => routeById(b.routeId)?.provinceCode === State.mapFilters.province).slice(0, CONFIG.BUS_LIMIT_PER_PROVINCE);
+    if (!State.buses.length)
+      State.buses = createBuses()
+        .filter(
+          (b) =>
+            routeById(b.routeId)?.provinceCode === State.mapFilters.province,
+        )
+        .slice(0, CONFIG.BUS_LIMIT_PER_PROVINCE);
 
     // 2. Khởi tạo bản đồ GIS.
     MapModule.init();
@@ -4516,7 +7077,8 @@ const App = {
     this._startLoop();
 
     // 8. Kiểm tra lịch mỗi 30 giây (bắt đúng mốc chuyển)
-    if (!this._schedTimer) this._schedTimer = setInterval(() => this._checkSchedule(), 30000);
+    if (!this._schedTimer)
+      this._schedTimer = setInterval(() => this._checkSchedule(), 30000);
   },
 
   _startLoop() {
@@ -4538,7 +7100,6 @@ const App = {
       this._updateAll();
     }, CONFIG.TICK_MS);
   },
-
 
   stop() {
     this._started = false;
@@ -4573,16 +7134,26 @@ const App = {
   },
 
   _updateAll() {
+    // Keep critical map marker updates every tick, but throttle heavier DOM re-renders.
     ScheduleUI.show(State.systemStatus);
     StatsUI.update();
-    BusListUI.render();
-    MapModule.updateMarkers(State.buses);
-    MapModule.drawStops();
 
-    // Chỉ re-render view đang active
+    // Update markers every tick (smooth movement)
+    MapModule.updateMarkers(State.buses);
+
+    // Throttle list and stop redraws to reduce DOM churn: runs less frequently depending on tickCount.
+    const tick = Number(State.tickCount || 0);
+    const doEvery2 = tick % 2 === 0; // medium frequency
+    const doEvery6 = tick % 6 === 0; // less frequent
+
+    if (doEvery2) BusListUI.render();
+    // Redraw stops less frequently (stop markers change rarely relative to vehicle movement)
+    if (doEvery6) MapModule.drawStops();
+
+    // Re-render heavier table/analytics only occasionally or when those views are active
     const activeView = $(".view.active")?.id;
-    if (activeView === "view-buses") BusTableUI.render();
-    if (activeView === "view-analytics") AnalyticsUI.render();
+    if (activeView === "view-buses" && doEvery2) BusTableUI.render();
+    if (activeView === "view-analytics" && doEvery6) AnalyticsUI.render();
   },
 };
 
@@ -4611,14 +7182,17 @@ document.addEventListener("DOMContentLoaded", () => {
   ScheduleUI.show(State.systemStatus);
 });
 
-console.log("🚌 SMARTBUS v4.1 – Road-snapped GIS + route catalog + full tourism – Ready");
-
+console.log(
+  "🚌 SMARTBUS v4.1 – Road-snapped GIS + route catalog + full tourism – Ready",
+);
 
 /* ----------------------------------------------------------
    22. SMARTBUS ASSISTANT – Frontend API + GPS
 ---------------------------------------------------------- */
 const SmartBusAssistant = (() => {
-  const API_BASE = window.SMARTBUS_API_BASE || "https://smartbus-backend-xr34.onrender.com/api/v1";
+  const API_BASE =
+    window.SMARTBUS_API_BASE ||
+    "https://smartbus-backend-xr34.onrender.com/api/v1";
   let currentPosition = null;
   let busy = false;
 
@@ -4637,7 +7211,8 @@ const SmartBusAssistant = (() => {
     const e = els();
     if (!e.panel || !e.toggle) return;
     e.toggle.addEventListener("click", () => {
-      if (document.body.classList.contains("sidebar-open")) Nav._closeSidebar?.();
+      if (document.body.classList.contains("sidebar-open"))
+        Nav._closeSidebar?.();
       if (e.panel.classList.contains("hidden")) open();
       else close();
     });
@@ -4669,7 +7244,7 @@ const SmartBusAssistant = (() => {
   }
 
   function normalizeViewName(view) {
-    return view === "map" ? "dashboard" : (view || "dashboard");
+    return view === "map" ? "dashboard" : view || "dashboard";
   }
 
   function stopName(stop) {
@@ -4678,38 +7253,82 @@ const SmartBusAssistant = (() => {
 
   function buildCard(data) {
     const route = data.route || null;
-    const hasDestination = Boolean(data.destinationPlace || data.destinationStop || data.dropoffStop || data.alightingStop);
-    const pickup = data.pickupStop || data.originStop || data.boardingStop || (hasDestination ? null : data.nearestStop);
-    const dropoff = data.destinationStop || data.dropoffStop || data.alightingStop || (hasDestination && !pickup ? data.nearestStop : null);
-    const place = data.destinationPlace || data.targetPlace || data.place || null;
+    const hasDestination = Boolean(
+      data.destinationPlace ||
+      data.destinationStop ||
+      data.dropoffStop ||
+      data.alightingStop,
+    );
+    const pickup =
+      data.pickupStop ||
+      data.originStop ||
+      data.boardingStop ||
+      (hasDestination ? null : data.nearestStop);
+    const dropoff =
+      data.destinationStop ||
+      data.dropoffStop ||
+      data.alightingStop ||
+      (hasDestination && !pickup ? data.nearestStop : null);
+    const place =
+      data.destinationPlace || data.targetPlace || data.place || null;
     const plan = data.routePlan || null;
-    if (!route && !pickup && !dropoff && !place && !data.fare && !data.cta && !data.suggestedPlaces?.length && !plan) return "";
+    if (
+      !route &&
+      !pickup &&
+      !dropoff &&
+      !place &&
+      !data.fare &&
+      !data.cta &&
+      !data.suggestedPlaces?.length &&
+      !plan
+    )
+      return "";
     const rows = [];
-    if (route) rows.push(["Tuyến", `T.${route.displayCode || route.id || route.route_id || route.routeCode} – ${route.name || route.route_name || ""}`]);
+    if (route)
+      rows.push([
+        "Tuyến",
+        `T.${route.displayCode || route.id || route.route_id || route.routeCode} – ${route.name || route.route_name || ""}`,
+      ]);
     if (pickup) rows.push(["Điểm đón", stopName(pickup)]);
     if (dropoff) rows.push(["Điểm xuống", stopName(dropoff)]);
-    if (place) rows.push(["Điểm đến", place.name || place.placeName || "Địa điểm"]);
-    if (Number.isFinite(Number(data.walkingMinutes))) rows.push(["Đi bộ", `${data.walkingMinutes} phút`]);
-    if (Number.isFinite(Number(data.etaMinutes))) rows.push(["Xe đến", `${data.etaMinutes} phút`]);
-    if (data.fare || route?.fare) rows.push(["Giá vé", data.fare || route.fare]);
+    if (place)
+      rows.push(["Điểm đến", place.name || place.placeName || "Địa điểm"]);
+    if (Number.isFinite(Number(data.walkingMinutes)))
+      rows.push(["Đi bộ", `${data.walkingMinutes} phút`]);
+    if (Number.isFinite(Number(data.etaMinutes)))
+      rows.push(["Xe đến", `${data.etaMinutes} phút`]);
+    if (data.fare || route?.fare)
+      rows.push(["Giá vé", data.fare || route.fare]);
     if (plan?.summary) rows.push(["Lộ trình", plan.summary]);
     let extra = "";
     if (Array.isArray(plan?.legs) && plan.legs.length) {
       extra += `<div class="chat-route-legs">${plan.legs.map((leg, idx) => `<div><b>${idx + 1}.</b> ${sanitize(leg)}</div>`).join("")}</div>`;
     }
-    if (Array.isArray(data.suggestedPlaces) && data.suggestedPlaces.length && !place) {
-      extra += `<div class="chat-card-row"><span>Gợi ý</span><b>${data.suggestedPlaces.slice(0,3).map((p) => sanitize(p.name)).join(", ")}</b></div>`;
+    if (
+      Array.isArray(data.suggestedPlaces) &&
+      data.suggestedPlaces.length &&
+      !place
+    ) {
+      extra += `<div class="chat-card-row"><span>Gợi ý</span><b>${data.suggestedPlaces
+        .slice(0, 3)
+        .map((p) => sanitize(p.name))
+        .join(", ")}</b></div>`;
     }
     if (data.cta?.view) {
       const view = sanitize(normalizeViewName(data.cta.view));
-      const routeId = sanitize(data.cta.routeId || data.relatedRouteId || route?.id || "");
-      extra += `<button type="button" class="chat-cta" onclick="Nav.go('${view}'); ${routeId ? `setTimeout(function(){ MapModule.highlightRoute('${routeId}'); }, 250);` : ''}">${sanitize(data.cta.label || "Mở trang")}</button>`;
+      const routeId = sanitize(
+        data.cta.routeId || data.relatedRouteId || route?.id || "",
+      );
+      extra += `<button type="button" class="chat-cta" onclick="Nav.go('${view}'); ${routeId ? `setTimeout(function(){ MapModule.highlightRoute('${routeId}'); }, 250);` : ""}">${sanitize(data.cta.label || "Mở trang")}</button>`;
     }
-    return `<div class="chat-card">${rows.map(([k,v]) => `<div class="chat-card-row"><span>${sanitize(k)}</span><b>${sanitize(v)}</b></div>`).join("")}${extra}</div>`;
+    return `<div class="chat-card">${rows.map(([k, v]) => `<div class="chat-card-row"><span>${sanitize(k)}</span><b>${sanitize(v)}</b></div>`).join("")}${extra}</div>`;
   }
 
   function sanitize(v) {
-    return String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    return String(v ?? "").replace(
+      /[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+    );
   }
 
   async function onSubmit(ev) {
@@ -4722,23 +7341,55 @@ const SmartBusAssistant = (() => {
   }
 
   function normText(v) {
-    return String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+    return String(v || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d");
   }
 
   function findProvinceFromText(text) {
-    if (/quang tri|dong ha|vinh moc|cua tung|cua viet|la vang|hien luong/.test(text)) return "QT";
-    if (/hue|thua thien|dai noi|dong ba|thien mu|khai dinh|tu duc|lang co/.test(text)) return "HUE";
-    if (/da nang|danang|ba na|my khe|son tra|ngu hanh|cau rong|cho han|hai van/.test(text)) return "DN";
-    if (/quang ngai|ly son|sa ky|sa huynh|son my|thien an|ba to|dung quat|van tuong/.test(text)) return "QNG";
-    if (/quang nam|hoi an|chua cau|my son|cu lao cham|tam ky|vinwonders|cau mong|tra que|thanh ha|an bang|cua dai/.test(text)) return "QN_CU";
+    if (
+      /quang tri|dong ha|vinh moc|cua tung|cua viet|la vang|hien luong/.test(
+        text,
+      )
+    )
+      return "QT";
+    if (
+      /hue|thua thien|dai noi|dong ba|thien mu|khai dinh|tu duc|lang co/.test(
+        text,
+      )
+    )
+      return "HUE";
+    if (
+      /da nang|danang|ba na|my khe|son tra|ngu hanh|cau rong|cho han|hai van/.test(
+        text,
+      )
+    )
+      return "DN";
+    if (
+      /quang ngai|ly son|sa ky|sa huynh|son my|thien an|ba to|dung quat|van tuong/.test(
+        text,
+      )
+    )
+      return "QNG";
+    if (
+      /quang nam|hoi an|chua cau|my son|cu lao cham|tam ky|vinwonders|cau mong|tra que|thanh ha|an bang|cua dai/.test(
+        text,
+      )
+    )
+      return "QN_CU";
     return "";
   }
 
   function findRouteFromLocal(question) {
     const text = normText(question);
-    const code = question.match(/\b(QT|HUE|DN|DNG|QNG|QN)\s*-?\s*(\d{1,2})(?:-?old|-?2025|-?tour)?\b/i);
+    const code = question.match(
+      /\b(QT|HUE|DN|DNG|QNG|QN)\s*-?\s*(\d{1,2})(?:-?old|-?2025|-?tour)?\b/i,
+    );
     if (code) {
-      const prefix = code[1].toUpperCase() === "DNG" ? "DN" : code[1].toUpperCase();
+      const prefix =
+        code[1].toUpperCase() === "DNG" ? "DN" : code[1].toUpperCase();
       const rid = `${prefix}-${String(code[2]).padStart(2, "0")}`;
       const exact = routeById(rid);
       if (exact) return exact;
@@ -4747,45 +7398,109 @@ const SmartBusAssistant = (() => {
     if (simple) {
       const n = String(simple[1] || simple[2]).padStart(2, "0");
       const province = findProvinceFromText(text);
-      const byProvince = ROUTES.find((r) => r.provinceCode === province && String(r.id).endsWith(`-${n}`));
+      const byProvince = ROUTES.find(
+        (r) => r.provinceCode === province && String(r.id).endsWith(`-${n}`),
+      );
       if (byProvince) return byProvince;
       const any = ROUTES.find((r) => String(r.id).endsWith(`-${n}`));
       if (any) return any;
     }
     const rules = [
-      [/hoi an|cua dai|viet han/, "DN-02"], [/ba na|cau vang|suoi mo/, "DN-03"], [/my khe|cong vien bien dong/, "DN-05"], [/cau rong|bao tang cham|san bay.*viet han/, "DN-06"], [/cho han|song han/, "DN-05"], [/hai van|khu cong nghe cao/, "DN-14"],
-      [/vinh moc|cua tung|cua viet|con co/, "QT-03"], [/hien luong|ben hai|ho xa|vinh chap/, "QT-01"], [/thanh co|la vang|hai lang/, "QT-02"], [/khe sanh|ta con|lao bao/, "QT-01"],
-      [/dai noi|kinh thanh|dong ba|truong tien/, "HUE-01"], [/thien mu|tu duc|khai dinh|thuy xuan|lang huong/, "HUE-05"], [/thuan an|vinh hien/, "HUE-03"], [/lang co|lap an|hai van/, "HUE-10"], [/a luoi/, "HUE-12"],
-      [/ly son|sa ky|son my|my khe quang ngai/, "QNG-03"], [/sa huynh/, "QNG-02"], [/thien an|song tra/, "QNG-01"], [/ba to|ba vi/, "QNG-04"], [/dung quat|van tuong|doosan/, "QNG-05"], [/tra bong/, "QNG-08"],
+      [/hoi an|cua dai|viet han/, "DN-02"],
+      [/ba na|cau vang|suoi mo/, "DN-03"],
+      [/my khe|cong vien bien dong/, "DN-05"],
+      [/cau rong|bao tang cham|san bay.*viet han/, "DN-06"],
+      [/cho han|song han/, "DN-05"],
+      [/hai van|khu cong nghe cao/, "DN-14"],
+      [/vinh moc|cua tung|cua viet|con co/, "QT-03"],
+      [/hien luong|ben hai|ho xa|vinh chap/, "QT-01"],
+      [/thanh co|la vang|hai lang/, "QT-02"],
+      [/khe sanh|ta con|lao bao/, "QT-01"],
+      [/dai noi|kinh thanh|dong ba|truong tien/, "HUE-01"],
+      [/thien mu|tu duc|khai dinh|thuy xuan|lang huong/, "HUE-05"],
+      [/thuan an|vinh hien/, "HUE-03"],
+      [/lang co|lap an|hai van/, "HUE-10"],
+      [/a luoi/, "HUE-12"],
+      [/ly son|sa ky|son my|my khe quang ngai/, "QNG-03"],
+      [/sa huynh/, "QNG-02"],
+      [/thien an|song tra/, "QNG-01"],
+      [/ba to|ba vi/, "QNG-04"],
+      [/dung quat|van tuong|doosan/, "QNG-05"],
+      [/tra bong/, "QNG-08"],
     ];
     const found = rules.find(([rx]) => rx.test(text));
     if (found) return routeById(found[1]);
-    return ROUTES.find((r) => normText(`${r.name} ${r.description} ${r.originName} ${r.destinationName} ${r.provinceName}`).includes(text) && text.length > 2) || null;
+    return (
+      ROUTES.find(
+        (r) =>
+          normText(
+            `${r.name} ${r.description} ${r.originName} ${r.destinationName} ${r.provinceName}`,
+          ).includes(text) && text.length > 2,
+      ) || null
+    );
   }
 
   function searchLocalPlaces(question, route = null) {
     const text = normText(question);
     const province = findProvinceFromText(text);
     let places = LOCAL_TOURISM_PLACES.filter((p) => {
-      const hay = normText(`${p.name} ${p.provinceName} ${p.description} ${p.categoryName} ${p.foodSuggestions} ${p.nearestRouteCode}`);
-      if (route && String(p.nearestRouteCode || "").includes(route.id)) return true;
-      if (province && p.provinceCode === province && /dia diem|du lich|di dau|noi tieng|check|bien|cho|chua|am thuc/.test(text)) return true;
-      return text.split(/\s+/).filter((x) => x.length >= 3).some((w) => hay.includes(w));
+      const hay = normText(
+        `${p.name} ${p.provinceName} ${p.description} ${p.categoryName} ${p.foodSuggestions} ${p.nearestRouteCode}`,
+      );
+      if (route && String(p.nearestRouteCode || "").includes(route.id))
+        return true;
+      if (
+        province &&
+        p.provinceCode === province &&
+        /dia diem|du lich|di dau|noi tieng|check|bien|cho|chua|am thuc/.test(
+          text,
+        )
+      )
+        return true;
+      return text
+        .split(/\s+/)
+        .filter((x) => x.length >= 3)
+        .some((w) => hay.includes(w));
     });
-    if (/bien|tam bien/.test(text)) places = places.filter((p) => /beach|bien|dao|biển|đảo/i.test(`${p.categoryCode} ${p.categoryName}`));
-    if (/cho|mua sam|am thuc/.test(text)) places = places.filter((p) => /shopping|food|chợ|ẩm thực/i.test(`${p.categoryCode} ${p.categoryName} ${p.name}`));
-    if (/tam linh|chua|hanh huong/.test(text)) places = places.filter((p) => /spiritual|chùa|tâm linh|tôn giáo|lăng/i.test(`${p.categoryCode} ${p.categoryName} ${p.name}`));
+    if (/bien|tam bien/.test(text))
+      places = places.filter((p) =>
+        /beach|bien|dao|biển|đảo/i.test(`${p.categoryCode} ${p.categoryName}`),
+      );
+    if (/cho|mua sam|am thuc/.test(text))
+      places = places.filter((p) =>
+        /shopping|food|chợ|ẩm thực/i.test(
+          `${p.categoryCode} ${p.categoryName} ${p.name}`,
+        ),
+      );
+    if (/tam linh|chua|hanh huong/.test(text))
+      places = places.filter((p) =>
+        /spiritual|chùa|tâm linh|tôn giáo|lăng/i.test(
+          `${p.categoryCode} ${p.categoryName} ${p.name}`,
+        ),
+      );
     return places.slice(0, 5);
   }
 
   function nearestLocalStop(lat, lng, routeId = "") {
     const origin = [Number(lat), Number(lng)];
     if (!Number.isFinite(origin[0]) || !Number.isFinite(origin[1])) return null;
-    const candidates = LOCAL_STOPS.filter((s) => !routeId || s.routeId === routeId || (s.routes || []).some((r) => r.id === routeId));
-    return candidates
-      .map((s) => ({ ...s, distanceMeters: Math.round(getDistanceMeters(origin, [Number(s.lat), Number(s.lng)])) }))
-      .filter((s) => Number.isFinite(s.distanceMeters))
-      .sort((a, b) => a.distanceMeters - b.distanceMeters)[0] || null;
+    const candidates = LOCAL_STOPS.filter(
+      (s) =>
+        !routeId ||
+        s.routeId === routeId ||
+        (s.routes || []).some((r) => r.id === routeId),
+    );
+    return (
+      candidates
+        .map((s) => ({
+          ...s,
+          distanceMeters: Math.round(
+            getDistanceMeters(origin, [Number(s.lat), Number(s.lng)]),
+          ),
+        }))
+        .filter((s) => Number.isFinite(s.distanceMeters))
+        .sort((a, b) => a.distanceMeters - b.distanceMeters)[0] || null
+    );
   }
 
   function buildLocalAnswer(question, payload = {}) {
@@ -4795,58 +7510,193 @@ const SmartBusAssistant = (() => {
     const province = findProvinceFromText(text);
     const wantsStats = /bao nhieu|thong ke|tong so|co may/.test(text);
     if (wantsStats) {
-      return { reply: `Dữ liệu chính nằm trong SQL Server. Hãy chạy API /api/v1/bus/routes, /api/v1/tourism/places và /api/v1/chatbot/ask để thống kê dữ liệu 5 khu vực.`, intent: "local_stats", suggestedPlaces: LOCAL_TOURISM_PLACES.slice(0, 3), cta: { label: "Mở bản đồ", view: "map" } };
+      return {
+        reply: `Dữ liệu chính nằm trong SQL Server. Hãy chạy API /api/v1/bus/routes, /api/v1/tourism/places và /api/v1/chatbot/ask để thống kê dữ liệu 5 khu vực.`,
+        intent: "local_stats",
+        suggestedPlaces: LOCAL_TOURISM_PLACES.slice(0, 3),
+        cta: { label: "Mở bản đồ", view: "map" },
+      };
     }
-    if (/ben.*gan|gan.*ben|gan toi|gan tôi/.test(text) && payload.lat && payload.lng) {
+    if (
+      /ben.*gan|gan.*ben|gan toi|gan tôi/.test(text) &&
+      payload.lat &&
+      payload.lng
+    ) {
       const stop = nearestLocalStop(payload.lat, payload.lng, route?.id);
       if (stop) {
-        return { reply: `Bến/điểm GPS gần bạn nhất là ${stop.name} (${stop.provinceName}), cách khoảng ${stop.distanceMeters}m. Tuyến gợi ý: ${stop.routeDisplayCode || stop.routeId}.`, intent: "local_nearest_stop", route, nearestStop: stop, walkingMinutes: Math.max(1, Math.round(stop.distanceMeters / 80)), cta: { label: "Mở bản đồ", view: "map" } };
+        return {
+          reply: `Bến/điểm GPS gần bạn nhất là ${stop.name} (${stop.provinceName}), cách khoảng ${stop.distanceMeters}m. Tuyến gợi ý: ${stop.routeDisplayCode || stop.routeId}.`,
+          intent: "local_nearest_stop",
+          route,
+          nearestStop: stop,
+          walkingMinutes: Math.max(1, Math.round(stop.distanceMeters / 80)),
+          cta: { label: "Mở bản đồ", view: "map" },
+        };
       }
     }
     if (/danh sach|cac tuyen|chuyen nao|tuyen nao/.test(text) && province) {
-      const routes = ROUTES.filter((r) => r.provinceCode === province).slice(0, 8);
-      return { reply: `${routes[0]?.provinceName || "Tỉnh này"} hiện có ${routes.length} tuyến trong dữ liệu SmartBus: ${routes.map((r) => `${r.id} (${r.originName} → ${r.destinationName}, ${r.time})`).join("; ")}.`, intent: "local_route_list", route: routes[0] || null, cta: { label: "Xem danh sách xe", view: "buses" } };
+      const routes = ROUTES.filter((r) => r.provinceCode === province).slice(
+        0,
+        8,
+      );
+      return {
+        reply: `${routes[0]?.provinceName || "Tỉnh này"} hiện có ${routes.length} tuyến trong dữ liệu SmartBus: ${routes.map((r) => `${r.id} (${r.originName} → ${r.destinationName}, ${r.time})`).join("; ")}.`,
+        intent: "local_route_list",
+        route: routes[0] || null,
+        cta: { label: "Xem danh sách xe", view: "buses" },
+      };
     }
     if (route) {
-      const stop = payload.lat && payload.lng ? nearestLocalStop(payload.lat, payload.lng, route.id) : null;
-      const routePlaces = places.length ? places : LOCAL_TOURISM_PLACES.filter((p) => String(p.nearestRouteCode || "").includes(route.id)).slice(0, 3);
+      const stop =
+        payload.lat && payload.lng
+          ? nearestLocalStop(payload.lat, payload.lng, route.id)
+          : null;
+      const routePlaces = places.length
+        ? places
+        : LOCAL_TOURISM_PLACES.filter((p) =>
+            String(p.nearestRouteCode || "").includes(route.id),
+          ).slice(0, 3);
       const destinationPlace = routePlaces[0] || null;
-      const destinationStop = destinationPlace?.nearestStopName ? { name: destinationPlace.nearestStopName, lat: destinationPlace.lat, lng: destinationPlace.lng } : null;
+      const destinationStop = destinationPlace?.nearestStopName
+        ? {
+            name: destinationPlace.nearestStopName,
+            lat: destinationPlace.lat,
+            lng: destinationPlace.lng,
+          }
+        : null;
       const legs = [];
-      legs.push(stop ? `Đi bộ đến ${stop.name}` : "Bật GPS để xác định bến đón gần bạn");
+      legs.push(
+        stop ? `Đi bộ đến ${stop.name}` : "Bật GPS để xác định bến đón gần bạn",
+      );
       legs.push(`Đi tuyến ${route.id} – ${route.name}`);
-      if (destinationPlace) legs.push(`Xuống gần ${destinationPlace.nearestStopName || destinationPlace.name}, sau đó đi bộ tới ${destinationPlace.name}`);
-      return { reply: `Bạn có thể đi tuyến ${route.id} – ${route.name}. Giờ chạy: ${route.time || "đang cập nhật"}, tần suất: ${route.interval || "đang cập nhật"}, cự ly khoảng ${route.distanceKm || "?"} km, tốc độ TB ${route.avgSpeedKmh || "?"} km/h. ${stop ? `Điểm đón gần bạn: ${stop.name}, cách ${stop.distanceMeters}m.` : "Bật GPS để mình tìm điểm đón gần bạn."} ${destinationPlace ? `Điểm đến gợi ý: ${destinationPlace.name}.` : ""}`, intent: "local_route", route, pickupStop: stop, nearestStop: stop, destinationStop, destinationPlace, suggestedPlaces: routePlaces, routePlan: { summary: legs.join(" → "), legs }, walkingMinutes: stop ? Math.max(1, Math.round(stop.distanceMeters / 80)) : null, etaMinutes: 8 + Math.floor(Math.random() * 12), fare: route.fare || "Đang cập nhật", cta: { label: "Hiện lộ trình trên bản đồ", view: "dashboard", routeId: route.id } };
+      if (destinationPlace)
+        legs.push(
+          `Xuống gần ${destinationPlace.nearestStopName || destinationPlace.name}, sau đó đi bộ tới ${destinationPlace.name}`,
+        );
+      return {
+        reply: `Bạn có thể đi tuyến ${route.id} – ${route.name}. Giờ chạy: ${route.time || "đang cập nhật"}, tần suất: ${route.interval || "đang cập nhật"}, cự ly khoảng ${route.distanceKm || "?"} km, tốc độ TB ${route.avgSpeedKmh || "?"} km/h. ${stop ? `Điểm đón gần bạn: ${stop.name}, cách ${stop.distanceMeters}m.` : "Bật GPS để mình tìm điểm đón gần bạn."} ${destinationPlace ? `Điểm đến gợi ý: ${destinationPlace.name}.` : ""}`,
+        intent: "local_route",
+        route,
+        pickupStop: stop,
+        nearestStop: stop,
+        destinationStop,
+        destinationPlace,
+        suggestedPlaces: routePlaces,
+        routePlan: { summary: legs.join(" → "), legs },
+        walkingMinutes: stop
+          ? Math.max(1, Math.round(stop.distanceMeters / 80))
+          : null,
+        etaMinutes: 8 + Math.floor(Math.random() * 12),
+        fare: route.fare || "Đang cập nhật",
+        cta: {
+          label: "Hiện lộ trình trên bản đồ",
+          view: "dashboard",
+          routeId: route.id,
+        },
+      };
     }
     if (places.length) {
       const first = places[0];
       const firstRoute = routeById(first.nearestRouteCode);
-      const pickup = payload.lat && payload.lng && firstRoute ? nearestLocalStop(payload.lat, payload.lng, firstRoute.id) : null;
-      const destinationStop = first.nearestStopName ? { name: first.nearestStopName, lat: first.lat, lng: first.lng } : null;
+      const pickup =
+        payload.lat && payload.lng && firstRoute
+          ? nearestLocalStop(payload.lat, payload.lng, firstRoute.id)
+          : null;
+      const destinationStop = first.nearestStopName
+        ? { name: first.nearestStopName, lat: first.lat, lng: first.lng }
+        : null;
       const legs = [];
-      legs.push(pickup ? `Đi bộ đến ${pickup.name}` : "Bật GPS để xác định bến đón gần bạn");
-      if (firstRoute) legs.push(`Đi tuyến ${firstRoute.id} – ${firstRoute.name || "tuyến gợi ý"}`);
-      legs.push(`Xuống gần ${first.nearestStopName || first.name} và đi bộ tới ${first.name}`);
-      return { reply: `Mình tìm thấy ${places.length} địa điểm phù hợp: ${places.map((p) => p.name).join(", ")}. Với ${first.name}, tuyến gợi ý là ${first.nearestRouteCode || "đang cập nhật"}, bến/hub gần: ${first.nearestStopName || "đang cập nhật"}, khoảng cách ${first.nearestDistanceKm || "?"} km. Thời điểm đẹp: ${first.bestTime || "theo mùa khô"}. Ẩm thực gợi ý: ${first.foodSuggestions || "đặc sản địa phương"}.`, intent: "local_tourism", route: firstRoute, pickupStop: pickup, nearestStop: pickup, destinationStop, destinationPlace: first, suggestedPlaces: places, routePlan: { summary: legs.join(" → "), legs }, cta: { label: "Hiện lộ trình trên bản đồ", view: "dashboard", routeId: firstRoute?.id } };
+      legs.push(
+        pickup
+          ? `Đi bộ đến ${pickup.name}`
+          : "Bật GPS để xác định bến đón gần bạn",
+      );
+      if (firstRoute)
+        legs.push(
+          `Đi tuyến ${firstRoute.id} – ${firstRoute.name || "tuyến gợi ý"}`,
+        );
+      legs.push(
+        `Xuống gần ${first.nearestStopName || first.name} và đi bộ tới ${first.name}`,
+      );
+      return {
+        reply: `Mình tìm thấy ${places.length} địa điểm phù hợp: ${places.map((p) => p.name).join(", ")}. Với ${first.name}, tuyến gợi ý là ${first.nearestRouteCode || "đang cập nhật"}, bến/hub gần: ${first.nearestStopName || "đang cập nhật"}, khoảng cách ${first.nearestDistanceKm || "?"} km. Thời điểm đẹp: ${first.bestTime || "theo mùa khô"}. Ẩm thực gợi ý: ${first.foodSuggestions || "đặc sản địa phương"}.`,
+        intent: "local_tourism",
+        route: firstRoute,
+        pickupStop: pickup,
+        nearestStop: pickup,
+        destinationStop,
+        destinationPlace: first,
+        suggestedPlaces: places,
+        routePlan: { summary: legs.join(" → "), legs },
+        cta: {
+          label: "Hiện lộ trình trên bản đồ",
+          view: "dashboard",
+          routeId: firstRoute?.id,
+        },
+      };
     }
     if (/an gi|mon ngon|dac san|am thuc|food/.test(text)) {
-      const foodPlaces = searchLocalPlaces(question).filter((p) => p.foodSuggestions || /food|cho|am thuc|đặc sản|ẩm thực/i.test(`${p.categoryCode} ${p.categoryName} ${p.name}`));
+      const foodPlaces = searchLocalPlaces(question).filter(
+        (p) =>
+          p.foodSuggestions ||
+          /food|cho|am thuc|đặc sản|ẩm thực/i.test(
+            `${p.categoryCode} ${p.categoryName} ${p.name}`,
+          ),
+      );
       if (foodPlaces.length) {
-        return { reply: `Về ăn uống, bạn có thể tham khảo ${foodPlaces.slice(0,3).map((p) => `${p.name}${p.foodSuggestions ? ` (${p.foodSuggestions})` : ""}`).join("; ")}. Hỏi thêm tên địa điểm cụ thể để mình gợi ý tuyến/bến gần hơn.`, intent: "local_food", suggestedPlaces: foodPlaces.slice(0,3), cta: { label: "Xem địa điểm du lịch", view: "tourism" } };
+        return {
+          reply: `Về ăn uống, bạn có thể tham khảo ${foodPlaces
+            .slice(0, 3)
+            .map(
+              (p) =>
+                `${p.name}${p.foodSuggestions ? ` (${p.foodSuggestions})` : ""}`,
+            )
+            .join(
+              "; ",
+            )}. Hỏi thêm tên địa điểm cụ thể để mình gợi ý tuyến/bến gần hơn.`,
+          intent: "local_food",
+          suggestedPlaces: foodPlaces.slice(0, 3),
+          cta: { label: "Xem địa điểm du lịch", view: "tourism" },
+        };
       }
     }
     if (/review|danh gia|nhan xet/.test(text)) {
       const reviewPlaces = searchLocalPlaces(question);
-      return { reply: reviewPlaces.length ? `Mình tìm thấy địa điểm liên quan để xem review: ${reviewPlaces.slice(0,3).map((p) => p.name).join(", ")}. Bạn mở Cộng đồng review để xem bài mẫu và bài người dùng.` : `Mình chưa tìm thấy review đúng địa điểm. Bạn có thể hỏi rõ hơn như “Có review về Biển Mỹ Khê không?” hoặc “Review Lý Sơn thế nào?”.`, intent: "local_review", suggestedPlaces: reviewPlaces.slice(0,3), cta: { label: "Mở cộng đồng review", view: "reviews" } };
+      return {
+        reply: reviewPlaces.length
+          ? `Mình tìm thấy địa điểm liên quan để xem review: ${reviewPlaces
+              .slice(0, 3)
+              .map((p) => p.name)
+              .join(
+                ", ",
+              )}. Bạn mở Cộng đồng review để xem bài mẫu và bài người dùng.`
+          : `Mình chưa tìm thấy review đúng địa điểm. Bạn có thể hỏi rõ hơn như “Có review về Biển Mỹ Khê không?” hoặc “Review Lý Sơn thế nào?”.`,
+        intent: "local_review",
+        suggestedPlaces: reviewPlaces.slice(0, 3),
+        cta: { label: "Mở cộng đồng review", view: "reviews" },
+      };
     }
-    return { reply: `Mình chưa hiểu rõ ý bạn. Bạn có thể hỏi theo mẫu: “Tôi muốn đến Hội An”, “Bến gần tôi ở đâu?”, “Gợi ý lịch trình Đà Nẵng 1 ngày”, “Huế có gì chơi?” hoặc “Có review về Lý Sơn không?”.`, intent: "local_help", suggestions: ["Tôi muốn đến Hội An", "Đi Mỹ Khê bằng tuyến nào?", "Gợi ý lịch trình Đà Nẵng 1 ngày", "Có review về Lý Sơn không?"] };
+    return {
+      reply: `Mình chưa hiểu rõ ý bạn. Bạn có thể hỏi theo mẫu: “Tôi muốn đến Hội An”, “Bến gần tôi ở đâu?”, “Gợi ý lịch trình Đà Nẵng 1 ngày”, “Huế có gì chơi?” hoặc “Có review về Lý Sơn không?”.`,
+      intent: "local_help",
+      suggestions: [
+        "Tôi muốn đến Hội An",
+        "Đi Mỹ Khê bằng tuyến nào?",
+        "Gợi ý lịch trình Đà Nẵng 1 ngày",
+        "Có review về Lý Sơn không?",
+      ],
+    };
   }
 
   async function sendQuestion(question) {
     const safeQuestion = String(question || "").trim();
     if (!safeQuestion || busy) return;
     if (safeQuestion.length > 1000) {
-      Toast.show("Câu hỏi quá dài. Vui lòng rút gọn dưới 1000 ký tự.", "warning", 3500);
+      Toast.show(
+        "Câu hỏi quá dài. Vui lòng rút gọn dưới 1000 ký tự.",
+        "warning",
+        3500,
+      );
       return;
     }
     let payload = { message: safeQuestion, lat: null, lng: null };
@@ -4857,14 +7707,17 @@ const SmartBusAssistant = (() => {
 
     try {
       // FIX: Timeout GPS tối đa 2 giây, không chặn chat nếu GPS chậm
-      const pos = currentPosition || (await requestGPS(false, 2000).catch(() => null));
+      const pos =
+        currentPosition || (await requestGPS(false, 2000).catch(() => null));
       payload = {
         message: safeQuestion,
         lat: pos?.lat ?? null,
         lng: pos?.lng ?? null,
       };
       // FIX: Dùng API wrapper thay vì fetch thủ công để tự thêm Authorization token
-      const data = await API.post("/chatbot/ask", payload, { timeoutMs: 15000 });
+      const data = await API.post("/chatbot/ask", payload, {
+        timeoutMs: 15000,
+      });
       typing?.remove();
       addMessage(data.reply || "Tôi đã nhận câu hỏi của bạn.", "bot", data);
       applyMapResult(data, payload);
@@ -4874,20 +7727,35 @@ const SmartBusAssistant = (() => {
       const local = buildLocalAnswer(safeQuestion, payload);
       addMessage(local.reply, "bot", local);
       applyMapResult(local, payload);
-      Toast.show("Mình chưa kết nối được dữ liệu backend, đang dùng gợi ý dự phòng trên giao diện.", "warning", 3800);
+      Toast.show(
+        "Mình chưa kết nối được dữ liệu backend, đang dùng gợi ý dự phòng trên giao diện.",
+        "warning",
+        3800,
+      );
     } finally {
       busy = false;
     }
   }
 
   function applyMapResult(data, payload) {
-    const routeId = data?.route?.id || data?.route?.route_id || data?.routeId || data?.relatedRouteId;
-    if (data?.destinationPlace || data?.destinationStop || data?.pickupStop || data?.nearestStop || routeId) {
+    const routeId =
+      data?.route?.id ||
+      data?.route?.route_id ||
+      data?.routeId ||
+      data?.relatedRouteId;
+    if (
+      data?.destinationPlace ||
+      data?.destinationStop ||
+      data?.pickupStop ||
+      data?.nearestStop ||
+      routeId
+    ) {
       MapModule.showTravelPlan?.(data, payload);
       return;
     }
     if (routeId) MapModule.highlightRoute?.(routeId);
-    if (payload?.lat && payload?.lng) MapModule.markUserLocation?.(payload.lat, payload.lng);
+    if (payload?.lat && payload?.lng)
+      MapModule.markUserLocation?.(payload.lat, payload.lng);
   }
 
   async function requestGPS(showToast = false, timeoutMs = 15000) {
@@ -4899,7 +7767,8 @@ const SmartBusAssistant = (() => {
       buttons: [e.gpsBtn],
       allowCache: false,
     });
-    if (gps) currentPosition = { lat: gps.lat, lng: gps.lng, accuracy: gps.accuracy };
+    if (gps)
+      currentPosition = { lat: gps.lat, lng: gps.lng, accuracy: gps.accuracy };
     return currentPosition;
   }
 

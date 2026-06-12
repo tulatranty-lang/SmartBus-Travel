@@ -34,6 +34,11 @@ describe('security auth/rbac smoke tests', () => {
     expect(importHistory.status).toBe(403);
   });
 
+  test('recent activity stream requires login', async () => {
+    const res = await request(app).get('/api/v1/stats/recent-activities');
+    expect(res.status).toBe(401);
+  });
+
   test('review and post vote require login', async () => {
     const reviewVote = await request(app).post('/api/v1/reviews/1/vote');
     expect(reviewVote.status).toBe(401);

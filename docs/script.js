@@ -1991,9 +1991,17 @@ const AnalyticsUI = {
       return;
     }
 
+    if (!TokenStore.getAccessToken()) {
+      const localRows = this._localActivityRows();
+      if (renderRows(localRows, "local")) return;
+      el.innerHTML = `<div class="txt3 small">Chua co hoat dong gan day.</div>`;
+      return;
+    }
+
     el.innerHTML = `<div class="txt3 small">Đang tải hoạt động gần đây từ backend...</div>`;
     try {
-      const rows = await API.get('/stats/recent-activities?limit=8', { skipAuth: true, timeoutMs: 25000, cacheTtlMs: 30000 });
+      const canViewAll = Auth.isAdmin?.(State.user);
+      const rows = await API.get(`/stats/recent-activities?limit=8&mine=${canViewAll ? "false" : "true"}`, { timeoutMs: 25000, cacheTtlMs: 30000 });
       const list = Array.isArray(rows) ? rows : (rows?.data || rows?.activities || []);
       if (renderRows(list, "Backend SQL Server")) {
         this._cache.set(cacheKey, { rows: list, source: "Backend SQL Server", expiresAt: Date.now() + 30000 });

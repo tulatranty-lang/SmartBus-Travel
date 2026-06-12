@@ -1,2 +1,47 @@
 /* Chatbot mobile comfort and safe overflow. */
-.chat-panel{max-width:min(420px,calc(100vw - 24px));max-height:min(680px,calc(100vh - 96px))}.chat-body{overflow:auto}.bubble{word-break:break-word}.chat-suggestions{display:flex;gap:8px;overflow:auto;padding-bottom:4px}.chat-suggestions button{white-space:nowrap}
+.chat-panel {
+  position: absolute;
+  right: 0;
+  bottom: 62px;
+  width: min(420px, calc(100vw - 24px));
+  max-width: 100%;
+  max-height: min(680px, calc(100vh - 96px));
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+}
+.chat-body {
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 220px;
+}
+.bubble {
+  word-break: break-word;
+}
+.chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 12px 8px;
+}
+.chat-suggestions button {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .chat-panel {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    bottom: 58px;
+    max-height: calc(100vh - 24px);
+    border-radius: 18px;
+  }
+  .chat-suggestions {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+}

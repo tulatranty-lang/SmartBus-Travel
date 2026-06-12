@@ -29,6 +29,7 @@ const mapRoutes = require('./modules/map/map.routes');
 const favoritesRoutes = require('./modules/favorites/favorites.routes');
 const importRoutes = require('./modules/import/import.routes');
 const statsRoutes = require('./modules/stats/stats.routes');
+const notificationRoutes = require('./modules/notification/notification.routes');
 
 const app = express();
 app.disable('x-powered-by');
@@ -93,6 +94,7 @@ function mount(prefix) {
   app.use(`${prefix}/reports`, reportRoutes);
   app.use(`${prefix}/analytics`, analyticsRoutes);
   app.use(`${prefix}/stats`, statsRoutes);
+  app.use(`${prefix}/notifications`, notificationRoutes);
   app.use(prefix, tourismRoutes);
   app.use(`${prefix}/tourism`, tourismRoutes);
   app.use(prefix, reviewRoutes);
