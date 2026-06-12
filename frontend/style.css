@@ -2369,8 +2369,20 @@ select.fg-inp option {
   position: fixed;
   right: 22px;
   bottom: 22px;
-  z-index: 1200;
+  z-index: 1240;
   font-family: var(--font-body);
+}
+@media (max-width: 768px) {
+  .smartbus-chat-root {
+    right: 12px;
+    bottom: 12px;
+  }
+}
+@media (max-width: 480px) {
+  .smartbus-chat-root {
+    right: 8px;
+    bottom: 8px;
+  }
 }
 .chat-toggle {
   position: relative;
@@ -2410,11 +2422,11 @@ select.fg-inp option {
   z-index: 1;
 }
 .chat-panel {
-  position: absolute;
-  right: 0;
-  bottom: 62px;
+  position: fixed;
+  right: 22px;
+  bottom: 80px;
   width: min(392px, calc(100vw - 28px));
-  height: min(620px, calc(100vh - 96px));
+  max-height: min(620px, calc(100vh - 120px));
   display: grid;
   grid-template-rows: auto 1fr auto auto;
   background: rgba(13, 26, 24, 0.96);
@@ -2427,6 +2439,26 @@ select.fg-inp option {
     0 0 0 1px rgba(62, 207, 191, 0.08) inset;
   transform-origin: bottom right;
   animation: chatPop 0.18s var(--spring);
+  z-index: 1250;
+}
+@media (max-width: 768px) {
+  .chat-panel {
+    right: 12px;
+    left: 12px;
+    width: auto;
+    bottom: 70px;
+    max-height: calc(100vh - 100px);
+    border-radius: 18px;
+  }
+}
+@media (max-width: 480px) {
+  .chat-panel {
+    right: 8px;
+    left: 8px;
+    bottom: 62px;
+    max-height: calc(100vh - 90px);
+    border-radius: 16px;
+  }
 }
 .chat-panel.hidden {
   display: none;

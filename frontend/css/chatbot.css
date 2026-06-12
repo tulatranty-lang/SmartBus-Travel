@@ -1,25 +1,4 @@
 /* Chatbot mobile comfort and safe overflow. */
-.chat-panel {
-  position: absolute;
-  right: 0;
-  bottom: 62px;
-  width: min(420px, calc(100vw - 24px));
-  max-width: 100%;
-  max-height: min(680px, calc(100vh - 96px));
-  display: grid;
-  grid-template-rows: auto 1fr auto auto;
-}
 .bubble {
   word-break: break-word;
-}
-
-@media (max-width: 640px) {
-  .chat-panel {
-    left: 12px;
-    right: 12px;
-    width: auto;
-    bottom: 58px;
-    max-height: calc(100vh - 100px);
-    border-radius: 16px;
-  }
 }
