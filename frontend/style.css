@@ -2369,8 +2369,16 @@ select.fg-inp option {
   position: fixed;
   right: 22px;
   bottom: 22px;
-  z-index: 1240;
+  z-index: 99999; /* ensure chat sits above app chrome */
   font-family: var(--font-body);
+  pointer-events: none; /* allow toggle to control pointer-events on children */
+}
+
+/* Ensure chat root attached to body remains fixed and above transforms */
+body > #smartbus-chat-root {
+  position: fixed !important;
+  z-index: 99999 !important;
+  pointer-events: auto !important;
 }
 @media (max-width: 768px) {
   .smartbus-chat-root {
@@ -2422,9 +2430,10 @@ select.fg-inp option {
   z-index: 1;
 }
 .chat-panel {
-  position: fixed;
+  position: fixed !important; /* force viewport anchoring */
   right: 22px;
-  bottom: 80px;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  left: auto;
   width: min(392px, calc(100vw - 28px));
   max-height: min(620px, calc(100vh - 120px));
   display: grid;
@@ -2437,9 +2446,11 @@ select.fg-inp option {
   box-shadow:
     0 24px 90px rgba(0, 0, 0, 0.42),
     0 0 0 1px rgba(62, 207, 191, 0.08) inset;
+  transform: none !important;
   transform-origin: bottom right;
   animation: chatPop 0.18s var(--spring);
-  z-index: 1250;
+  z-index: 99998;
+  pointer-events: auto;
 }
 @media (max-width: 768px) {
   .chat-panel {
@@ -2461,7 +2472,7 @@ select.fg-inp option {
   }
 }
 .chat-panel.hidden {
-  display: none;
+  display: none !important;
 }
 @keyframes chatPop {
   from {
