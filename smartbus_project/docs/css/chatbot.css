@@ -1,2 +1,0 @@
-/* Chatbot mobile comfort and safe overflow. */
-.chat-panel{max-width:min(420px,calc(100vw - 24px));max-height:min(680px,calc(100vh - 96px))}.chat-body{overflow:auto}.bubble{word-break:break-word}.chat-suggestions{display:flex;gap:8px;overflow:auto;padding-bottom:4px}.chat-suggestions button{white-space:nowrap}

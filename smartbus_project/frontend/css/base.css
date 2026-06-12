@@ -1,5 +1,0 @@
-/* SmartBus UI/UX light-polish layer: keeps legacy CSS but normalizes colors, focus and typography. */
-:root{--sb-primary:#2563eb;--sb-primary-soft:#dbeafe;--sb-bg:#f7fbff;--sb-surface:#ffffff;--sb-text:#102a43;--sb-muted:#64748b;--sb-border:#dbe7f3;--sb-radius:16px;--sb-shadow:0 14px 40px rgba(15,23,42,.10)}
-body{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-button,.landing-btn,.btn-ghost{min-height:40px}
-img{max-width:100%;height:auto}

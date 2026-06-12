@@ -2429,48 +2429,38 @@ body > #smartbus-chat-root {
   position: relative;
   z-index: 1;
 }
-.chat-panel {
-  position: fixed !important; /* force viewport anchoring */
-  right: 22px;
-  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-  left: auto;
-  width: min(392px, calc(100vw - 28px));
-  max-height: min(620px, calc(100vh - 120px));
-  display: grid;
-  grid-template-rows: auto 1fr auto auto;
-  background: rgba(13, 26, 24, 0.96);
-  border: 1px solid var(--bdr-hover);
-  border-radius: 24px;
-  overflow: hidden;
-  backdrop-filter: blur(18px);
-  box-shadow:
-    0 24px 90px rgba(0, 0, 0, 0.42),
-    0 0 0 1px rgba(62, 207, 191, 0.08) inset;
-  transform: none !important;
-  transform-origin: bottom right;
-  animation: chatPop 0.18s var(--spring);
-  z-index: 99998;
-  pointer-events: auto;
-}
-@media (max-width: 768px) {
-  .chat-panel {
+@media (max-width: 640px) {
+  .smartbus-chat-root {
     right: 12px;
-    left: 12px;
-    width: auto;
-    bottom: 70px;
-    max-height: calc(100vh - 100px);
+    bottom: 12px;
+  }
+  .chat-toggle-label {
+    display: none;
+  }
+
+  /* Trên mobile: panel dùng position:fixed neo vào viewport thay vì
+     position:absolute vào icon-button nhỏ → không bị lệch/cắt xén */
+  .chat-panel {
+    position: fixed;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    right: 10px;
+    left: 10px;
+    width: auto; /* left+right thay cho width cố định */
+    height: min(72vh, calc(100dvh - 110px));
     border-radius: 18px;
   }
 }
-@media (max-width: 480px) {
+
+@media (max-width: 390px) {
   .chat-panel {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
     right: 8px;
     left: 8px;
-    bottom: 62px;
-    max-height: calc(100vh - 90px);
-    border-radius: 16px;
+    height: min(75vh, calc(100dvh - 100px));
+    border-radius: 14px;
   }
 }
+
 .chat-panel.hidden {
   display: none !important;
 }

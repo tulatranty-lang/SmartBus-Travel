@@ -1,1 +1,0 @@
-/* Tourism module placeholder for future extraction from script.js without breaking current demo. */

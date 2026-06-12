@@ -1,0 +1,282 @@
+[
+    {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Text",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
+        "label": "csv",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "csv",
+        "description": "csv",
+        "detail": "csv",
+        "documentation": {}
+    },
+    {
+        "label": "requests",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "requests",
+        "description": "requests",
+        "detail": "requests",
+        "documentation": {}
+    },
+    {
+        "label": "Action",
+        "importPath": "rasa_sdk",
+        "description": "rasa_sdk",
+        "isExtraImport": true,
+        "detail": "rasa_sdk",
+        "documentation": {}
+    },
+    {
+        "label": "Tracker",
+        "importPath": "rasa_sdk",
+        "description": "rasa_sdk",
+        "isExtraImport": true,
+        "detail": "rasa_sdk",
+        "documentation": {}
+    },
+    {
+        "label": "CollectingDispatcher",
+        "importPath": "rasa_sdk.executor",
+        "description": "rasa_sdk.executor",
+        "isExtraImport": true,
+        "detail": "rasa_sdk.executor",
+        "documentation": {}
+    },
+    {
+        "label": "ActionFindBestRoute",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionFindBestRoute(Action):\n    def name(self) -> Text:\n        return \"action_find_best_route\"\n    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:\n        message = tracker.latest_message.get(\"text\", \"\")\n        backend_reply = try_backend_chat(message)\n        if backend_reply:\n            dispatcher.utter_message(text=backend_reply)\n            return []\n        route = pick_route(message)",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "ActionFindNearestStop",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionFindNearestStop(Action):\n    def name(self) -> Text:\n        return \"action_find_nearest_stop\"\n    def run(self, dispatcher, tracker, domain):\n        dispatcher.utter_message(text=\"Bạn hãy bật GPS trên web SmartBus. Khi có vị trí, mình sẽ tìm bến gần nhất, khoảng cách đi bộ và tuyến phù hợp theo dữ liệu bản đồ.\")\n        return []\nclass ActionEstimateBusEta(Action):\n    def name(self) -> Text:\n        return \"action_estimate_bus_eta\"\n    def run(self, dispatcher, tracker, domain):",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "ActionEstimateBusEta",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionEstimateBusEta(Action):\n    def name(self) -> Text:\n        return \"action_estimate_bus_eta\"\n    def run(self, dispatcher, tracker, domain):\n        message = tracker.latest_message.get(\"text\", \"\")\n        route = pick_route(message) or {\"id\": tracker.get_slot(\"route_id\") or \"02\", \"interval\": \"20 phút\"}\n        dispatcher.utter_message(text=f\"ETA demo tuyến {route['id']} khoảng {route.get('interval', '10–20 phút')} tùy bến hiện tại.\")\n        return []\nclass ActionShowFare(Action):\n    def name(self) -> Text:",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "ActionShowFare",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionShowFare(Action):\n    def name(self) -> Text:\n        return \"action_show_fare\"\n    def run(self, dispatcher, tracker, domain):\n        message = tracker.latest_message.get(\"text\", \"\")\n        route = pick_route(message)\n        if route:\n            dispatcher.utter_message(text=f\"Tuyến {route['id']} – {route['name']} có giá vé {route['fare']}.\")\n        else:\n            dispatcher.utter_message(text=\"Bạn cho tôi mã tuyến hoặc điểm đến để tra giá vé nhé.\")",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "ActionShowSchedule",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionShowSchedule(Action):\n    def name(self) -> Text:\n        return \"action_show_schedule\"\n    def run(self, dispatcher, tracker, domain):\n        message = tracker.latest_message.get(\"text\", \"\")\n        route = pick_route(message)\n        if route:\n            dispatcher.utter_message(text=f\"Tuyến {route['id']} chạy {route['time']}, tần suất {route['interval']}.\")\n        else:\n            dispatcher.utter_message(text=\"Bạn cho tôi mã tuyến để xem lịch chạy nhé.\")",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "ActionCreateReport",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionCreateReport(Action):\n    def name(self) -> Text:\n        return \"action_create_report\"\n    def run(self, dispatcher, tracker, domain):\n        dispatcher.utter_message(text=\"Tôi đã ghi nhận phản ánh demo. Trên web app, bạn có thể gửi báo cáo chi tiết ở mục Gửi báo cáo.\")\n        return []\nclass ActionFindTouristPlaces(Action):\n    def name(self) -> Text:\n        return \"action_find_tourist_places\"\n    def run(self, dispatcher, tracker, domain):",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "ActionFindTouristPlaces",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionFindTouristPlaces(Action):\n    def name(self) -> Text:\n        return \"action_find_tourist_places\"\n    def run(self, dispatcher, tracker, domain):\n        message = tracker.latest_message.get(\"text\", \"\")\n        backend_places = try_backend_places(message)\n        if backend_places:\n            names = \", \".join([p.get(\"name\", \"\") for p in backend_places[:3]])\n            dispatcher.utter_message(text=f\"Tôi gợi ý bạn xem: {names}. Hãy mở trang Địa điểm du lịch trên web app để xem bến gần nhất và tuyến bus.\")\n            return []",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "ActionRecommendTripPlan",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionRecommendTripPlan(Action):\n    def name(self) -> Text:\n        return \"action_recommend_trip_plan\"\n    def run(self, dispatcher, tracker, domain):\n        message = tracker.latest_message.get(\"text\", \"\")\n        try:\n            res = requests.post(BACKEND_TRIP_URL, json={\"timeAvailable\": tracker.get_slot(\"time_available\") or \"1 buổi\", \"interests\": [message]}, timeout=1.5)\n            if res.ok:\n                payload = res.json().get(\"data\") or res.json()\n                names = \" → \".join([i.get(\"name\", \"\") for i in payload.get(\"items\", [])])",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "ActionShowPlaceReviews",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionShowPlaceReviews(Action):\n    def name(self) -> Text:\n        return \"action_show_place_reviews\"\n    def run(self, dispatcher, tracker, domain):\n        message = tracker.latest_message.get(\"text\", \"\")\n        backend_reply = try_backend_chat(message)\n        if backend_reply:\n            dispatcher.utter_message(text=backend_reply)\n            return []\n        dispatcher.utter_message(text=\"Review mẫu: địa điểm này được đánh giá tốt nếu đi sớm, chọn bến gần nhất và tránh giờ cao điểm.\")",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "ActionFindReviews",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionFindReviews(Action):\n    def name(self) -> Text:\n        return \"action_find_reviews\"\n    def run(self, dispatcher, tracker, domain):\n        message = tracker.latest_message.get(\"text\", \"\")\n        backend_reply = try_backend_chat(message)\n        if backend_reply:\n            dispatcher.utter_message(text=backend_reply)\n        else:\n            dispatcher.utter_message(text=\"Bạn mở mục Cộng đồng review để xem bài mẫu và bài người dùng. Bạn có thể hỏi rõ hơn như: Có review về Biển Mỹ Khê không?\")",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "ActionSaveFavorite",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionSaveFavorite(Action):\n    def name(self) -> Text:\n        return \"action_save_favorite\"\n    def run(self, dispatcher, tracker, domain):\n        dispatcher.utter_message(text=\"Bạn cần đăng nhập trên web SmartBus để lưu tuyến, địa điểm hoặc lịch trình yêu thích. Sau khi đăng nhập, hãy bấm nút Lưu trên card tương ứng.\")\n        return []\nclass ActionExplainGps(Action):\n    def name(self) -> Text:\n        return \"action_explain_gps\"\n    def run(self, dispatcher, tracker, domain):",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "ActionExplainGps",
+        "kind": 6,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "class ActionExplainGps(Action):\n    def name(self) -> Text:\n        return \"action_explain_gps\"\n    def run(self, dispatcher, tracker, domain):\n        dispatcher.utter_message(text=\"GPS phụ thuộc quyền trình duyệt và độ chính xác thiết bị. Hãy bấm nút định vị, cho phép quyền vị trí, rồi hỏi: Bến xe buýt gần tôi nhất ở đâu?\")\n        return []",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "norm",
+        "kind": 2,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "def norm(text: str) -> str:\n    return (text or \"\").lower()\ndef load_routes():\n    try:\n        with open(DATA_DIR / \"routes.csv\", encoding=\"utf-8\") as f:\n            return list(csv.DictReader(f))\n    except Exception:\n        return []\ndef load_places():\n    path = DATA_DIR / \"places.csv\"",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "load_routes",
+        "kind": 2,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "def load_routes():\n    try:\n        with open(DATA_DIR / \"routes.csv\", encoding=\"utf-8\") as f:\n            return list(csv.DictReader(f))\n    except Exception:\n        return []\ndef load_places():\n    path = DATA_DIR / \"places.csv\"\n    if not path.exists():\n        return []",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "load_places",
+        "kind": 2,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "def load_places():\n    path = DATA_DIR / \"places.csv\"\n    if not path.exists():\n        return []\n    try:\n        with open(path, encoding=\"utf-8\") as f:\n            return list(csv.DictReader(f))\n    except Exception:\n        return []\ndef pick_route(text: str):",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "pick_route",
+        "kind": 2,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "def pick_route(text: str):\n    routes = load_routes()\n    t = norm(text)\n    rid = None\n    if \"hội an\" in t or \"hoi an\" in t or \"phố cổ\" in t:\n        rid = \"02\"\n    elif \"bà nà\" in t or \"ba na\" in t or \"bana\" in t:\n        rid = \"03\"\n    elif \"sân bay\" in t or \"san bay\" in t:\n        rid = \"06\" if \"vku\" in t or \"việt hàn\" in t else \"03\"",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "try_backend_chat",
+        "kind": 2,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "def try_backend_chat(message: str):\n    try:\n        res = requests.post(BACKEND_CHAT_URL, json={\"message\": message}, timeout=1.5)\n        if res.ok:\n            return res.json().get(\"reply\")\n    except Exception:\n        return None\ndef try_backend_places(message: str):\n    try:\n        res = requests.get(BACKEND_PLACES_URL, params={\"q\": message}, timeout=1.5)",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "try_backend_places",
+        "kind": 2,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "def try_backend_places(message: str):\n    try:\n        res = requests.get(BACKEND_PLACES_URL, params={\"q\": message}, timeout=1.5)\n        if res.ok:\n            payload = res.json()\n            return payload.get(\"data\") or payload\n    except Exception:\n        return None\nclass ActionFindBestRoute(Action):\n    def name(self) -> Text:",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "DATA_DIR",
+        "kind": 5,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "DATA_DIR = Path(__file__).resolve().parents[1] / \"data_bus\"\nBACKEND_CHAT_URL = \"https://smartbus-backend-xr34.onrender.com/api/v1/chatbot/ask\"\nBACKEND_PLACES_URL = \"https://smartbus-backend-xr34.onrender.com/api/v1/tourism/places/search\"\nBACKEND_TRIP_URL = \"https://smartbus-backend-xr34.onrender.com/api/v1/trip-plans/generate\"\ndef norm(text: str) -> str:\n    return (text or \"\").lower()\ndef load_routes():\n    try:\n        with open(DATA_DIR / \"routes.csv\", encoding=\"utf-8\") as f:\n            return list(csv.DictReader(f))",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "BACKEND_CHAT_URL",
+        "kind": 5,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "BACKEND_CHAT_URL = \"https://smartbus-backend-xr34.onrender.com/api/v1/chatbot/ask\"\nBACKEND_PLACES_URL = \"https://smartbus-backend-xr34.onrender.com/api/v1/tourism/places/search\"\nBACKEND_TRIP_URL = \"https://smartbus-backend-xr34.onrender.com/api/v1/trip-plans/generate\"\ndef norm(text: str) -> str:\n    return (text or \"\").lower()\ndef load_routes():\n    try:\n        with open(DATA_DIR / \"routes.csv\", encoding=\"utf-8\") as f:\n            return list(csv.DictReader(f))\n    except Exception:",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "BACKEND_PLACES_URL",
+        "kind": 5,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "BACKEND_PLACES_URL = \"https://smartbus-backend-xr34.onrender.com/api/v1/tourism/places/search\"\nBACKEND_TRIP_URL = \"https://smartbus-backend-xr34.onrender.com/api/v1/trip-plans/generate\"\ndef norm(text: str) -> str:\n    return (text or \"\").lower()\ndef load_routes():\n    try:\n        with open(DATA_DIR / \"routes.csv\", encoding=\"utf-8\") as f:\n            return list(csv.DictReader(f))\n    except Exception:\n        return []",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    },
+    {
+        "label": "BACKEND_TRIP_URL",
+        "kind": 5,
+        "importPath": "rasa-smartbus-bot.actions.actions",
+        "description": "rasa-smartbus-bot.actions.actions",
+        "peekOfCode": "BACKEND_TRIP_URL = \"https://smartbus-backend-xr34.onrender.com/api/v1/trip-plans/generate\"\ndef norm(text: str) -> str:\n    return (text or \"\").lower()\ndef load_routes():\n    try:\n        with open(DATA_DIR / \"routes.csv\", encoding=\"utf-8\") as f:\n            return list(csv.DictReader(f))\n    except Exception:\n        return []\ndef load_places():",
+        "detail": "rasa-smartbus-bot.actions.actions",
+        "documentation": {}
+    }
+]

@@ -1,1 +1,0 @@
-/* Community module placeholder for future extraction from script.js. */
