@@ -13,6 +13,7 @@ function sanitizeUser(user) {
     role: user.role || 'user',
     roles: Array.isArray(user.roles) ? user.roles : [user.role || 'user'],
     permissions: Array.isArray(user.permissions) ? user.permissions : [],
+    sessionVersion: Number(user.sessionVersion || 0),
   };
 }
 
@@ -30,9 +31,9 @@ function forbidden(message) {
 
 function signAccessToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role || 'user', roles: user.roles || [user.role || 'user'], permissions: user.permissions || [] },
+    { id:user.id,typ:'access',ver:Number(user.sessionVersion || 0) },
     env.jwtAccessSecret,
-    { expiresIn: env.accessTokenExpiresIn },
+    {expiresIn:env.accessTokenExpiresIn,algorithm:'HS256',jwtid:crypto.randomUUID()},
   );
 }
 
@@ -40,9 +41,9 @@ function signRefreshToken(user) {
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role || 'user',
     roles: Array.isArray(user.roles) ? user.roles : [user.role || 'user'],
-    permissions: Array.isArray(user.permissions) ? user.permissions : [], typ: 'refresh' },
+    permissions: Array.isArray(user.permissions) ? user.permissions : [], typ:'refresh',ver:Number(user.sessionVersion || 0) },
     env.jwtRefreshSecret,
-    { expiresIn: env.refreshTokenExpiresIn },
+    {expiresIn:env.refreshTokenExpiresIn,algorithm:'HS256',jwtid:crypto.randomUUID()},
   );
 }
 
@@ -106,17 +107,15 @@ async function login({ email, password }) {
 
 async function refresh(refreshToken) {
   try {
-    const payload = jwt.verify(refreshToken, env.jwtRefreshSecret);
+    const payload = jwt.verify(refreshToken,env.jwtRefreshSecret,{algorithms:['HS256']});
     if (payload.typ !== 'refresh') throw new Error('Invalid token type');
 
     const tokenHash = hashToken(refreshToken);
-    const stored = await repo.findActiveRefreshToken(tokenHash);
+    const stored = await repo.consumeRefreshToken(tokenHash);
     if (!stored) throw new Error('Refresh token was revoked or expired');
 
     const account = await repo.findUserById(payload.id);
-    if (!account || account.isActive === false || account.isActive === 0) throw new Error('User not found');
-
-    await repo.revokeRefreshToken(tokenHash);
+    if (!account || account.isActive===false || account.isActive===0 || Number(payload.ver || 0)!==Number(account.sessionVersion || 0)) throw new Error('User not found');
     return { user: sanitizeUser(account), ...(await issueTokens(account)) };
   } catch (_err) {
     const err = new Error('Refresh token không hợp lệ');
@@ -126,7 +125,7 @@ async function refresh(refreshToken) {
 }
 
 async function logout(refreshToken) {
-  if (refreshToken) await repo.revokeRefreshToken(hashToken(refreshToken));
+  if (typeof refreshToken==='string' && refreshToken) { const revoked=await repo.revokeRefreshToken(hashToken(refreshToken)); if(revoked?.userId)await repo.invalidateSessions(revoked.userId); }
   return { loggedOut: true };
 }
 

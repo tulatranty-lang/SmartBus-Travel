@@ -1,4 +1,4 @@
-require("dotenv").config();
+require('dotenv').config({path:require('node:path').resolve(__dirname,'../.env')});
 
 function bool(value, fallback = false) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -31,8 +31,8 @@ const corsOrigin = process.env.CORS_ORIGIN;
 
 if (isProduction) {
   const missing = [];
-  if (!accessSecret) missing.push("JWT_ACCESS_SECRET");
-  if (!refreshSecret) missing.push("JWT_REFRESH_SECRET");
+  if (!accessSecret || accessSecret.length<32 || /change_me|dev_only/.test(accessSecret)) missing.push("JWT_ACCESS_SECRET (random, 32+ characters)");
+  if (!refreshSecret || refreshSecret.length<32 || refreshSecret===accessSecret || /change_me|dev_only/.test(refreshSecret)) missing.push("JWT_REFRESH_SECRET (different random secret, 32+ characters)");
   if (!corsOrigin) missing.push("CORS_ORIGIN");
   if (!process.env.DB_USER) missing.push("DB_USER");
   if (!process.env.DB_PASSWORD) missing.push("DB_PASSWORD");
@@ -82,6 +82,7 @@ const env = {
   logLevel: process.env.LOG_LEVEL || "info",
   enableRequestLog: bool(process.env.ENABLE_REQUEST_LOG, true),
   trustProxy: bool(process.env.TRUST_PROXY, false),
+  enableSimulation: bool(process.env.ENABLE_SIMULATION, false),
   rateLimit: {
     windowMs: number(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
     max: number(process.env.RATE_LIMIT_MAX, 300),

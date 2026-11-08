@@ -1,0 +1,18 @@
+{
+  "name": "smartbus-travel",
+  "version": "2.2.0",
+  "private": true,
+  "scripts": {
+    "setup": "npm --prefix backend-api ci",
+    "dev": "node backend-api/server.js",
+    "start": "node backend-api/server.js",
+    "test": "npm --prefix backend-api test",
+    "check": "npm --prefix backend-api run check && node scripts/sync-pages.js --check",
+    "db:setup": "node backend-api/scripts/migrate.js --seed",
+    "db:migrate": "node backend-api/scripts/migrate.js",
+    "pages:sync": "node scripts/sync-pages.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

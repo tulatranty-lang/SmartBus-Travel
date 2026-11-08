@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('node:path');
 const cors = require('cors');
 const helmet = require('helmet');
 const env = require('./config/env');
@@ -47,7 +48,11 @@ const corsOptions = {
 
 app.use(requestId);
 app.use(requestLogger);
-app.use(helmet({ crossOriginResourcePolicy: false }));
+app.use(helmet({crossOriginResourcePolicy:false,contentSecurityPolicy:{directives:{
+ defaultSrc:["'self'"],scriptSrc:["'self'",'https://unpkg.com'],scriptSrcAttr:["'none'"],
+ styleSrc:["'self'","'unsafe-inline'",'https://unpkg.com','https://fonts.googleapis.com'],fontSrc:["'self'",'https://fonts.gstatic.com','data:'],
+ imgSrc:["'self'",'data:','blob:','https:'],connectSrc:["'self'",'https://router.project-osrm.org','https://routing.openstreetmap.de','https://nominatim.openstreetmap.org'],upgradeInsecureRequests:env.isProduction?[]:null
+}}}));
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -115,6 +120,8 @@ if (env.apiPrefix !== '/api') {
   mount('/api');
 }
 
+app.get('/runtime-config.js',(_req,res)=>res.type('application/javascript').set('Cache-Control','no-store').send(`window.SMARTBUS_API_BASE=${JSON.stringify(env.apiPrefix)};window.SMARTBUS_SIMULATION=${JSON.stringify(env.enableSimulation)};`));
+app.use(express.static(path.resolve(__dirname,'../frontend'),{dotfiles:'deny',index:'index.html'}));
 app.use(notFound);
 app.use(errorHandler);
 

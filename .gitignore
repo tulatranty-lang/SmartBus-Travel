@@ -1,0 +1,14 @@
+node_modules/
+backend-api/node_modules/
+**/.env
+**/.env.*
+!**/.env.example
+coverage/
+backend-api/coverage/
+.qa-*.json
+.openai/
+.vscode/
+*.log
+test-results/
+playwright-report/
+.DS_Store

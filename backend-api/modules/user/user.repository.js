@@ -18,6 +18,7 @@ async function findById(id) {
       email,
       role,
       is_active AS isActive,
+      COALESCE(session_version,0) AS sessionVersion,
       phone,
       created_at AS createdAt,
       updated_at AS updatedAt

@@ -311,6 +311,7 @@ async function findUserByEmail(email) {
       full_name AS fullName,
       email,
       password_hash AS passwordHash,
+      COALESCE(session_version,0) AS sessionVersion,
       role,
       is_active AS isActive,
       phone

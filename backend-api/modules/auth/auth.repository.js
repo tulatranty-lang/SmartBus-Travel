@@ -44,7 +44,9 @@ async function revokeRefreshToken(tokenHash) {
   return rs.recordset[0] || null;
 }
 
-module.exports = {
+async function consumeRefreshToken(tokenHash){const rs=await query(`UPDATE refresh_tokens SET revoked_at=SYSUTCDATETIME() OUTPUT INSERTED.id,INSERTED.user_id AS userId WHERE token_hash=@tokenHash AND revoked_at IS NULL AND expires_at>SYSUTCDATETIME()`,{tokenHash});return rs.recordset[0]||null;}
+async function invalidateSessions(userId){await query(`UPDATE users SET session_version=session_version+1 WHERE id=@userId; UPDATE refresh_tokens SET revoked_at=COALESCE(revoked_at,SYSUTCDATETIME()) WHERE user_id=@userId;`,{userId:Number(userId)});}
+module.exports = {consumeRefreshToken,invalidateSessions,
   findUserByEmail,
   findUserById,
   createUser,
