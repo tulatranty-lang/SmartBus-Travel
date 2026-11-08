@@ -1,0 +1,350 @@
+{
+  "at": 1794168358966,
+  "runner": "Jest / Supertest with repository mocks except pure unit tests",
+  "passed": 68,
+  "failed": 0,
+  "total": 68,
+  "suites": 12,
+  "cases": [
+    {
+      "name": "CORS grants only configured browser origins",
+      "status": "passed",
+      "ms": 30
+    },
+    {
+      "name": "malformed JSON returns a client error rather than crashing",
+      "status": "passed",
+      "ms": 9
+    },
+    {
+      "name": "reads Unicode XLSX headers and handles empty cells",
+      "status": "passed",
+      "ms": 53
+    },
+    {
+      "name": "CSV parser retains quoted commas and newlines",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "legacy binary XLS is rejected with supported-format instruction",
+      "status": "passed",
+      "ms": 9
+    },
+    {
+      "name": "forged admin role in signed legacy claims cannot authorize current normal user",
+      "status": "passed",
+      "ms": 18
+    },
+    {
+      "name": "invalid session claims rejected {\"ver\":2}",
+      "status": "passed",
+      "ms": 3
+    },
+    {
+      "name": "invalid session claims rejected {\"typ\":\"refresh\"}",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "invalid session claims rejected {\"id\":-1}",
+      "status": "passed",
+      "ms": 2
+    },
+    {
+      "name": "invalid session claims rejected {\"id\":1.5}",
+      "status": "passed",
+      "ms": 2
+    },
+    {
+      "name": "suspended account rejected immediately false",
+      "status": "passed",
+      "ms": 2
+    },
+    {
+      "name": "suspended account rejected immediately 0",
+      "status": "passed",
+      "ms": 2
+    },
+    {
+      "name": "expired and incorrectly signed tokens rejected without DB lookup",
+      "status": "passed",
+      "ms": 6
+    },
+    {
+      "name": "bcrypt 72-byte boundary rejects overly long unicode passwords",
+      "status": "passed",
+      "ms": 8
+    },
+    {
+      "name": "bus/tourism/chat API / GET /api/v1/routes has pagination and DTO",
+      "status": "passed",
+      "ms": 7
+    },
+    {
+      "name": "bus/tourism/chat API / GET /api/v1/stops/nearest validates coordinates",
+      "status": "passed",
+      "ms": 3
+    },
+    {
+      "name": "bus/tourism/chat API / GET /api/v1/map/overview returns layer pointers",
+      "status": "passed",
+      "ms": 2
+    },
+    {
+      "name": "bus/tourism/chat API / GET /api/v1/tourism/places returns tourism data with pagination",
+      "status": "passed",
+      "ms": 3
+    },
+    {
+      "name": "bus/tourism/chat API / tourism detail 404 for missing id",
+      "status": "passed",
+      "ms": 2
+    },
+    {
+      "name": "bus/tourism/chat API / POST /api/v1/chatbot/ask rejects empty and answers basic question",
+      "status": "passed",
+      "ms": 10
+    },
+    {
+      "name": "bus/tourism/chat API / GET /api/v1/chat/history requires login and returns personal history",
+      "status": "passed",
+      "ms": 3
+    },
+    {
+      "name": "auth API / rejects wrong credentials with 401",
+      "status": "passed",
+      "ms": 11
+    },
+    {
+      "name": "auth API / logs in and does not expose password hash",
+      "status": "passed",
+      "ms": 11
+    },
+    {
+      "name": "auth API / refresh token rotates token and invalid token is rejected",
+      "status": "passed",
+      "ms": 7
+    },
+    {
+      "name": "auth API / logout handles refresh token",
+      "status": "passed",
+      "ms": 2
+    },
+    {
+      "name": "rate limiting returns useful JSON and cannot be reset with forged forwarded IP",
+      "status": "passed",
+      "ms": 8
+    },
+    {
+      "name": "same point remains zero distance and antipodal result is finite",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "exact province anchor does not select another province",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "explicit province never falls back to unrelated destinations",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "itinerary deduplicates names and IDs and limits half-day stops",
+      "status": "passed",
+      "ms": 2
+    },
+    {
+      "name": "empty candidate set yields an honest unsaved empty result",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "database failure is not substituted with static destinations",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "import rejects unsafe or invalid request null",
+      "status": "passed",
+      "ms": 7
+    },
+    {
+      "name": "import rejects unsafe or invalid request {}",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "import rejects unsafe or invalid request {\"filePath\":\"/etc/passwd\"}",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "import rejects unsafe or invalid request {\"items\":[]}",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "import rejects unsafe or invalid request {\"items\":[{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}]}",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "import rejects duplicate identifiers before writing any row",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "import rejects missing, nonnumeric or out-of-region latitude null",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "import rejects missing, nonnumeric or out-of-region latitude \"\"",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "import rejects missing, nonnumeric or out-of-region latitude true",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "import rejects missing, nonnumeric or out-of-region latitude \"NaN\"",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "import rejects missing, nonnumeric or out-of-region latitude 91",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "migration batch separator respects literals and rejects unsafe database name",
+      "status": "passed",
+      "ms": 2
+    },
+    {
+      "name": "route import treats case variants as one SQL identifier",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "malformed scalar fields produce validation errors before coercion",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "long valid tourism names are not limited by bus route code length",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "migration checksums survive Windows line endings while rejecting changed SQL",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "security auth/rbac smoke tests / reports list requires login and rejects normal users",
+      "status": "passed",
+      "ms": 7
+    },
+    {
+      "name": "security auth/rbac smoke tests / analytics summary requires admin/moderator",
+      "status": "passed",
+      "ms": 3
+    },
+    {
+      "name": "security auth/rbac smoke tests / notifications and import are not public",
+      "status": "passed",
+      "ms": 3
+    },
+    {
+      "name": "security auth/rbac smoke tests / recent activity stream requires login",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "security auth/rbac smoke tests / review and post vote require login",
+      "status": "passed",
+      "ms": 2
+    },
+    {
+      "name": "health endpoints / GET /api/v1/health returns 200 and database health without crashing",
+      "status": "passed",
+      "ms": 10
+    },
+    {
+      "name": "health endpoints / GET /api/v1/health/liveness returns app alive",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "health endpoints / GET /api/v1/health/db returns degraded without crashing when DB config is missing",
+      "status": "passed",
+      "ms": 2
+    },
+    {
+      "name": "correctly separates intent: Tuyến DN-03 giá vé bao nhiêu?",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "correctly separates intent: Tuyến DN-03 giờ chạy thế nào?",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "correctly separates intent: Gợi ý lịch trình Hội An 1 ngày",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "correctly separates intent: Có bao nhiêu tuyến xe?",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "correctly separates intent: Tuyến DN-03 khi nào đến?",
+      "status": "passed",
+      "ms": 1
+    },
+    {
+      "name": "correctly separates intent: Bến xe buýt gần tôi nhất ở đâu?",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "explicit province disambiguates the same beach name",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "a named destination does not match a casual mention in unrelated metadata",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "pagination util / limits page and limit safely",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "pagination util / returns data and pagination",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "GIS coordinate validator / accepts coordinates inside Vietnam",
+      "status": "passed",
+      "ms": 0
+    },
+    {
+      "name": "GIS coordinate validator / rejects 0,0 and coordinates outside Vietnam",
+      "status": "passed",
+      "ms": 0
+    }
+  ]
+}

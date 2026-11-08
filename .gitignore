@@ -5,10 +5,12 @@ backend-api/node_modules/
 !**/.env.example
 coverage/
 backend-api/coverage/
-.qa-*.json
+.qa-*
 .openai/
 .vscode/
 *.log
 test-results/
 playwright-report/
 .DS_Store
+
+qa-responsive.html

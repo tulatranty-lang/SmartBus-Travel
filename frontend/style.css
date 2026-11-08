@@ -4438,3 +4438,18 @@ body.app-active {
     transform: rotate(360deg);
   }
 }
+
+/* Keep authentication readable inside narrow viewports and at browser zoom. */
+@media (max-width: 600px) {
+  #page-login { padding: 0; overflow-y: auto; }
+  #page-login .login-form-panel {
+    width: 100%; min-width: 0; box-sizing: border-box;
+    padding: 64px 24px 36px; display: flex; align-items: center;
+  }
+  #page-login .login-form-wrap {
+    width: 100%; max-width: 420px; min-width: 0;
+    box-sizing: border-box; padding: 0; position: relative;
+  }
+  #page-login .login-close { right: 0; top: -52px; }
+  #page-login .lf-title { font-size: 28px; }
+}

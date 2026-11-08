@@ -1,0 +1,146 @@
+# SmartBus Travel Connect
+
+Ứng dụng web tra cứu xe buýt và du lịch miền Trung: tuyến/điểm dừng trên bản đồ, bến gần vị trí, địa điểm du lịch, gợi ý lịch trình, trợ lý tiếng Việt, lưu yêu thích và quản trị nội dung.
+
+**Công nghệ hiện tại:** Node.js/Express + Microsoft SQL Server + HTML/CSS/JavaScript + Leaflet. Dự án này **không dùng PHP/MySQL/XAMPP**. Frontend và API có thể chạy chung một server; người sử dụng chỉ đăng ký/đăng nhập, không sửa code.
+
+Dữ liệu tuyến và tọa độ được nhập từ bộ tài liệu sẵn có trong repository. Đây là dữ liệu tham khảo, chưa phải feed vị trí xe/giờ đến trực tiếp từ đơn vị vận hành. Tên khu vực có Quảng Nam cũ và tuyến liên vùng; không dùng số khu vực như số đơn vị hành chính hiện hành. Bài review mẫu cũ được đánh dấu `is_seed`/“Bài mẫu”.
+
+## Chạy trên Windows
+
+Cần Node.js 24 LTS (tối thiểu 22), SQL Server 2022 Developer/Express và TCP/IP của SQL Server được bật. SSMS chỉ là công cụ quản trị; cài SSMS không đồng nghĩa đã cài SQL Server. Không cần Apache hoặc XAMPP.
+
+1. Clone và tạo cấu hình riêng:
+
+   ```powershell
+   git clone https://github.com/tulatranty-lang/SmartBus-Travel.git
+   cd SmartBus-Travel
+   node scripts/configure.js
+   notepad backend-api\.env
+   ```
+
+2. Điền thông tin SQL Server của bạn trong `backend-api/.env`:
+
+   ```dotenv
+   DB_SERVER=localhost
+   DB_PORT=1433
+   DB_NAME=SmartBusDB
+   DB_USER=sa
+   DB_PASSWORD=mat_khau_sql_cua_ban
+   DB_ENCRYPT=false
+   DB_TRUST_SERVER_CERTIFICATE=true
+   PORT=5000
+   ```
+
+   Script cấu hình tự sinh hai JWT secret ngẫu nhiên và giữ nguyên secret riêng đã có. SQL login cần quyền tạo database ở lần cài mới hoặc quản trị viên tạo database trước. Với named instance, dùng `DB_SERVER=localhost\SQLEXPRESS` và cấu hình SQL Browser/TCP thích hợp; cổng TCP cố định dễ kiểm tra hơn.
+
+3. Chạy từ thư mục dự án:
+
+   ```powershell
+   .\setup.cmd
+   .\start.cmd
+   ```
+
+4. Mở **http://localhost:5000**. Giữ cửa sổ server đang chạy; Ctrl+C để dừng. Dùng nút Đăng ký để tạo tài khoản riêng. Không có tài khoản admin/mật khẩu mặc định.
+
+Các lệnh tương đương, dùng được trên Linux/macOS:
+
+```bash
+npm run setup
+npm run db:setup
+npm start
+```
+
+`setup` cài dependencies đúng lock; `db:setup` tạo schema và nạp dữ liệu tham khảo; `db:migrate` áp dụng schema mới mà không chạy lại bộ import đã có journal. Migration chạy trong transaction, có khóa chống chạy đồng thời và checksum. Chạy lại thành công phải báo `0 file(s) applied`. Không sửa các SQL đã được ghi journal và không xóa database để né lỗi.
+
+**Database cũ:** sao lưu trước nâng cấp; giữ nguyên `DB_NAME`, tài khoản và mật khẩu. Chạy `npm run setup`, rồi `npm run db:migrate`. Khi database chưa có `smartbus_migrations`, CLI chạy các SQL lịch sử có điều kiện để bổ sung schema. Bộ import tham khảo có cập nhật lại một số liên kết tuyến–bến, vì vậy chỉ dùng `--seed` khi chủ động cài/import dữ liệu. Kiểm thử nâng cấp có giữ hash mật khẩu và lịch sử hoạt động; không thể coi đó là kiểm chứng mọi database cũ tùy biến.
+
+## Vào quản trị
+
+Đăng ký tài khoản trên web trước, sau đó người quản trị máy chủ chạy:
+
+```powershell
+node backend-api/scripts/admin.js grant email-cua-ban@example.com
+```
+
+Đăng nhập lại, mở **Quản trị** trong menu. Admin có thể duyệt/từ chối review và bài cộng đồng, tìm/tạo/sửa/ẩn địa điểm, xem hoạt động. Quyền được đọc từ database mỗi request; đổi quyền/khóa tài khoản có hiệu lực với phiên đang dùng. Lệnh grant không đặt lại mật khẩu.
+
+Thu hồi quyền: `node backend-api/scripts/admin.js revoke EMAIL`. CLI ngăn thu hồi admin hoạt động cuối cùng. Tạo admin trực tiếp chỉ khi đặt rõ `ADMIN_EMAIL` và `ADMIN_PASSWORD` riêng (12–72 byte) rồi chạy `node backend-api/scripts/admin.js create`; không đưa các giá trị này lên Git.
+
+## Các chức năng và đường đi của dữ liệu
+
+| Chức năng | Luồng chính | Nơi mở rộng |
+|---|---|---|
+| Đăng ký/đăng nhập/đăng xuất | `frontend/script.js` Auth → `/auth/*` → auth service/repository → users, refresh_tokens | `backend-api/modules/auth`, `common/middleware/auth.middleware.js` |
+| Tuyến, điểm dừng, bản đồ | Landing/MapModule → `/routes`, `/stops`, `/map/*` → repositories → SQL → JSON/GeoJSON → Leaflet | `modules/route`, `stop`, `map`, `bus-domain` |
+| Du lịch | TravelUI → `/tourism/places` → bộ lọc SQL, count cùng điều kiện, batch liên kết bến/tuyến → thẻ địa điểm | `modules/tourism` |
+| Yêu thích | Token Bearer → `/favorite-*` hoặc alias tourism → kiểm tra tồn tại → ghi transaction → đọc theo user ID | `modules/favorites` |
+| Lịch trình | POST `/trip-plans/generate` → lọc tỉnh, chấm điểm và chọn tuần tự → lưu plan + items nguyên khối | `modules/trip` |
+| Trợ lý | `/chatbot/ask` → nhận diện intent/entity → dữ liệu SQL theo mục đích → câu trả lời và lịch sử | `modules/chat` |
+| Review/quản trị | Review mới → pending → admin kiểm duyệt → chỉ approved công khai | `modules/review`, `community`, `admin` |
+| Nhập dữ liệu quản trị | JSON tối đa 200 dòng → validate toàn bộ → transaction upsert → import_history | `modules/import` |
+
+Đăng xuất thu hồi toàn bộ phiên của tài khoản. Token refresh xoay vòng, chỉ một request đồng thời được dùng token cũ. Mật khẩu bcrypt; password đăng ký tối đa 72 byte UTF-8. Token refresh lưu dạng SHA-256 trong database. Client hiện lưu token theo lựa chọn ghi nhớ trong browser storage; đây vẫn là bề mặt rủi ro nếu có XSS và chưa thay bằng mô hình cookie HttpOnly/BFF.
+
+## Cấu trúc
+
+```text
+frontend/                  Giao diện chuẩn đang sử dụng
+backend-api/server.js      HTTP entry point, hỗ trợ PORT/--port
+backend-api/app.js         Middleware, route mounting, runtime-config, static frontend
+backend-api/config/        Môi trường, SQL connection pool
+backend-api/common/        Auth/RBAC, validate, error, cache, GIS, pagination
+backend-api/modules/       Controller → service → repository theo nghiệp vụ
+backend-api/services/      Data service kế thừa, truy cập SQL
+backend-api/scripts/       Migration, admin, công cụ import CLI
+backend-api/tests/         Unit/API mock và SQL integration tách biệt
+scripts/                   Cấu hình, khởi động Windows, đồng bộ GitHub Pages
+database/                  SQL lịch sử bất biến + migration mới
+docs/current/              Tài liệu và bằng chứng kiểm thử bản này
+docs/                      Bản sao frontend cho GitHub Pages và tài liệu lịch sử
+rasa-smartbus-bot/          Tích hợp Rasa tùy chọn; không cần cho bộ luật chat hiện tại
+```
+
+`backend-api/src/`, các báo cáo `README_*`/patch cũ là phần kế thừa, không phải entry point mới. Xem [kiến trúc/ERD/API](docs/current/ARCHITECTURE.md), [thuật toán](docs/current/ALGORITHMS.md), [kiểm thử và giới hạn](docs/current/VERIFICATION.md).
+
+## Kiểm tra
+
+```bash
+npm run check
+npm test
+```
+
+SQL integration **chỉ dành cho database thử riêng**, có cấu hình DB_* trỏ vào đó. Ví dụ PowerShell:
+
+```powershell
+$env:DB_NAME="SmartBusQaTest"
+$env:SQL_TEST_DISPOSABLE="1"
+$env:SMARTBUS_TEST_DATABASE="SmartBusQaTest"
+node backend-api/scripts/migrate.js --seed
+npm run test:sql
+```
+
+Không trỏ test vào database đang sử dụng: test tạo tài khoản, nâng quyền, nhập dữ liệu và tạo nội dung. Chạy migration upgrade test bằng database khác có tên chứa `Upgrade` và `Test`: `node backend-api/tests/sql/upgrade.js`; lần đầu phải là database mới. Các test mock không chứng minh SQL đang hoạt động. Báo cáo hiện tại ghi riêng kết quả thật.
+
+## GitHub Pages và chạy online
+
+Khuyến nghị chạy **cùng origin**: `npm start` phục vụ frontend và API; `/runtime-config.js` tự nhận API prefix. Không cần sửa JavaScript khi đổi domain chung.
+
+GitHub Pages chỉ phục vụ frontend, không chạy Node.js/SQL Server. Sau sửa frontend, chạy `npm run pages:sync`; CI kiểm tra frontend/docs giống nhau. Khi dùng Pages riêng, chủ dự án đặt địa chỉ API trong `frontend/runtime-config.js` một lần rồi sync; backend cần HTTPS và `CORS_ORIGIN=https://tulatranty-lang.github.io`. Endpoint Render cũ trong cấu hình static chưa được xác nhận là dịch vụ đang hoạt động.
+
+Dockerfile tại **thư mục gốc** đóng gói cả API, frontend và migration; kết nối tới SQL Server riêng. Trước khi public đặt `NODE_ENV=production`, hai JWT secret khác nhau đủ dài, DB account riêng, TLS và CORS origin đúng. Không đóng gói `.env`, token hoặc dữ liệu phiên. Docker image chưa được chạy trong môi trường kiểm thử hiện tại. Không có cam kết dịch vụ miễn phí lâu dài trong bản này.
+
+## Xử lý lỗi thường gặp
+
+| Triệu chứng | Cách kiểm tra |
+|---|---|
+| `node`/`npm` không nhận diện | Cài Node.js LTS, mở terminal mới |
+| SQL không kết nối | Bật SQL service/TCP, kiểm tra cổng bằng `Test-NetConnection localhost -Port 1433`, SQL Authentication và DB_* |
+| `Migration checksum changed` | Khôi phục đúng SQL đã áp dụng từ Git/backup; thêm migration mới, không sửa journal để bỏ qua |
+| Login thành công nhưng bị 401 sau nâng quyền | Đăng nhập lại; phiên cũ đã bị thu hồi đúng thiết kế |
+| Trang chủ không có dữ liệu | Kiểm tra `/api/v1/health/db`, chạy `db:setup` cho cài mới, nút Thử lại trên web |
+| GPS không hoạt động | GPS cần HTTPS hoặc localhost, quyền vị trí trình duyệt và thiết bị có tín hiệu; không có tọa độ sẽ không tự đoán vị trí |
+| Bản đồ nền/tuyến đường không tải | Leaflet/OSM/OSRM cần mạng; tọa độ và tuyến tham khảo vẫn khác dữ liệu vận hành trực tiếp |
+| Cổng 5000 bị dùng | Đổi PORT trong `.env`, cập nhật origin cho host riêng rồi khởi động lại |
+
+Công cụ import XLSX/CSV/JSON tại `backend-api/scripts/import-smartbus-data.js` cần bộ dependencies phát triển (cài mặc định bằng `npm ci`); `.xls` nhị phân cũ cần chuyển sang `.xlsx`. HTTP import chỉ nhận JSON đã validate, không đọc đường dẫn tệp trên máy chủ. Các cảnh báo audit dev còn lại được ghi rõ trong báo cáo kiểm thử.

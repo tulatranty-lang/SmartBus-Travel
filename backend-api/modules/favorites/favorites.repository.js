@@ -1,20 +1,38 @@
-const { query } = require('../../config/db');
+const { query } = require("../../config/db");
 
 async function addRoute(userId, routeId) {
-  await query(`
-    IF NOT EXISTS (SELECT 1 FROM favorites_routes WHERE user_id=@userId AND route_id=@routeId)
-      INSERT INTO favorites_routes(user_id, route_id) VALUES(@userId, @routeId)
-  `, { userId: Number(userId), routeId: String(routeId) });
+  if (!routeId || typeof routeId !== "string" || routeId.length > 50)
+    throw Object.assign(new Error("Mã tuyến không hợp lệ"), { status: 422 });
+  const found = await query(
+    "SELECT route_code FROM bus_routes WHERE route_code=@routeId AND is_active=1",
+    { routeId },
+  );
+  if (!found.recordset.length)
+    throw Object.assign(new Error("Không tìm thấy tuyến"), { status: 404 });
+  await query(
+    `SET XACT_ABORT ON;
+    BEGIN TRY BEGIN TRAN;
+      IF NOT EXISTS (SELECT 1 FROM favorites_routes WITH(UPDLOCK,HOLDLOCK) WHERE user_id=@userId AND route_id=@routeId)
+        INSERT INTO favorites_routes(user_id, route_id) VALUES(@userId, @routeId);
+      COMMIT;
+    END TRY BEGIN CATCH IF @@TRANCOUNT>0 ROLLBACK; THROW; END CATCH
+  `,
+    { userId: Number(userId), routeId },
+  );
   return { routeId: String(routeId), favorited: true };
 }
 
 async function removeRoute(userId, routeId) {
-  await query('DELETE FROM favorites_routes WHERE user_id=@userId AND route_id=@routeId', { userId: Number(userId), routeId: String(routeId) });
+  await query(
+    "DELETE FROM favorites_routes WHERE user_id=@userId AND route_id=@routeId",
+    { userId: Number(userId), routeId: String(routeId) },
+  );
   return { routeId: String(routeId), favorited: false };
 }
 
 async function listRoutes(userId) {
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT fr.id AS favoriteId, fr.created_at AS favoritedAt,
            r.route_code AS id, r.route_code AS routeCode, COALESCE(r.route_number, r.route_code) AS displayCode,
            r.name, r.province_code AS provinceCode, p.name AS provinceName,
@@ -27,27 +45,53 @@ async function listRoutes(userId) {
     LEFT JOIN provinces p ON p.code = r.province_code
     WHERE fr.user_id=@userId
     ORDER BY fr.created_at DESC
-  `, { userId: Number(userId) });
+  `,
+    { userId: Number(userId) },
+  );
   return rs.recordset.map((r) => ({ ...r, missing: !r.id }));
 }
 
 async function addPlace(userId, placeId) {
-  await query(`
-    IF NOT EXISTS (SELECT 1 FROM favorites_places WHERE user_id=@userId AND place_id=@placeId)
-      INSERT INTO favorites_places(user_id, place_id) VALUES(@userId, @placeId)
-  `, { userId: Number(userId), placeId: Number(placeId) });
-  try { await query(`IF NOT EXISTS (SELECT 1 FROM place_favorites WHERE user_id=@userId AND place_id=@placeId) INSERT INTO place_favorites(user_id, place_id) VALUES(@userId, @placeId)`, { userId: Number(userId), placeId: Number(placeId) }); } catch (_err) {}
+  if (!Number.isSafeInteger(Number(placeId)) || Number(placeId) < 1)
+    throw Object.assign(new Error("Mã địa điểm không hợp lệ"), { status: 422 });
+  const found = await query(
+    "SELECT id FROM tourist_places WHERE id=@placeId AND is_active=1",
+    { placeId: Number(placeId) },
+  );
+  if (!found.recordset.length)
+    throw Object.assign(new Error("Không tìm thấy địa điểm"), { status: 404 });
+  await query(
+    `SET XACT_ABORT ON;
+    BEGIN TRY BEGIN TRAN;
+      IF NOT EXISTS (SELECT 1 FROM favorites_places WITH(UPDLOCK,HOLDLOCK) WHERE user_id=@userId AND place_id=@placeId)
+        INSERT INTO favorites_places(user_id,place_id) VALUES(@userId,@placeId);
+      IF NOT EXISTS (SELECT 1 FROM place_favorites WITH(UPDLOCK,HOLDLOCK) WHERE user_id=@userId AND place_id=@placeId)
+        INSERT INTO place_favorites(user_id,place_id) VALUES(@userId,@placeId);
+      COMMIT;
+    END TRY BEGIN CATCH IF @@TRANCOUNT>0 ROLLBACK; THROW; END CATCH
+  `,
+    { userId: Number(userId), placeId: Number(placeId) },
+  );
   return { placeId: Number(placeId), favorited: true };
 }
 
 async function removePlace(userId, placeId) {
-  await query('DELETE FROM favorites_places WHERE user_id=@userId AND place_id=@placeId', { userId: Number(userId), placeId: Number(placeId) });
-  try { await query('DELETE FROM place_favorites WHERE user_id=@userId AND place_id=@placeId', { userId: Number(userId), placeId: Number(placeId) }); } catch (_err) {}
+  await query(
+    `SET XACT_ABORT ON;
+    BEGIN TRY BEGIN TRAN;
+      DELETE FROM favorites_places WHERE user_id=@userId AND place_id=@placeId;
+      DELETE FROM place_favorites WHERE user_id=@userId AND place_id=@placeId;
+      COMMIT;
+    END TRY BEGIN CATCH IF @@TRANCOUNT>0 ROLLBACK; THROW; END CATCH
+  `,
+    { userId: Number(userId), placeId: Number(placeId) },
+  );
   return { placeId: Number(placeId), favorited: false };
 }
 
 async function listPlaces(userId) {
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT fp.id AS favoriteId, fp.created_at AS favoritedAt,
            p.id, p.name, p.description, p.short_description AS shortDescription,
            p.province_code AS provinceCode, pr.name AS provinceName,
@@ -61,8 +105,17 @@ async function listPlaces(userId) {
     LEFT JOIN tourist_categories c ON c.id = p.category_id
     WHERE fp.user_id=@userId
     ORDER BY fp.created_at DESC
-  `, { userId: Number(userId) });
+  `,
+    { userId: Number(userId) },
+  );
   return rs.recordset.map((p) => ({ ...p, missing: !p.id }));
 }
 
-module.exports = { addRoute, removeRoute, listRoutes, addPlace, removePlace, listPlaces };
+module.exports = {
+  addRoute,
+  removeRoute,
+  listRoutes,
+  addPlace,
+  removePlace,
+  listPlaces,
+};

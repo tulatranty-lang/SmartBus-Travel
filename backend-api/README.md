@@ -1,23 +1,5 @@
-# SmartBus Backend API
+# SmartBus API
 
-## Run
+Đọc [README gốc](../README.md) để cài đặt/chạy đúng phiên bản hiện tại và [tài liệu kiến trúc](../docs/current/ARCHITECTURE.md) để xem route, database và phân quyền.
 
-```bash
-npm ci
-copy .env.example .env
-npm run check
-npm start
-```
-
-Base URL: `https://smartbus-backend-xr34.onrender.com/api/v1`.
-
-## Test
-
-```bash
-npm test
-npm run test:coverage
-```
-
-## Architecture rule
-
-Controller → Service → Repository → SQL Server. Không query database trực tiếp trong controller.
+Entry point: `server.js` → `app.js` → `modules/`. Thư mục `src/` là scaffold kế thừa, không phải server đang chạy. Cấu hình riêng đặt ở `.env`, không commit lên Git.

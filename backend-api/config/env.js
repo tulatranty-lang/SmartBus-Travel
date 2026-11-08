@@ -1,4 +1,6 @@
-require('dotenv').config({path:require('node:path').resolve(__dirname,'../.env')});
+require("dotenv").config({
+  path: require("node:path").resolve(__dirname, "../.env"),
+});
 
 function bool(value, fallback = false) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -31,8 +33,21 @@ const corsOrigin = process.env.CORS_ORIGIN;
 
 if (isProduction) {
   const missing = [];
-  if (!accessSecret || accessSecret.length<32 || /change_me|dev_only/.test(accessSecret)) missing.push("JWT_ACCESS_SECRET (random, 32+ characters)");
-  if (!refreshSecret || refreshSecret.length<32 || refreshSecret===accessSecret || /change_me|dev_only/.test(refreshSecret)) missing.push("JWT_REFRESH_SECRET (different random secret, 32+ characters)");
+  if (
+    !accessSecret ||
+    accessSecret.length < 32 ||
+    /change_me|dev_only/.test(accessSecret)
+  )
+    missing.push("JWT_ACCESS_SECRET (random, 32+ characters)");
+  if (
+    !refreshSecret ||
+    refreshSecret.length < 32 ||
+    refreshSecret === accessSecret ||
+    /change_me|dev_only/.test(refreshSecret)
+  )
+    missing.push(
+      "JWT_REFRESH_SECRET (different random secret, 32+ characters)",
+    );
   if (!corsOrigin) missing.push("CORS_ORIGIN");
   if (!process.env.DB_USER) missing.push("DB_USER");
   if (!process.env.DB_PASSWORD) missing.push("DB_PASSWORD");

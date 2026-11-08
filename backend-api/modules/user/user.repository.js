@@ -1,6 +1,6 @@
-const data = require('../../services/data.service');
-const { query } = require('../../config/db');
-const activity = require('../activity/activity.repository');
+const data = require("../../services/data.service");
+const { query } = require("../../config/db");
+const activity = require("../activity/activity.repository");
 
 async function findByEmail(email) {
   return data.findUserByEmail(email);
@@ -11,7 +11,8 @@ async function createUser(input) {
 }
 
 async function findById(id) {
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT TOP 1
       id,
       full_name AS fullName,
@@ -24,12 +25,15 @@ async function findById(id) {
       updated_at AS updatedAt
     FROM users
     WHERE id = @id
-  `, { id: Number(id) });
+  `,
+    { id: Number(id) },
+  );
   return rs.recordset[0] || null;
 }
 
 async function updateProfile(id, patch) {
-  const rs = await query(`
+  const rs = await query(
+    `
     UPDATE users
     SET full_name = COALESCE(@fullName, full_name),
         phone = COALESCE(@phone, phone),
@@ -37,11 +41,13 @@ async function updateProfile(id, patch) {
     OUTPUT INSERTED.id, INSERTED.full_name AS fullName, INSERTED.email, INSERTED.role,
            INSERTED.is_active AS isActive, INSERTED.phone, INSERTED.updated_at AS updatedAt
     WHERE id = @id
-  `, {
-    id: Number(id),
-    fullName: patch.fullName || null,
-    phone: patch.phone || null,
-  });
+  `,
+    {
+      id: Number(id),
+      fullName: patch.fullName || null,
+      phone: patch.phone || null,
+    },
+  );
   return rs.recordset[0] || null;
 }
 
@@ -56,7 +62,8 @@ async function communityHistory(userId, filters = {}) {
   const limit = Math.max(1, Math.min(100, Number(filters.limit || 50) || 50));
   try {
     // FIX: Lấy từ community_reviews (bảng duyệt review cộng đồng, đúng với admin)
-    const rs = await query(`
+    const rs = await query(
+      `
       SELECT TOP (@limit)
         id,
         user_id AS userId,
@@ -73,10 +80,13 @@ async function communityHistory(userId, filters = {}) {
       FROM community_reviews
       WHERE user_id = @userId
       ORDER BY created_at DESC, id DESC
-    `, { userId: Number(userId), limit });
+    `,
+      { userId: Number(userId), limit },
+    );
     return rs.recordset.map((r) => ({
       ...r,
-      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+      createdAt:
+        r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
     }));
   } catch (_err) {
     return [];
@@ -87,4 +97,12 @@ async function activityHistory(userId, filters = {}) {
   return activity.recentActivities({ userId, limit: filters.limit || 50 });
 }
 
-module.exports = { findByEmail, createUser, findById, updateProfile, chatHistory, communityHistory, activityHistory };
+module.exports = {
+  findByEmail,
+  createUser,
+  findById,
+  updateProfile,
+  chatHistory,
+  communityHistory,
+  activityHistory,
+};

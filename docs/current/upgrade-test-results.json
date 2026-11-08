@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-08T20:06:58.746Z",
+  "passed": 5,
+  "total": 5,
+  "cases": [
+    "upgrade adds exactly one migration",
+    "preserves account password hash and activity history",
+    "second run applies zero files",
+    "checksum mismatch rejects altered migration journal",
+    "legacy Windows CRLF checksum accepted without rewriting SQL or journal"
+  ]
+}

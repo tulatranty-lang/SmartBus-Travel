@@ -16,10 +16,64 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: backend-api/package-lock.json
       - run: npm ci --no-audit --no-fund
       - run: npm run check
       - run: npm test
-      - run: npm run test:coverage
+      - run: node ../scripts/check-syntax.js
+      - run: node ../scripts/sync-pages.js --check
+  sql-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: backend-api
+    env:
+      DB_SERVER: 127.0.0.1
+      DB_PORT: 14337
+      DB_NAME: SmartBusCiTest
+      DB_USER: sa
+      DB_ENCRYPT: 'false'
+      DB_TRUST_SERVER_CERTIFICATE: 'true'
+      DB_CONNECTION_TIMEOUT_MS: 1000
+      SQL_TEST_DISPOSABLE: '1'
+      SMARTBUS_TEST_DATABASE: SmartBusCiTest
+      ENABLE_REQUEST_LOG: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend-api/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Start isolated SQL Server with random credentials
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),{randomBytes}=require('node:crypto'),{execFileSync}=require('node:child_process');
+          const password='Sb!'+randomBytes(24).toString('hex');
+          console.log('::add-mask::'+password);
+          fs.appendFileSync(process.env.GITHUB_ENV,`DB_PASSWORD=${password}\nJWT_ACCESS_SECRET=${randomBytes(48).toString('hex')}\nJWT_REFRESH_SECRET=${randomBytes(48).toString('hex')}\n`);
+          execFileSync('docker',['run','-d','--name','smartbus-qa','-e','ACCEPT_EULA=Y','-e','MSSQL_PID=Developer','-e','MSSQL_SA_PASSWORD='+password,'-p','127.0.0.1:14337:1433','mcr.microsoft.com/mssql/server:2022-latest'],{stdio:'ignore'});
+          NODE
+      - name: Wait for SQL readiness
+        env:
+          DB_NAME: master
+        run: |
+          node <<'NODE'
+          const db=require('./config/db');
+          (async()=>{for(let i=0;i<45;i++){if((await db.healthCheck()).connected){await db.closePool();return;}await new Promise(r=>setTimeout(r,1000));}await db.closePool();throw Error('SQL Server did not become ready');})().catch(e=>{console.error(e.message);process.exitCode=1;});
+          NODE
+      - run: node scripts/migrate.js --seed
+      - run: node tests/sql/flows.js
+      - name: Check upgrade preserves existing account and history
+        env:
+          DB_NAME: SmartBusUpgradeTest
+          SMARTBUS_TEST_DATABASE: SmartBusUpgradeTest
+        run: node tests/sql/upgrade.js
+      - name: Remove disposable SQL container
+        if: always()
+        run: docker rm -f smartbus-qa || true

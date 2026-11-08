@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+**/.qa-*
+**/coverage
+**/*.log
+.openai
+docs
+
+**/qa-responsive.html
