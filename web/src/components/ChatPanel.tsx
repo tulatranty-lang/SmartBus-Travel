@@ -1,2 +1,300 @@
-import{useEffect,useRef,useState,type FormEvent}from'react';import*as Dialog from'@radix-ui/react-dialog';import{AnimatePresence,motion}from'motion/react';import{ArrowUpRight,BusFront,Compass,LocateFixed,MapPin,SendHorizontal,Sparkles,Square,X}from'lucide-react';import{useNavigate}from'react-router-dom';import{useApp,routeName}from'../state';import{api}from'../api';import type{ChatResponse}from'../types';import{IconButton}from'./ui';interface Message{id:string;who:'user'|'assistant';text:string;data?:ChatResponse;failed?:boolean}const prompts=['Đi Hội An bằng tuyến nào?','Tuyến DN-03 giá vé bao nhiêu?','Gợi ý lịch trình Đà Nẵng 1 ngày','Địa điểm nào gần xe buýt?'];
-export function ChatPanel(){const{chatOpen,setChatOpen,position,locate,locating,setRouteId,setPlaceId}=useApp();const[input,setInput]=useState(''),[messages,setMessages]=useState<Message[]>([]),[busy,setBusy]=useState(false);const scroll=useRef<HTMLDivElement>(null),controller=useRef<AbortController|null>(null),nav=useNavigate();useEffect(()=>{scroll.current?.scrollTo({top:scroll.current.scrollHeight,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'})},[messages,busy,chatOpen]);async function send(text:string){if(busy||!text.trim())return;setInput('');setMessages(m=>[...m,{id:crypto.randomUUID(),who:'user',text:text.trim()}]);const c=new AbortController();controller.current=c;setBusy(true);try{const r=await api<ChatResponse>('/chatbot/ask',{method:'POST',body:{message:text.trim(),lat:position?.lat??null,lng:position?.lng??null},signal:c.signal,timeout:25000});setMessages(m=>[...m,{id:crypto.randomUUID(),who:'assistant',text:r.data.reply,data:r.data}])}catch(e){const error=e as Error;setMessages(m=>[...m,{id:crypto.randomUUID(),who:'assistant',text:error.name==='AbortError'?'Đã dừng chờ phản hồi. Bạn có thể gửi câu hỏi khác.':error.message,failed:error.name!=='AbortError'}])}finally{controller.current=null;setBusy(false)}}return <><button className={`chat-launcher ${chatOpen?'is-open':''}`} onClick={()=>setChatOpen(true)} aria-label="Mở người bạn đường SmartBus"><span><Sparkles size={21}/></span><strong>Hỏi SmartBus</strong><span className="chat-launcher-dot"/></button><Dialog.Root open={chatOpen} onOpenChange={setChatOpen}><Dialog.Portal><Dialog.Overlay className="chat-overlay"/><Dialog.Content className="chat-panel-new" aria-describedby="chat-description"><header className="chat-header"><span className="chat-avatar"><BusFront size={24}/></span><div><Dialog.Title>Người bạn đường</Dialog.Title><Dialog.Description id="chat-description"><span className="status-dot"/>Khám phá miền Trung cùng bạn</Dialog.Description></div><Dialog.Close asChild><IconButton icon={X} label="Đóng người bạn đường"/></Dialog.Close></header><div className="chat-scroll" ref={scroll}><div className="chat-welcome"><span>✦</span><h3>Một điểm đến mới?<br/>Cùng tìm đường nhé.</h3><p>Hỏi về tuyến xe, địa điểm hay một lịch trình cho ngày mới.</p></div><AnimatePresence initial={false}>{messages.map(m=><motion.div key={m.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} className={`chat-message chat-${m.who} ${m.failed?'chat-failed':''}`}><div className="chat-bubble">{m.text}{m.data?.route&&<button className="chat-route-card" onClick={()=>{setChatOpen(false);setRouteId(m.data!.route!.id)}}><BusFront size={19}/><span><strong>{routeName(m.data.route)}</strong><small>{m.data.route.name}</small></span><ArrowUpRight size={17}/></button>}{m.data?.suggestedPlaces?.slice(0,3).map(p=><button className="chat-place-link" key={p.id} onClick={()=>{setChatOpen(false);setPlaceId(p.id)}}><MapPin size={14}/>{p.name}<ArrowUpRight size={14}/></button>)}{m.data?.tripPlan&&<button className="chat-place-link" onClick={()=>{setChatOpen(false);nav('/planner')}}><Compass size={15}/>Mở trang lịch trình<ArrowUpRight size={15}/></button>}</div></motion.div>)}</AnimatePresence>{busy&&<div className="chat-thinking" role="status"><span/><span/><span/><small>Đang tìm kết nối phù hợp…</small></div>}</div>{!messages.length&&<div className="chat-prompts">{prompts.map(p=><button key={p} onClick={()=>send(p)}>{p}<ArrowUpRight size={14}/></button>)}</div>}<form className="chat-compose" onSubmit={e=>{e.preventDefault();send(input)}}><div className="chat-position">{position?<span><MapPin size={13}/>Đã có vị trí cho gợi ý</span>:<button type="button" disabled={locating} onClick={locate}><LocateFixed size={14}/>{locating?'Đang lấy vị trí…':'Thêm vị trí của tôi'}</button>}</div><div className="chat-compose-row"><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Bạn muốn đi đâu?" aria-label="Câu hỏi cho SmartBus" maxLength={1000}/>{busy?<button type="button" aria-label="Dừng chờ phản hồi" onClick={()=>controller.current?.abort()}><Square size={17}/></button>:<button type="submit" disabled={!input.trim()} aria-label="Gửi câu hỏi"><SendHorizontal size={19}/></button>}</div><small>Gợi ý từ dữ liệu tham khảo. Kiểm tra thông tin trước khi đi.</small></form></Dialog.Content></Dialog.Portal></Dialog.Root></>}
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  ArrowUpRight,
+  BusFront,
+  Compass,
+  LocateFixed,
+  MapPin,
+  SendHorizontal,
+  Sparkles,
+  Square,
+  X,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useApp, routeName } from "../state";
+import { api } from "../api";
+import type { ChatResponse } from "../types";
+import { IconButton } from "./ui";
+interface Message {
+  id: string;
+  who: "user" | "assistant";
+  text: string;
+  data?: ChatResponse;
+  failed?: boolean;
+}
+const prompts = [
+  "Đi Hội An bằng tuyến nào?",
+  "Tuyến DN-03 giá vé bao nhiêu?",
+  "Gợi ý lịch trình Đà Nẵng 1 ngày",
+  "Địa điểm nào gần xe buýt?",
+];
+export function ChatPanel() {
+  const {
+    user,
+    chatOpen,
+    setChatOpen,
+    position,
+    locate,
+    locating,
+    setRouteId,
+    setPlaceId,
+  } = useApp();
+  const [input, setInput] = useState(""),
+    [messages, setMessages] = useState<Message[]>([]),
+    [busy, setBusy] = useState(false);
+  const scroll = useRef<HTMLDivElement>(null),
+    controller = useRef<AbortController | null>(null),
+    nav = useNavigate();
+  useEffect(() => {
+    controller.current?.abort();
+    controller.current = null;
+    setMessages([]);
+    setInput("");
+    setBusy(false);
+    return () => {
+      controller.current?.abort();
+      controller.current = null;
+    };
+  }, [user?.id]);
+  useEffect(() => {
+    scroll.current?.scrollTo({
+      top: scroll.current.scrollHeight,
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
+    });
+  }, [messages, busy, chatOpen]);
+  async function send(text: string) {
+    if (busy || !text.trim()) return;
+    setInput("");
+    setMessages((m) => [
+      ...m,
+      { id: crypto.randomUUID(), who: "user", text: text.trim() },
+    ]);
+    const c = new AbortController();
+    controller.current = c;
+    setBusy(true);
+    try {
+      const r = await api<ChatResponse>("/chatbot/ask", {
+        method: "POST",
+        body: {
+          message: text.trim(),
+          lat: position?.lat ?? null,
+          lng: position?.lng ?? null,
+        },
+        signal: c.signal,
+        timeout: 25000,
+      });
+      if (c.signal.aborted || controller.current !== c) return;
+      setMessages((m) => [
+        ...m,
+        {
+          id: crypto.randomUUID(),
+          who: "assistant",
+          text: r.data.reply,
+          data: r.data,
+        },
+      ]);
+    } catch (e) {
+      const error = e as Error;
+      if (controller.current !== c) return;
+      setMessages((m) => [
+        ...m,
+        {
+          id: crypto.randomUUID(),
+          who: "assistant",
+          text:
+            error.name === "AbortError"
+              ? "Đã dừng chờ phản hồi. Bạn có thể gửi câu hỏi khác."
+              : error.message,
+          failed: error.name !== "AbortError",
+        },
+      ]);
+    } finally {
+      if (controller.current === c) {
+        controller.current = null;
+        setBusy(false);
+      }
+    }
+  }
+  return (
+    <>
+      <button
+        className={`chat-launcher ${chatOpen ? "is-open" : ""}`}
+        onClick={() => setChatOpen(true)}
+        aria-label="Mở người bạn đường SmartBus"
+      >
+        <span>
+          <Sparkles size={21} />
+        </span>
+        <strong>Hỏi SmartBus</strong>
+        <span className="chat-launcher-dot" />
+      </button>
+      <Dialog.Root open={chatOpen} onOpenChange={setChatOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="chat-overlay" />
+          <Dialog.Content
+            className="chat-panel-new"
+            aria-describedby="chat-description"
+          >
+            <header className="chat-header">
+              <span className="chat-avatar">
+                <BusFront size={24} />
+              </span>
+              <div>
+                <Dialog.Title>Người bạn đường</Dialog.Title>
+                <Dialog.Description id="chat-description">
+                  <span className="status-dot" />
+                  Khám phá miền Trung cùng bạn
+                </Dialog.Description>
+              </div>
+              <Dialog.Close asChild>
+                <IconButton icon={X} label="Đóng người bạn đường" />
+              </Dialog.Close>
+            </header>
+            <div className="chat-scroll" ref={scroll}>
+              <div className="chat-welcome">
+                <span>✦</span>
+                <h3>
+                  Một điểm đến mới?
+                  <br />
+                  Cùng tìm đường nhé.
+                </h3>
+                <p>
+                  Hỏi về tuyến xe, địa điểm hay một lịch trình cho ngày mới.
+                </p>
+              </div>
+              <AnimatePresence initial={false}>
+                {messages.map((m) => (
+                  <motion.div
+                    key={m.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`chat-message chat-${m.who} ${m.failed ? "chat-failed" : ""}`}
+                  >
+                    <div className="chat-bubble">
+                      {m.text}
+                      {m.data?.route && (
+                        <button
+                          className="chat-route-card"
+                          onClick={() => {
+                            setChatOpen(false);
+                            setRouteId(m.data!.route!.id);
+                          }}
+                        >
+                          <BusFront size={19} />
+                          <span>
+                            <strong>{routeName(m.data.route)}</strong>
+                            <small>{m.data.route.name}</small>
+                          </span>
+                          <ArrowUpRight size={17} />
+                        </button>
+                      )}
+                      {m.data?.suggestedPlaces?.slice(0, 3).map((p) => (
+                        <button
+                          className="chat-place-link"
+                          key={p.id}
+                          onClick={() => {
+                            setChatOpen(false);
+                            setPlaceId(p.id);
+                          }}
+                        >
+                          <MapPin size={14} />
+                          {p.name}
+                          <ArrowUpRight size={14} />
+                        </button>
+                      ))}
+                      {m.data?.tripPlan && (
+                        <button
+                          className="chat-place-link"
+                          onClick={() => {
+                            setChatOpen(false);
+                            nav("/planner");
+                          }}
+                        >
+                          <Compass size={15} />
+                          Mở trang lịch trình
+                          <ArrowUpRight size={15} />
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              {busy && (
+                <div className="chat-thinking" role="status">
+                  <span />
+                  <span />
+                  <span />
+                  <small>Đang tìm kết nối phù hợp…</small>
+                </div>
+              )}
+            </div>
+            {!messages.length && (
+              <div className="chat-prompts">
+                {prompts.map((p) => (
+                  <button key={p} onClick={() => send(p)}>
+                    {p}
+                    <ArrowUpRight size={14} />
+                  </button>
+                ))}
+              </div>
+            )}
+            <form
+              className="chat-compose"
+              onSubmit={(e) => {
+                e.preventDefault();
+                send(input);
+              }}
+            >
+              <div className="chat-position">
+                {position ? (
+                  <span>
+                    <MapPin size={13} />
+                    Đã có vị trí cho gợi ý
+                  </span>
+                ) : (
+                  <button type="button" disabled={locating} onClick={locate}>
+                    <LocateFixed size={14} />
+                    {locating ? "Đang lấy vị trí…" : "Thêm vị trí của tôi"}
+                  </button>
+                )}
+              </div>
+              <div className="chat-compose-row">
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Bạn muốn đi đâu?"
+                  aria-label="Câu hỏi cho SmartBus"
+                  maxLength={1000}
+                />
+                {busy ? (
+                  <button
+                    type="button"
+                    aria-label="Dừng chờ phản hồi"
+                    onClick={() => controller.current?.abort()}
+                  >
+                    <Square size={17} />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!input.trim()}
+                    aria-label="Gửi câu hỏi"
+                  >
+                    <SendHorizontal size={19} />
+                  </button>
+                )}
+              </div>
+              <small>
+                Gợi ý từ dữ liệu tham khảo. Kiểm tra thông tin trước khi đi.
+              </small>
+            </form>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
+  );
+}

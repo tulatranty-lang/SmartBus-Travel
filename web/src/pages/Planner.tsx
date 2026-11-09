@@ -1,17 +1,367 @@
-import {useRef,useState,useEffect,type FormEvent} from 'react';
-import {useNavigate} from 'react-router-dom';
-import {AnimatePresence,motion,useReducedMotion} from 'motion/react';
-import {ArrowRight,BusFront,Check,ChevronDown,ChevronUp,Clock,Compass,Footprints,Heart,Map,MapPin,Route,ShieldCheck,Sparkles,X} from 'lucide-react';
-import {toast} from 'sonner';
-import {api} from '../api';
-import {useApp,regions,routeName} from '../state';
-import type {TripPlan} from '../types';
-import {Badge,Button,Empty,Field,PageHeading} from '../components/ui';
-const durations=['nửa ngày','1 ngày','2 ngày','3 ngày'];
-const interests=['biển','văn hóa','check-in','mua sắm','vui chơi','tâm linh','tiết kiệm'];
-export default function Planner(){const app=useApp();const[province,setProvince]=useState(app.region),[duration,setDuration]=useState('1 ngày'),[selected,setSelected]=useState<string[]>(['văn hóa','check-in']),[budget,setBudget]=useState('medium'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[plan,setPlan]=useState<TripPlan|null>(null);const pending=useRef<AbortController|null>(null);useEffect(()=>()=>pending.current?.abort(),[]);
- async function generate(e:FormEvent){e.preventDefault();if(busy)return;setError('');setBusy(true);const c=new AbortController();pending.current=c;try{const r=await api<TripPlan>('/trip-plans/generate',{method:'POST',body:{provinceCode:province,timeAvailable:duration,interests:selected,budget},signal:c.signal,timeout:35000});setPlan(r.data);if(r.data.items.length){app.setRegion(province);toast.success('Hành trình dành cho bạn đã sẵn sàng.')}}catch(e){if((e as Error).name!=='AbortError')setError((e as Error).message)}finally{if(pending.current===c){pending.current=null;setBusy(false)}}}
- function cancel(){pending.current?.abort();pending.current=null;setBusy(false);toast.info('Đã dừng chờ kết quả. Lịch trình đã lưu, nếu có, sẽ xuất hiện trong Lịch sử.')}
- return <><PageHeading eyebrow="MỘT CHUYẾN ĐI THEO CÁCH CỦA BẠN" title="Ít lo nghĩ. Nhiều trải nghiệm." description="Chọn điều bạn thích, tìm những điểm dừng đáng nhớ."/><div className="planner-layout"><form className="surface planner-form" onSubmit={generate}><div className="planner-form-title"><span><Sparkles size={22}/></span><div><h2>Thiết kế chuyến đi</h2><p>Nhịp điệu và sở thích của riêng bạn.</p></div></div><Field label="Bạn muốn khám phá đâu?"><select value={province} onChange={e=>setProvince(e.target.value)} disabled={busy}>{Object.entries(regions).map(([v,n])=><option value={v} key={v}>{n}</option>)}</select></Field><fieldset className="choice-fieldset"><legend>Thời gian bạn có</legend><div className="duration-choices">{durations.map(d=><button type="button" key={d} className={duration===d?'active':''} aria-pressed={duration===d} disabled={busy} onClick={()=>setDuration(d)}><Clock size={16}/>{d[0].toUpperCase()+d.slice(1)}</button>)}</div></fieldset><fieldset className="choice-fieldset"><legend>Điều khiến bạn háo hức</legend><div className="interest-choices">{interests.map(i=><button key={i} type="button" disabled={busy} aria-pressed={selected.includes(i)} className={selected.includes(i)?'active':''} onClick={()=>setSelected(v=>v.includes(i)?v.filter(x=>x!==i):[...v,i])}>{selected.includes(i)&&<Check size={13}/>} {i[0].toUpperCase()+i.slice(1)}</button>)}</div></fieldset><Field label="Phong cách chi tiêu"><select value={budget} disabled={busy} onChange={e=>setBudget(e.target.value)}><option value="low">Ưu tiên tiết kiệm</option><option value="medium">Cân bằng trải nghiệm</option><option value="high">Thoải mái khám phá</option></select></Field>{error&&<p role="alert" className="form-error">{error} Các lựa chọn của bạn vẫn được giữ lại.</p>}<Button busy={busy} type="submit"><Sparkles size={17}/>{plan?'Tạo hành trình mới':'Tạo hành trình của tôi'}<ArrowRight size={17}/></Button>{!app.user&&<button type="button" className="planner-login-note" onClick={()=>app.setAuthOpen(true)}><Heart size={13}/>Đăng nhập để tự động lưu hành trình</button>}<p className="planner-disclaimer">Gợi ý theo dữ liệu địa điểm và tuyến đã ghi nhận. Giờ đến và chi phí thực tế cần kiểm tra trước chuyến đi.</p></form><section className="planner-result" aria-live="polite" aria-busy={busy}>{busy?<div className="surface planner-progress"><div className="planner-orbit"><Route size={33}/><span/><span/></div><Badge tone="teal">ĐANG KẾT NỐI CÁC ĐIỂM ĐẾN</Badge><h2>Tìm một nhịp điệu phù hợp với bạn.</h2><p>Đang chọn địa điểm và sắp xếp các điểm dừng trong cùng khu vực. Bạn có thể hủy chờ bất cứ lúc nào.</p><Button variant="secondary" onClick={cancel}><X size={16}/>Hủy chờ</Button></div>:plan?(plan.items.length?<Itinerary plan={plan}/>:<Empty icon={Compass} title="Chưa đủ điểm đến phù hợp" description="Thử khu vực hoặc sở thích khác. Chúng tôi giữ đúng khu vực bạn chọn."/>):<div className="surface planner-empty"><div className="planner-orbit"><Compass size={35}/><span/><span/></div><h2>Chuyến đi đẹp bắt đầu từ một ý tưởng.</h2><p>Một buổi bên biển, một ngày dạo phố hay cuối tuần khám phá văn hóa — bạn chọn, SmartBus kết nối.</p><span className="planner-empty-chip"><MapPin size={13}/>Điểm đến · Tuyến xe · Trải nghiệm</span></div>}</section></div></>
+import { useRef, useState, useEffect, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import {
+  ArrowRight,
+  BusFront,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Compass,
+  Footprints,
+  Heart,
+  Map,
+  MapPin,
+  Route,
+  ShieldCheck,
+  Sparkles,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { api } from "../api";
+import { useApp, regions, routeName } from "../state";
+import type { TripPlan } from "../types";
+import { Badge, Button, Empty, Field, PageHeading } from "../components/ui";
+const durations = ["nửa ngày", "1 ngày", "2 ngày", "3 ngày"];
+const interests = [
+  "biển",
+  "văn hóa",
+  "check-in",
+  "mua sắm",
+  "vui chơi",
+  "tâm linh",
+  "tiết kiệm",
+];
+export default function Planner() {
+  const app = useApp();
+  const [province, setProvince] = useState(app.region),
+    [duration, setDuration] = useState("1 ngày"),
+    [selected, setSelected] = useState<string[]>(["văn hóa", "check-in"]),
+    [budget, setBudget] = useState("medium"),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [plan, setPlan] = useState<TripPlan | null>(null);
+  const pending = useRef<AbortController | null>(null);
+  useEffect(() => () => pending.current?.abort(), []);
+  async function generate(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setError("");
+    setBusy(true);
+    const c = new AbortController();
+    pending.current = c;
+    try {
+      const r = await api<TripPlan>("/trip-plans/generate", {
+        method: "POST",
+        body: {
+          title: `Hành trình ${duration} tại ${regions[province]}`,
+          provinceCode: province,
+          timeAvailable: duration,
+          interests: selected,
+          budget,
+        },
+        signal: c.signal,
+        timeout: 35000,
+      });
+      if (c.signal.aborted) return;
+      setPlan(r.data);
+      if (r.data.items.length) {
+        app.setRegion(province);
+        toast.success("Hành trình dành cho bạn đã sẵn sàng.");
+      }
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") setError((e as Error).message);
+    } finally {
+      if (pending.current === c) {
+        pending.current = null;
+        setBusy(false);
+      }
+    }
+  }
+  function cancel() {
+    pending.current?.abort();
+    pending.current = null;
+    setBusy(false);
+    toast.info(
+      "Đã dừng chờ kết quả. Lịch trình đã lưu, nếu có, sẽ xuất hiện trong Lịch sử.",
+    );
+  }
+  return (
+    <>
+      <PageHeading
+        eyebrow="MỘT CHUYẾN ĐI THEO CÁCH CỦA BẠN"
+        title="Ít lo nghĩ. Nhiều trải nghiệm."
+        description="Chọn điều bạn thích, tìm những điểm dừng đáng nhớ."
+      />
+      <div className="planner-layout">
+        <form className="surface planner-form" onSubmit={generate}>
+          <div className="planner-form-title">
+            <span>
+              <Sparkles size={22} />
+            </span>
+            <div>
+              <h2>Thiết kế chuyến đi</h2>
+              <p>Nhịp điệu và sở thích của riêng bạn.</p>
+            </div>
+          </div>
+          <Field label="Bạn muốn khám phá đâu?">
+            <select
+              value={province}
+              onChange={(e) => setProvince(e.target.value)}
+              disabled={busy}
+            >
+              {Object.entries(regions).map(([v, n]) => (
+                <option value={v} key={v}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <fieldset className="choice-fieldset">
+            <legend>Thời gian bạn có</legend>
+            <div className="duration-choices">
+              {durations.map((d) => (
+                <button
+                  type="button"
+                  key={d}
+                  className={duration === d ? "active" : ""}
+                  aria-pressed={duration === d}
+                  disabled={busy}
+                  onClick={() => setDuration(d)}
+                >
+                  <Clock size={16} />
+                  {d[0].toUpperCase() + d.slice(1)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="choice-fieldset">
+            <legend>Điều khiến bạn háo hức</legend>
+            <div className="interest-choices">
+              {interests.map((i) => (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={busy}
+                  aria-pressed={selected.includes(i)}
+                  className={selected.includes(i) ? "active" : ""}
+                  onClick={() =>
+                    setSelected((v) =>
+                      v.includes(i) ? v.filter((x) => x !== i) : [...v, i],
+                    )
+                  }
+                >
+                  {selected.includes(i) && <Check size={13} />}{" "}
+                  {i[0].toUpperCase() + i.slice(1)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <Field label="Phong cách chi tiêu">
+            <select
+              value={budget}
+              disabled={busy}
+              onChange={(e) => setBudget(e.target.value)}
+            >
+              <option value="low">Ưu tiên tiết kiệm</option>
+              <option value="medium">Cân bằng trải nghiệm</option>
+              <option value="high">Thoải mái khám phá</option>
+            </select>
+          </Field>
+          {error && (
+            <p role="alert" className="form-error">
+              {error} Các lựa chọn của bạn vẫn được giữ lại.
+            </p>
+          )}
+          <Button busy={busy} type="submit">
+            <Sparkles size={17} />
+            {plan ? "Tạo hành trình mới" : "Tạo hành trình của tôi"}
+            <ArrowRight size={17} />
+          </Button>
+          {!app.user && (
+            <button
+              type="button"
+              className="planner-login-note"
+              onClick={() => app.setAuthOpen(true)}
+            >
+              <Heart size={13} />
+              Đăng nhập để tự động lưu hành trình
+            </button>
+          )}
+          <p className="planner-disclaimer">
+            Gợi ý theo dữ liệu địa điểm và tuyến đã ghi nhận. Giờ đến và chi phí
+            thực tế cần kiểm tra trước chuyến đi.
+          </p>
+        </form>
+        <section className="planner-result" aria-live="polite" aria-busy={busy}>
+          {busy ? (
+            <div className="surface planner-progress">
+              <div className="planner-orbit">
+                <Route size={33} />
+                <span />
+                <span />
+              </div>
+              <Badge tone="teal">ĐANG KẾT NỐI CÁC ĐIỂM ĐẾN</Badge>
+              <h2>Tìm một nhịp điệu phù hợp với bạn.</h2>
+              <p>
+                Đang chọn địa điểm và sắp xếp các điểm dừng trong cùng khu vực.
+                Bạn có thể hủy chờ bất cứ lúc nào.
+              </p>
+              <Button variant="secondary" onClick={cancel}>
+                <X size={16} />
+                Hủy chờ
+              </Button>
+            </div>
+          ) : plan ? (
+            plan.items.length ? (
+              <Itinerary plan={plan} />
+            ) : (
+              <Empty
+                icon={Compass}
+                title="Chưa đủ điểm đến phù hợp"
+                description="Thử khu vực hoặc sở thích khác. Chúng tôi giữ đúng khu vực bạn chọn."
+              />
+            )
+          ) : (
+            <div className="surface planner-empty">
+              <div className="planner-orbit">
+                <Compass size={35} />
+                <span />
+                <span />
+              </div>
+              <h2>Chuyến đi đẹp bắt đầu từ một ý tưởng.</h2>
+              <p>
+                Một buổi bên biển, một ngày dạo phố hay cuối tuần khám phá văn
+                hóa — bạn chọn, SmartBus kết nối.
+              </p>
+              <span className="planner-empty-chip">
+                <MapPin size={13} />
+                Điểm đến · Tuyến xe · Trải nghiệm
+              </span>
+            </div>
+          )}
+        </section>
+      </div>
+    </>
+  );
 }
-export function Itinerary({plan}:{plan:TripPlan}){const[expanded,setExpanded]=useState(true),app=useApp(),nav=useNavigate(),reduced=useReducedMotion();const saved=!!(plan.itineraryId||plan.id);return <article className="surface itinerary"><header className="itinerary-header"><div><p className="eyebrow"><Sparkles size={13}/>HÀNH TRÌNH DÀNH CHO BẠN</p><h2>{plan.title}</h2><p>{plan.items.length} điểm dừng{plan.totalEstimatedTime?` · khoảng ${Math.floor(plan.totalEstimatedTime/60)} giờ ${plan.totalEstimatedTime%60} phút trải nghiệm & di chuyển`:''}</p></div><button className="icon-button" aria-expanded={expanded} aria-controls="itinerary-content" aria-label={expanded?'Thu gọn lịch trình':'Mở rộng lịch trình'} onClick={()=>setExpanded(!expanded)}>{expanded?<ChevronUp size={20}/>:<ChevronDown size={20}/>}</button></header><AnimatePresence initial={false}>{expanded&&<motion.div key="itinerary" id="itinerary-content" className="itinerary-body" initial={reduced?false:{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={reduced?{}:{height:0,opacity:0}} transition={{duration:.25}}><ol className="itinerary-timeline">{plan.items.map((p,i)=><li key={p.id}><span className="itinerary-order">{String(i+1).padStart(2,'0')}</span><div className="itinerary-stop"><div className="itinerary-time"><Clock size={12}/>{p.timeBlock||`Điểm dừng ${i+1}`}{p.suggestedStart&&` · ${p.suggestedStart}`}<span>THỜI GIAN THAM KHẢO</span></div><button className="itinerary-place-name" onClick={()=>app.setPlaceId(p.id)}>{p.name}<ArrowRight size={14}/></button>{p.shortDescription&&<p className="muted">{p.shortDescription}</p>}<div className="itinerary-tags">{p.suggestedDurationMinutes&&<span><Clock size={12}/>{p.suggestedDurationMinutes} phút khám phá</span>}{p.recommendedRoute&&<span><BusFront size={12}/>Tuyến {routeName(p.recommendedRoute)}</span>}{p.transferMinutes!=null&&i>0&&<span><Footprints size={12}/>Ước tính {p.transferMinutes} phút di chuyển</span>}</div>{p.practicalNote&&<details><summary>Gợi ý cho điểm dừng</summary><p>{p.practicalNote}</p></details>}</div></li>)}</ol></motion.div>}</AnimatePresence><footer className="itinerary-footer"><span><ShieldCheck size={13}/>{saved?'Đã lưu vào hành trình của bạn':'Gợi ý tham khảo trước chuyến đi'}</span><Button variant="secondary" onClick={()=>nav('/explore?places='+plan.items.map(p=>p.id).join(','))}><Map size={15}/>Xem các điểm trên bản đồ</Button></footer></article>}
+export function Itinerary({ plan }: { plan: TripPlan }) {
+  const [expanded, setExpanded] = useState(true),
+    app = useApp(),
+    nav = useNavigate(),
+    reduced = useReducedMotion();
+  const saved = !!(plan.itineraryId || plan.id);
+  return (
+    <article className="surface itinerary">
+      <header className="itinerary-header">
+        <div>
+          <p className="eyebrow">
+            <Sparkles size={13} />
+            HÀNH TRÌNH DÀNH CHO BẠN
+          </p>
+          <h2>{plan.title}</h2>
+          <p>
+            {plan.items.length} điểm dừng
+            {plan.totalEstimatedTime
+              ? ` · khoảng ${Math.floor(plan.totalEstimatedTime / 60)} giờ ${plan.totalEstimatedTime % 60} phút trải nghiệm & di chuyển`
+              : ""}
+          </p>
+        </div>
+        <button
+          className="icon-button"
+          aria-expanded={expanded}
+          aria-controls="itinerary-content"
+          aria-label={expanded ? "Thu gọn lịch trình" : "Mở rộng lịch trình"}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        </button>
+      </header>
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="itinerary"
+            id="itinerary-content"
+            className="itinerary-body"
+            initial={reduced ? false : { height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={reduced ? {} : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <ol className="itinerary-timeline">
+              {plan.items.map((p, i) => (
+                <li key={p.id}>
+                  <span className="itinerary-order">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <div className="itinerary-stop">
+                    <div className="itinerary-time">
+                      <Clock size={12} />
+                      {p.timeBlock || `Điểm dừng ${i + 1}`}
+                      {p.suggestedStart && ` · ${p.suggestedStart}`}
+                      <span>THỜI GIAN THAM KHẢO</span>
+                    </div>
+                    <button
+                      className="itinerary-place-name"
+                      onClick={() => app.setPlaceId(p.id)}
+                    >
+                      {p.name}
+                      <ArrowRight size={14} />
+                    </button>
+                    {p.shortDescription && (
+                      <p className="muted">{p.shortDescription}</p>
+                    )}
+                    <div className="itinerary-tags">
+                      {p.suggestedDurationMinutes && (
+                        <span>
+                          <Clock size={12} />
+                          {p.suggestedDurationMinutes} phút khám phá
+                        </span>
+                      )}
+                      {p.recommendedRoute && (
+                        <span>
+                          <BusFront size={12} />
+                          Tuyến {routeName(p.recommendedRoute)}
+                        </span>
+                      )}
+                      {p.transferMinutes != null && i > 0 && (
+                        <span>
+                          <Footprints size={12} />
+                          Ước tính {p.transferMinutes} phút di chuyển
+                        </span>
+                      )}
+                    </div>
+                    {p.practicalNote && (
+                      <details>
+                        <summary>Gợi ý cho điểm dừng</summary>
+                        <p>{p.practicalNote}</p>
+                      </details>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <footer className="itinerary-footer">
+        <span>
+          <ShieldCheck size={13} />
+          {saved
+            ? "Đã lưu vào hành trình của bạn"
+            : "Gợi ý tham khảo trước chuyến đi"}
+        </span>
+        <Button
+          variant="secondary"
+          onClick={() =>
+            nav("/explore?places=" + plan.items.map((p) => p.id).join(","))
+          }
+        >
+          <Map size={15} />
+          Xem các điểm trên bản đồ
+        </Button>
+      </footer>
+    </article>
+  );
+}
