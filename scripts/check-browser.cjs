@@ -32,12 +32,39 @@ async function check(name, run) {
   console.log("PASS " + name);
 }
 async function noOverflow(p) {
-  assert.equal(
-    await p.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth + 1,
-    ),
-    true,
-    "Horizontal page overflow",
+  await p.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
+  });
+  const dimensions = await p.evaluate(() => ({
+    route: location.hash,
+    viewport: innerWidth,
+    content: document.documentElement.scrollWidth,
+    overflow: [...document.querySelectorAll("body *")]
+      .flatMap((el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width && rect.height && rect.right > innerWidth + 1
+          ? [
+              {
+                tag: el.tagName,
+                class: typeof el.className === "string" ? el.className : "",
+                right: rect.right,
+              },
+            ]
+          : [];
+      })
+      .slice(0, 20),
+  }));
+  if (dimensions.content > dimensions.viewport + 1)
+    fs.writeFileSync(
+      path.join(out, "overflow.json"),
+      JSON.stringify(dimensions, null, 2),
+    );
+  assert.ok(
+    dimensions.content <= dimensions.viewport + 1,
+    `Horizontal page overflow at ${dimensions.route}: ${dimensions.content}/${dimensions.viewport}px`,
   );
 }
 async function main() {

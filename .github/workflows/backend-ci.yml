@@ -64,8 +64,9 @@ jobs:
           node <<'NODE'
           const fs=require('node:fs'),{randomBytes}=require('node:crypto'),{execFileSync}=require('node:child_process');
           const password='Sb!'+randomBytes(24).toString('hex');
-          console.log('::add-mask::'+password);
-          fs.appendFileSync(process.env.GITHUB_ENV,`DB_PASSWORD=${password}\nJWT_ACCESS_SECRET=${randomBytes(48).toString('hex')}\nJWT_REFRESH_SECRET=${randomBytes(48).toString('hex')}\n`);
+          const access=randomBytes(48).toString('hex'), refresh=randomBytes(48).toString('hex');
+          for (const secret of [password,access,refresh]) console.log('::add-mask::'+secret);
+          fs.appendFileSync(process.env.GITHUB_ENV,`DB_PASSWORD=${password}\nJWT_ACCESS_SECRET=${access}\nJWT_REFRESH_SECRET=${refresh}\n`);
           execFileSync('docker',['run','-d','--name','smartbus-qa','-e','ACCEPT_EULA=Y','-e','MSSQL_PID=Developer','-e','MSSQL_SA_PASSWORD='+password,'-p','127.0.0.1:14337:1433','mcr.microsoft.com/mssql/server:2022-latest'],{stdio:'ignore'});
           NODE
       - name: Wait for SQL readiness

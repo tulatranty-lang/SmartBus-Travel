@@ -6025,3 +6025,26 @@ small {
 .map-canvas button:focus-visible {
   outline: 3px solid #087f72;
 }
+
+@media (max-width: 360px) {
+  .search-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding-inline: 8px;
+    overflow: visible;
+  }
+  .search-tabs button {
+    min-width: 0;
+    min-height: 42px;
+    white-space: normal;
+    justify-content: center;
+    gap: 4px;
+    line-height: 1.5;
+    text-align: center;
+    padding: 0 2px 10px;
+  }
+  .search-tabs svg {
+    flex-shrink: 0;
+  }
+}
