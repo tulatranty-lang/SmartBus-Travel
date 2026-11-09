@@ -1,0 +1,42 @@
+[
+  {
+    "key": "danang",
+    "file": "danang.jpg",
+    "title": "Da nang dragon bridge.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Da_nang_dragon_bridge.jpg",
+    "author": "Thangphan",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "displayNote": "Hiển thị cắt khung bằng CSS; tệp ảnh giữ nguyên."
+  },
+  {
+    "key": "hoian",
+    "file": "hoian.jpg",
+    "title": "Hoi'an by the river.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Hoi%27an_by_the_river.jpg",
+    "author": "John Lian",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "displayNote": "Hiển thị cắt khung bằng CSS; tệp ảnh giữ nguyên."
+  },
+  {
+    "key": "hue",
+    "file": "hue.jpg",
+    "title": "Gate in Imperial City, Huế (III).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Gate_in_Imperial_City,_Hu%E1%BA%BF_(III).jpg",
+    "author": "Supanut Arunoprayote",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "displayNote": "Hiển thị cắt khung bằng CSS; tệp ảnh giữ nguyên."
+  },
+  {
+    "key": "beach",
+    "file": "beach.jpg",
+    "title": "My Khe Beach, Da Nang, Vietnam.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:My_Khe_Beach,_Da_Nang,_Vietnam.jpg",
+    "author": ". Ray in Manila",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "displayNote": "Hiển thị cắt khung bằng CSS; tệp ảnh giữ nguyên."
+  }
+]
