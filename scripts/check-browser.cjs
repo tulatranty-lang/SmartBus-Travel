@@ -45,7 +45,7 @@ async function noOverflow(p) {
     overflow: [...document.querySelectorAll("body *")]
       .flatMap((el) => {
         const rect = el.getBoundingClientRect();
-        return rect.width && rect.height && rect.right > innerWidth + 1
+        return rect.right > innerWidth + 1
           ? [
               {
                 tag: el.tagName,

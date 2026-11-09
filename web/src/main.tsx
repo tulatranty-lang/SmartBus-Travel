@@ -105,7 +105,9 @@ createRoot(document.getElementById("root")!).render(
               </Routes>
             </Suspense>
             <Toaster
+              className="smartbus-toaster"
               position="bottom-right"
+              mobileOffset={{ bottom: 88, left: 16, right: 16 }}
               richColors
               closeButton
               toastOptions={{ className: "smartbus-toast" }}

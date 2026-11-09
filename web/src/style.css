@@ -6026,6 +6026,17 @@ small {
   outline: 3px solid #087f72;
 }
 
+@media (max-width: 600px) {
+  .smartbus-toaster[data-sonner-toaster][data-x-position] {
+    left: var(--mobile-offset-left, 16px);
+    right: var(--mobile-offset-right, 16px);
+    width: auto;
+  }
+  .smartbus-toaster[data-sonner-toaster] [data-sonner-toast] {
+    width: 100%;
+  }
+}
+
 @media (max-width: 360px) {
   .search-tabs {
     display: grid;
