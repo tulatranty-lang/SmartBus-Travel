@@ -41,7 +41,8 @@ Các con số SQL là nhóm kịch bản; không cộng chung như số lượng
 - Seed SQL lớn vượt timeout API 15 giây trên Windows. Migration có timeout riêng mặc định 120 giây và giữ transaction/checksum; chạy lại đã hoàn tất 13 file. Không sửa SQL lịch sử hoặc xóa database để né lỗi.
 - Một dòng chữ ở banner có màu quá nhạt trên nền sáng; đã đổi màu dễ đọc hơn.
 - Ba lựa chọn tìm kiếm chuyển thành các ô co giãn ở màn hình tối đa 360 px để nhãn dài không làm tràn ngang khi mở hộp thoại trên Chromium/Linux.
-- Giới hạn chiều rộng khung thông báo mobile theo hai mép màn hình, bao gồm khung không có chiều cao của thư viện thông báo; thông báo nằm phía trên thanh điều hướng. Tránh khung vô hình làm rộng vùng cuộn khi mở hộp thoại.
+- Nhãn thống kê cho phép tự xuống dòng, xử lý phần chữ vượt khỏi thẻ dù khung thẻ vẫn vừa màn hình. Đo lại viewport 320 px cho chiều rộng nội dung 320 px.
+- Khung thông báo mobile được giới hạn theo hai mép màn hình và đặt phía trên thanh điều hướng.
 
 ## Chạy lại
 

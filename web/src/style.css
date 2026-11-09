@@ -1143,7 +1143,7 @@ small {
 .stat-card > div > span {
   font-size: 11px;
   color: #5d7468;
-  white-space: nowrap;
+  white-space: normal;
 }
 .stat-arrow {
   position: absolute;

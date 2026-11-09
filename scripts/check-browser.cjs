@@ -57,11 +57,32 @@ async function noOverflow(p) {
       })
       .slice(0, 20),
   }));
-  if (dimensions.content > dimensions.viewport + 1)
+  if (dimensions.content > dimensions.viewport + 1) {
+    dimensions.textOverflow = await p.evaluate(() => {
+      const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+      );
+      const rows = [];
+      let node;
+      while ((node = walker.nextNode())) {
+        const range = document.createRange();
+        range.selectNode(node);
+        const rect = range.getBoundingClientRect();
+        if (rect.right > innerWidth + 1)
+          rows.push({
+            text: node.textContent.slice(0, 70),
+            right: rect.right,
+            parent: node.parentElement?.className,
+          });
+      }
+      return rows.slice(0, 20);
+    });
     fs.writeFileSync(
       path.join(out, "overflow.json"),
       JSON.stringify(dimensions, null, 2),
     );
+  }
   assert.ok(
     dimensions.content <= dimensions.viewport + 1,
     `Horizontal page overflow at ${dimensions.route}: ${dimensions.content}/${dimensions.viewport}px`,
