@@ -1,15 +1,15 @@
 # Kiến trúc, database và API hiện hành
 
-Ứng dụng tích hợp, không tạo frontend/backend rời mới. Giữ Express CommonJS, SQL Server và Leaflet. `backend-api/server.js` đọc cấu hình tại `backend-api/.env` bằng đường dẫn tuyệt đối, mở HTTP; `app.js` phục vụ cả API lẫn `frontend/`. Không mở thư mục gốc, SQL hoặc `.env` qua static HTTP.
+Ứng dụng tích hợp: React 19/TypeScript trong `web/src`, Express CommonJS và SQL Server. `npm run ui:build` tạo `frontend/app`; `app.js` phục vụ giao diện này tại `/` cùng API. MapLibre/OpenFreeMap là bản đồ chính, Leaflet/OSM dự phòng khi WebGL không có. `backend-api/server.js` đọc `backend-api/.env` bằng đường dẫn tuyệt đối và kiểm tra đã dựng giao diện trước khi mở HTTP. HTML cũ chỉ phục vụ tại `/legacy/`. Không mở thư mục gốc, SQL hoặc `.env` qua static HTTP.
 
 ```mermaid
 flowchart TB
-    B["Trình duyệt"] --> E["Express: auth, validate, rate limit"]
+    B["React / TanStack Query / Radix / Motion"] --> E["Express: auth, validate, rate limit"]
     E --> C["Controller theo nghiệp vụ"]
     C --> S["Service: chọn lọc và xử lý"]
     S --> R["Repository và data service"]
     R --> DB[("SQL Server")]
-    B --> M["Leaflet / bản đồ OSM"]
+    B --> M["MapLibre / OpenFreeMap; Leaflet dự phòng"]
     S -. "tùy cấu hình" .-> NLP["Rasa"]
 ```
 

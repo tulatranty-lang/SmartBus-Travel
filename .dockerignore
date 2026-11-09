@@ -8,5 +8,6 @@
 **/*.log
 .openai
 docs
+frontend/app
 
 **/qa-responsive.html

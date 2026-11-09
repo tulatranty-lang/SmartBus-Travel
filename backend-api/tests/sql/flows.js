@@ -5,7 +5,7 @@ const request = require("supertest");
 const db = require("../../config/db");
 const results = [];
 const prefix = "/api/v1";
-let app;
+let app, engine;
 async function call(method, url, status, body, token) {
   let req = request(app)[method](prefix + url);
   if (token) req = req.set("Authorization", `Bearer ${token}`);
@@ -50,6 +50,11 @@ async function main() {
     "Refuse production-like database name",
   );
   app = require("../../app");
+  engine = (
+    await db.query(
+      "SELECT CAST(SERVERPROPERTY('ProductVersion') AS varchar(40)) version, CAST(SERVERPROPERTY('Edition') AS varchar(120)) edition",
+    )
+  ).recordset[0];
   const suffix = randomUUID().slice(0, 8);
   const email = `qa-${suffix}@example.test`,
     otherEmail = `qa-other-${suffix}@example.test`;
@@ -473,7 +478,9 @@ main()
     await db.closePool();
     const summary = {
       at: new Date().toISOString(),
-      engine: "SQL Server 2022 (actual database, no repository mocks)",
+      engine: engine
+        ? `SQL Server ${engine.version} ${engine.edition} (actual database, no repository mocks)`
+        : "SQL Server (not connected)",
       passed: results.filter((x) => x.pass).length,
       total: results.length,
       cases: results,

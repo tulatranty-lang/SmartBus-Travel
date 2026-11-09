@@ -24,9 +24,14 @@ const seedFiles = [
 function fingerprints(source) {
   // Git for Windows may check out CRLF. Accept the legacy raw checksum for
   // either line ending, while continuing to reject actual SQL content edits.
-  const lf = source.replace(/\r\n/g, '\n');
-  return [...new Set([lf, lf.replace(/\n/g, '\r\n')].map(text =>
-    crypto.createHash('sha256').update(text).digest('hex')))];
+  const lf = source.replace(/\r\n/g, "\n");
+  return [
+    ...new Set(
+      [lf, lf.replace(/\n/g, "\r\n")].map((text) =>
+        crypto.createHash("sha256").update(text).digest("hex"),
+      ),
+    ),
+  ];
 }
 function batches(source, name) {
   if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(name))
@@ -40,8 +45,20 @@ function batches(source, name) {
 async function migrate({ seed = false } = {}) {
   const name = env.db.name;
   batches("", name);
-  const master = await new sql.ConnectionPool({
+  // Historical seed files contain hundreds of MERGEs in one batch. A cold
+  // Windows SQL instance can need longer than the API's 15-second timeout.
+  const requestedTimeout = Number(
+    process.env.DB_MIGRATION_TIMEOUT_MS || 120000,
+  );
+  const migrationConfig = {
     ...config,
+    requestTimeout:
+      Number.isFinite(requestedTimeout) && requestedTimeout >= 1000
+        ? requestedTimeout
+        : 120000,
+  };
+  const master = await new sql.ConnectionPool({
+    ...migrationConfig,
     database: "master",
   }).connect();
   try {
@@ -51,7 +68,7 @@ async function migrate({ seed = false } = {}) {
   } finally {
     await master.close();
   }
-  const pool = await new sql.ConnectionPool(config).connect(),
+  const pool = await new sql.ConnectionPool(migrationConfig).connect(),
     tx = new sql.Transaction(pool);
   await tx.begin();
   const request = () => new sql.Request(tx);
@@ -67,7 +84,8 @@ async function migrate({ seed = false } = {}) {
     );
     for (const file of [...schemaFiles, ...(seed ? seedFiles : [])]) {
       const text = fs.readFileSync(path.join(directory, file), "utf8"),
-        hashes = fingerprints(text), hash = hashes[0];
+        hashes = fingerprints(text),
+        hash = hashes[0];
       const old = await request()
         .input("name", sql.NVarChar(180), file)
         .query("SELECT checksum FROM dbo.smartbus_migrations WHERE name=@name");

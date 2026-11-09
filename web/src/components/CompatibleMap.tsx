@@ -10,6 +10,7 @@ export default function CompatibleMap({
   region,
   routes,
   places = [],
+  fitPlaces = false,
   stops = [],
   selected,
   focus,
@@ -78,35 +79,47 @@ export default function CompatibleMap({
               f.properties?.routeCode,
           ) === selected,
       ) || [];
-    const collection: FeatureCollection = { type: "FeatureCollection", features: filtered };
-    const geo = L.geoJSON(
-      collection,
-      {
-        style: (f) => ({
-          color: f?.properties?.color || "#168c7c",
-          weight: 4,
-          opacity: 0.85,
-        }),
-        onEachFeature: (feature, layer) => {
-          const id = String(
-            feature.properties?.id ||
-              feature.properties?.routeId ||
-              feature.properties?.routeCode ||
-              "",
-          );
-          const label = document.createElement("strong");
-          label.textContent = "Tuyến " + id;
-          layer.bindTooltip(label);
-          layer.on("click", () => handlers.current.onRoute?.(id));
-        },
+    const collection: FeatureCollection = {
+      type: "FeatureCollection",
+      features: filtered,
+    };
+    const geo = L.geoJSON(collection, {
+      style: (f) => ({
+        color: f?.properties?.color || "#168c7c",
+        weight: 4,
+        opacity: 0.85,
+      }),
+      onEachFeature: (feature, layer) => {
+        const id = String(
+          feature.properties?.id ||
+            feature.properties?.routeId ||
+            feature.properties?.routeCode ||
+            "",
+        );
+        const label = document.createElement("strong");
+        label.textContent = "Tuyến " + id;
+        layer.bindTooltip(label);
+        layer.on("click", () => handlers.current.onRoute?.(id));
       },
-    ).addTo(group);
+    }).addTo(group);
     if (selected && geo.getBounds().isValid())
       m.fitBounds(geo.getBounds(), {
         padding: [45, 45],
         maxZoom: 14,
         animate: false,
       });
+    if (!selected && fitPlaces) {
+      const positions = places.flatMap((p) => {
+        const pos = point(p);
+        return pos ? [[pos[1], pos[0]] as [number, number]] : [];
+      });
+      if (positions.length)
+        m.fitBounds(L.latLngBounds(positions), {
+          padding: [45, 45],
+          maxZoom: 14,
+          animate: false,
+        });
+    }
     for (const p of stops) {
       const pos = point(p);
       if (!pos) continue;
@@ -138,14 +151,14 @@ export default function CompatibleMap({
         .on("click", () => handlers.current.onPlace?.(p.id))
         .addTo(group);
     }
-  }, [ready, routes, places, stops, selected]);
+  }, [ready, routes, places, stops, selected, fitPlaces]);
   useEffect(() => {
     const c = centers[region] || centers.DN;
-    if (ready && !selected)
+    if (ready && !selected && !fitPlaces)
       map.current?.setView([c[1], c[0]], compact ? 11 : 11.6, {
         animate: false,
       });
-  }, [region, ready, selected, compact]);
+  }, [region, ready, selected, compact, fitPlaces]);
   useEffect(() => {
     if (ready && focus)
       map.current?.setView([focus[1], focus[0]], 14, { animate: false });

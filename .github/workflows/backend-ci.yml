@@ -1,4 +1,4 @@
-name: Backend CI
+name: SmartBus CI
 
 on:
   push:
@@ -18,8 +18,13 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: backend-api/package-lock.json
+          cache-dependency-path: |
+            backend-api/package-lock.json
+            web/package-lock.json
       - run: npm ci --no-audit --no-fund
+      - run: npm --prefix ../web ci --no-audit --no-fund
+      - run: npm --prefix ../web test
+      - run: npm --prefix ../web run build
       - run: npm run check
       - run: npm test
       - run: node ../scripts/check-syntax.js
@@ -47,8 +52,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: backend-api/package-lock.json
+          cache-dependency-path: |
+            backend-api/package-lock.json
+            web/package-lock.json
       - run: npm ci --no-audit --no-fund
+      - run: npm --prefix ../web ci --no-audit --no-fund
+      - run: npm --prefix ../web run build
       - name: Start isolated SQL Server with random credentials
         shell: bash
         run: |
@@ -74,6 +83,18 @@ jobs:
           DB_NAME: SmartBusUpgradeTest
           SMARTBUS_TEST_DATABASE: SmartBusUpgradeTest
         run: node tests/sql/upgrade.js
+      - name: Install browser for UI acceptance
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Verify production UI against the disposable SQL database
+        run: node ../scripts/check-browser.cjs
+      - name: Save browser acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smartbus-ui-acceptance
+          path: .artifacts/browser/
+          if-no-files-found: ignore
       - name: Remove disposable SQL container
         if: always()
         run: docker rm -f smartbus-qa || true

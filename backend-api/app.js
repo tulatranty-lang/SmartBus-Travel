@@ -70,10 +70,12 @@ app.use(
         imgSrc: ["'self'", "data:", "blob:", "https:"],
         connectSrc: [
           "'self'",
+          "https://tiles.openfreemap.org",
           "https://router.project-osrm.org",
           "https://routing.openstreetmap.de",
           "https://nominatim.openstreetmap.org",
         ],
+        workerSrc: ["'self'"],
         upgradeInsecureRequests: env.isProduction ? [] : null,
       },
     },
@@ -116,33 +118,29 @@ app.get(`${env.apiPrefix}/health/liveness`, (_req, res) =>
 app.get(`${env.apiPrefix}/health/db`, async (_req, res) => {
   const database = await db.healthCheck();
   const ok = database.connected === true;
-  return res
-    .status(ok ? 200 : 503)
-    .json({
-      success: ok,
-      status: ok ? "ok" : "degraded",
-      database: {
-        connected: ok,
-        name: env.db.name,
-        message: database.message || database.status,
-      },
-    });
+  return res.status(ok ? 200 : 503).json({
+    success: ok,
+    status: ok ? "ok" : "degraded",
+    database: {
+      connected: ok,
+      name: env.db.name,
+      message: database.message || database.status,
+    },
+  });
 });
 app.get(`${env.apiPrefix}/health/readiness`, async (_req, res) => {
   const database = await db.healthCheck();
   const ok = database.connected === true;
-  return res
-    .status(ok ? 200 : 503)
-    .json({
-      success: ok,
-      status: ok ? "ready" : "not_ready",
-      service: "smartbus-backend",
-      database: {
-        connected: ok,
-        name: env.db.name,
-        message: database.message || database.status,
-      },
-    });
+  return res.status(ok ? 200 : 503).json({
+    success: ok,
+    status: ok ? "ready" : "not_ready",
+    service: "smartbus-backend",
+    database: {
+      connected: ok,
+      name: env.db.name,
+      message: database.message || database.status,
+    },
+  });
 });
 
 function mount(prefix) {
@@ -188,7 +186,28 @@ app.get("/runtime-config.js", (_req, res) =>
       `window.SMARTBUS_API_BASE=${JSON.stringify(env.apiPrefix)};window.SMARTBUS_SIMULATION=${JSON.stringify(env.enableSimulation)};`,
     ),
 );
+// Vite emits relative asset URLs so the same build also works under a Pages subpath.
 app.use(
+  express.static(path.resolve(__dirname, "../frontend/app"), {
+    dotfiles: "deny",
+    index: "index.html",
+    setHeaders(res, file) {
+      if (/[\\/]assets[\\/]/.test(file))
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      else if (
+        file.endsWith("index.html") ||
+        file.endsWith("runtime-config.js")
+      )
+        res.setHeader("Cache-Control", "no-cache");
+    },
+  }),
+);
+// Keep old bookmarks usable without making the old interface the default.
+app.get("/legacy/runtime-config.js", (_req, res) =>
+  res.redirect(307, "/runtime-config.js"),
+);
+app.use(
+  "/legacy",
   express.static(path.resolve(__dirname, "../frontend"), {
     dotfiles: "deny",
     index: "index.html",

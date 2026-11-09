@@ -1,6 +1,15 @@
 const app = require("./app");
 const env = require("./config/env");
 const { closePool } = require("./config/db");
+const fs = require("node:fs");
+const path = require("node:path");
+
+if (!fs.existsSync(path.resolve(__dirname, "../frontend/app/index.html"))) {
+  console.error(
+    "Chưa dựng giao diện SmartBus 3. Chạy npm run setup (lần đầu) hoặc npm run ui:build rồi khởi động lại.",
+  );
+  process.exit(1);
+}
 
 // Preview hosts pass a port on the command line; normal startup uses PORT.
 const portArg = process.argv.indexOf("--port");

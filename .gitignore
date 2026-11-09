@@ -11,6 +11,8 @@ backend-api/coverage/
 *.log
 test-results/
 playwright-report/
+frontend/app/
+.artifacts/
 .DS_Store
 
 qa-responsive.html

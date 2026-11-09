@@ -2,13 +2,15 @@
 
 Ứng dụng web tra cứu xe buýt và du lịch miền Trung: tuyến/điểm dừng trên bản đồ, bến gần vị trí, địa điểm du lịch, gợi ý lịch trình, trợ lý tiếng Việt, lưu yêu thích và quản trị nội dung.
 
-**Công nghệ hiện tại:** Node.js/Express + Microsoft SQL Server + HTML/CSS/JavaScript + Leaflet. Dự án này **không dùng PHP/MySQL/XAMPP**. Frontend và API có thể chạy chung một server; người sử dụng chỉ đăng ký/đăng nhập, không sửa code.
+**SmartBus 3:** React 19 + TypeScript + Vite, TanStack Query, Radix UI, Motion, MapLibre/OpenFreeMap và Leaflet dự phòng; API Node.js/Express + Microsoft SQL Server. Các thư viện giao diện là mã nguồn mở, không yêu cầu API key bản đồ. Giao diện mới và API chạy chung một server; người dùng đăng ký/đăng nhập để lưu chuyến đi.
+
+Giao diện mới nằm trong `web/src`, được dựng vào `frontend/app` và mở ngay tại `/`. Bản HTML cũ vẫn có tại `/legacy/`. Xem [các thay đổi giao diện](docs/current/UI_UPGRADE.md) và [nghiệm thu SmartBus 3 trên Windows](docs/current/UI_VERIFICATION.md).
 
 Dữ liệu tuyến và tọa độ được nhập từ bộ tài liệu sẵn có trong repository. Đây là dữ liệu tham khảo, chưa phải feed vị trí xe/giờ đến trực tiếp từ đơn vị vận hành. Tên khu vực có Quảng Nam cũ và tuyến liên vùng; không dùng số khu vực như số đơn vị hành chính hiện hành. Bài review mẫu cũ được đánh dấu `is_seed`/“Bài mẫu”.
 
 ## Chạy trên Windows
 
-Cần Node.js 24 LTS (tối thiểu 22), SQL Server 2022 Developer/Express và TCP/IP của SQL Server được bật. SSMS chỉ là công cụ quản trị; cài SSMS không đồng nghĩa đã cài SQL Server. Không cần Apache hoặc XAMPP.
+Cần Node.js 24 LTS (tối thiểu 22.12), SQL Server Developer/Express 2022 trở lên và TCP/IP của SQL Server được bật. SSMS chỉ là công cụ quản trị; cài SSMS không đồng nghĩa đã cài SQL Server. Không cần Apache hoặc XAMPP.
 
 1. Clone và tạo cấu hình riêng:
 
@@ -51,7 +53,7 @@ npm run db:setup
 npm start
 ```
 
-`setup` cài dependencies đúng lock; `db:setup` tạo schema và nạp dữ liệu tham khảo; `db:migrate` áp dụng schema mới mà không chạy lại bộ import đã có journal. Migration chạy trong transaction, có khóa chống chạy đồng thời và checksum. Chạy lại thành công phải báo `0 file(s) applied`. Không sửa các SQL đã được ghi journal và không xóa database để né lỗi.
+`setup` cài dependencies của API và giao diện theo lock, rồi dựng SmartBus 3; `db:setup` tạo schema và nạp dữ liệu tham khảo; `db:migrate` áp dụng schema mới mà không chạy lại bộ import đã có journal. Migration chạy trong transaction, có khóa chống chạy đồng thời và checksum. Chạy lại thành công phải báo `0 file(s) applied`. Tệp seed lớn có thời gian chờ riêng `DB_MIGRATION_TIMEOUT_MS` (mặc định 120 giây), không kéo dài timeout API. Không sửa các SQL đã được ghi journal và không xóa database để né lỗi.
 
 **Database cũ:** sao lưu trước nâng cấp; giữ nguyên `DB_NAME`, tài khoản và mật khẩu. Chạy `npm run setup`, rồi `npm run db:migrate`. Khi database chưa có `smartbus_migrations`, CLI chạy các SQL lịch sử có điều kiện để bổ sung schema. Bộ import tham khảo có cập nhật lại một số liên kết tuyến–bến, vì vậy chỉ dùng `--seed` khi chủ động cài/import dữ liệu. Kiểm thử nâng cấp có giữ hash mật khẩu và lịch sử hoạt động; không thể coi đó là kiểm chứng mọi database cũ tùy biến.
 
@@ -71,9 +73,9 @@ Thu hồi quyền: `node backend-api/scripts/admin.js revoke EMAIL`. CLI ngăn t
 
 | Chức năng | Luồng chính | Nơi mở rộng |
 |---|---|---|
-| Đăng ký/đăng nhập/đăng xuất | `frontend/script.js` Auth → `/auth/*` → auth service/repository → users, refresh_tokens | `backend-api/modules/auth`, `common/middleware/auth.middleware.js` |
-| Tuyến, điểm dừng, bản đồ | Landing/MapModule → `/routes`, `/stops`, `/map/*` → repositories → SQL → JSON/GeoJSON → Leaflet | `modules/route`, `stop`, `map`, `bus-domain` |
-| Du lịch | TravelUI → `/tourism/places` → bộ lọc SQL, count cùng điều kiện, batch liên kết bến/tuyến → thẻ địa điểm | `modules/tourism` |
+| Đăng ký/đăng nhập/đăng xuất | React AuthDialog → `/auth/*` → auth service/repository → users, refresh_tokens | `web/src/api.ts`, `web/src/state.tsx`, `backend-api/modules/auth` |
+| Tuyến, điểm dừng, bản đồ | ExplorePages → `/routes`, `/stops`, `/map/*` → SQL → JSON/GeoJSON → MapLibre hoặc Leaflet | `web/src/components/TransitMap.tsx`, `modules/route`, `stop`, `map` |
+| Du lịch | PlacesPage → `/tourism/places` → bộ lọc SQL, count cùng điều kiện, batch liên kết bến/tuyến → thẻ địa điểm | `web/src/pages/ExplorePages.tsx`, `modules/tourism` |
 | Yêu thích | Token Bearer → `/favorite-*` hoặc alias tourism → kiểm tra tồn tại → ghi transaction → đọc theo user ID | `modules/favorites` |
 | Lịch trình | POST `/trip-plans/generate` → lọc tỉnh, chấm điểm và chọn tuần tự → lưu plan + items nguyên khối | `modules/trip` |
 | Trợ lý | `/chatbot/ask` → nhận diện intent/entity → dữ liệu SQL theo mục đích → câu trả lời và lịch sử | `modules/chat` |
@@ -85,7 +87,10 @@ Thu hồi quyền: `node backend-api/scripts/admin.js revoke EMAIL`. CLI ngăn t
 ## Cấu trúc
 
 ```text
-frontend/                  Giao diện chuẩn đang sử dụng
+web/src/                   Mã nguồn React/TypeScript của SmartBus 3
+web/public/                Ảnh có ghi nguồn, favicon, cấu hình API cho static host
+frontend/app/              Giao diện production do npm run ui:build tạo (không commit)
+frontend/                  HTML/JS cũ, phục vụ tại /legacy/
 backend-api/server.js      HTTP entry point, hỗ trợ PORT/--port
 backend-api/app.js         Middleware, route mounting, runtime-config, static frontend
 backend-api/config/        Môi trường, SQL connection pool
@@ -97,15 +102,18 @@ backend-api/tests/         Unit/API mock và SQL integration tách biệt
 scripts/                   Cấu hình, khởi động Windows, đồng bộ GitHub Pages
 database/                  SQL lịch sử bất biến + migration mới
 docs/current/              Tài liệu và bằng chứng kiểm thử bản này
-docs/                      Bản sao frontend cho GitHub Pages và tài liệu lịch sử
+docs/                      Bản build SmartBus 3 cho GitHub Pages và tài liệu lịch sử
 rasa-smartbus-bot/          Tích hợp Rasa tùy chọn; không cần cho bộ luật chat hiện tại
 ```
 
 `backend-api/src/`, các báo cáo `README_*`/patch cũ là phần kế thừa, không phải entry point mới. Xem [kiến trúc/ERD/API](docs/current/ARCHITECTURE.md), [thuật toán](docs/current/ALGORITHMS.md), [kiểm thử và giới hạn](docs/current/VERIFICATION.md).
 
+Sau khi sửa `web/src`, chạy `npm run build` để dựng lại giao diện và cập nhật GitHub Pages. Không sửa các tệp sinh tự động trong `frontend/app` hoặc `docs/assets`. Khi phát triển, chạy API bằng `npm run dev` và Vite bằng `npm run dev:web` ở cửa sổ khác; Vite chuyển tiếp API đến cổng 5000.
+
 ## Kiểm tra
 
 ```bash
+npm run build
 npm run check
 npm test
 ```
@@ -122,11 +130,13 @@ npm run test:sql
 
 Không trỏ test vào database đang sử dụng: test tạo tài khoản, nâng quyền, nhập dữ liệu và tạo nội dung. Chạy migration upgrade test bằng database khác có tên chứa `Upgrade` và `Test`: `node backend-api/tests/sql/upgrade.js`; lần đầu phải là database mới. Các test mock không chứng minh SQL đang hoạt động. Báo cáo hiện tại ghi riêng kết quả thật.
 
+Kiểm tra trình duyệt với cùng cấu hình database thử ở trên: `npm run test:browser`. Công cụ tự mở HTTP ở cổng ngẫu nhiên và Edge trên Windows; trên Linux cần chạy `npx --prefix web playwright install --with-deps chromium` trước. Nó dùng SQL thật để đăng ký, lưu địa điểm, tạo lịch trình và kiểm duyệt bài của tài khoản thử; ảnh và báo cáo nằm trong `.artifacts/browser`.
+
 ## GitHub Pages và chạy online
 
 Khuyến nghị chạy **cùng origin**: `npm start` phục vụ frontend và API; `/runtime-config.js` tự nhận API prefix. Không cần sửa JavaScript khi đổi domain chung.
 
-GitHub Pages chỉ phục vụ frontend, không chạy Node.js/SQL Server. Sau sửa frontend, chạy `npm run pages:sync`; CI kiểm tra frontend/docs giống nhau. Khi dùng Pages riêng, chủ dự án đặt địa chỉ API trong `frontend/runtime-config.js` một lần rồi sync; backend cần HTTPS và `CORS_ORIGIN=https://tulatranty-lang.github.io`. Endpoint Render cũ trong cấu hình static chưa được xác nhận là dịch vụ đang hoạt động.
+GitHub Pages chỉ phục vụ frontend, không chạy Node.js/SQL Server. Sau sửa giao diện, chạy `npm run build`; CI kiểm tra bản dựng và tài nguyên trong `docs` giống nhau. Đường dẫn tương đối và HashRouter hỗ trợ `/SmartBus-Travel/`. Khi dùng Pages riêng, chủ dự án đặt URL API HTTPS vào `web/public/runtime-config.js` rồi dựng lại; backend cần `CORS_ORIGIN=https://tulatranty-lang.github.io`. Cấu hình mới mặc định cùng origin, không tự dùng endpoint Render cũ chưa được xác nhận. Khi chưa có backend online, Pages sẽ báo lỗi kết nối; bản chạy chung server trên máy dùng được đầy đủ.
 
 Dockerfile tại **thư mục gốc** đóng gói cả API, frontend và migration; kết nối tới SQL Server riêng. Trước khi public đặt `NODE_ENV=production`, hai JWT secret khác nhau đủ dài, DB account riêng, TLS và CORS origin đúng. Không đóng gói `.env`, token hoặc dữ liệu phiên. Docker image chưa được chạy trong môi trường kiểm thử hiện tại. Không có cam kết dịch vụ miễn phí lâu dài trong bản này.
 

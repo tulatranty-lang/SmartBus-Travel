@@ -1,5 +1,7 @@
 # Báo cáo kiểm thử và bàn giao
 
+> Báo cáo dưới đây ghi nhận nền API và giao diện HTML đời trước. Bản React SmartBus 3 và nghiệm thu Windows ngày 09/11/2026 được ghi riêng tại [UI_VERIFICATION.md](UI_VERIFICATION.md); không dùng các giới hạn về Windows/giao diện cũ dưới đây để suy ra kết quả của bản mới.
+
 Bản làm việc: nhánh `codex/complete-smartbus`, bắt đầu từ `4d0db32`. Các số liệu dưới đây là kết quả thực thi, không suy ra từ việc chỉ đọc code. Môi trường: Linux, Node.js 24.22.1, npm 11.9, SQL Server 2022 16.0.4212.1; trình duyệt Chrome. Database thử riêng, không kết nối database sản xuất của chủ dự án.
 
 ## Đã sửa

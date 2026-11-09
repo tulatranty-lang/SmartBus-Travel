@@ -590,7 +590,13 @@ export function ExplorePage() {
     locate,
   } = useApp();
   const [params, setParams] = useSearchParams();
-  const [tab, setTab] = useState(params.get("nearby") ? "nearby" : "routes"),
+  const [tab, setTab] = useState(
+      params.get("nearby")
+        ? "nearby"
+        : params.get("places")
+          ? "places"
+          : "routes",
+    ),
     [q, setQ] = useState(""),
     [focus, setFocus] = useState<[number, number] | null>(null);
   const selected = params.get("route"),
@@ -599,6 +605,19 @@ export function ExplorePage() {
       .split(",")
       .filter(Boolean)
       .map(Number);
+  useEffect(() => {
+    if (params.has("places")) setTab("places");
+    else if (params.has("nearby")) setTab("nearby");
+    else if (params.has("route")) setTab("routes");
+  }, [params]);
+  const previousRegion = useRef(region);
+  useEffect(() => {
+    if (previousRegion.current !== region) {
+      previousRegion.current = region;
+      setParams({}, { replace: true });
+      setFocus(null);
+    }
+  }, [region, setParams]);
   const routes = useResource<Route[]>("routes", "/routes", {
       provinceCode: region,
       limit: 100,
@@ -849,6 +868,7 @@ export function ExplorePage() {
             routes={geo.data?.data}
             selected={selected}
             places={listPlaces}
+            fitPlaces={chosen.length > 0}
             stops={stops.data?.data || []}
             focus={focus}
             onPlace={setPlaceId}

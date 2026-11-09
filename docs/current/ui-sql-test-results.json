@@ -1,0 +1,148 @@
+{
+  "at": "2026-11-09T13:08:58.328Z",
+  "engine": "SQL Server 17.0.1145.4 Enterprise Developer Edition (64-bit) (actual database, no repository mocks)",
+  "passed": 28,
+  "total": 28,
+  "cases": [
+    {
+      "name": "database and migration journal",
+      "pass": true,
+      "ms": 7
+    },
+    {
+      "name": "register hashes password and returns private profile",
+      "pass": true,
+      "ms": 490
+    },
+    {
+      "name": "invalid registration and duplicate email",
+      "pass": true,
+      "ms": 17
+    },
+    {
+      "name": "wrong password and SQL injection login rejected",
+      "pass": true,
+      "ms": 143
+    },
+    {
+      "name": "current authenticated profile",
+      "pass": true,
+      "ms": 77
+    },
+    {
+      "name": "refresh rotation concurrency and replay prevention",
+      "pass": true,
+      "ms": 143
+    },
+    {
+      "name": "normal user cannot access administration",
+      "pass": true,
+      "ms": 18
+    },
+    {
+      "name": "grant admin invalidates old session",
+      "pass": true,
+      "ms": 304
+    },
+    {
+      "name": "suspended account denied immediately",
+      "pass": true,
+      "ms": 39
+    },
+    {
+      "name": "public route and tourism queries use SQL",
+      "pass": true,
+      "ms": 131
+    },
+    {
+      "name": "pagination stable empty and invalid inputs",
+      "pass": true,
+      "ms": 54
+    },
+    {
+      "name": "nearest stop and invalid GPS",
+      "pass": true,
+      "ms": 257
+    },
+    {
+      "name": "map layers are GeoJSON",
+      "pass": true,
+      "ms": 422
+    },
+    {
+      "name": "route favorites idempotent and private",
+      "pass": true,
+      "ms": 108
+    },
+    {
+      "name": "parallel place favorites consistent across endpoints",
+      "pass": true,
+      "ms": 156
+    },
+    {
+      "name": "community review pending privacy and XSS sanitization",
+      "pass": true,
+      "ms": 62
+    },
+    {
+      "name": "admin moderation public visibility and hide",
+      "pass": true,
+      "ms": 72
+    },
+    {
+      "name": "admin place CRUD and hidden listing",
+      "pass": true,
+      "ms": 124
+    },
+    {
+      "name": "import invalid batch is atomic",
+      "pass": true,
+      "ms": 33
+    },
+    {
+      "name": "admin JSON import updates SQL and records history",
+      "pass": true,
+      "ms": 54
+    },
+    {
+      "name": "trip generation saves complete plan and ownership",
+      "pass": true,
+      "ms": 176
+    },
+    {
+      "name": "trip failure rolls back parent insertion",
+      "pass": true,
+      "ms": 33
+    },
+    {
+      "name": "chat response and own history",
+      "pass": true,
+      "ms": 128
+    },
+    {
+      "name": "chat named destination is not replaced by unrelated place",
+      "pass": true,
+      "ms": 99
+    },
+    {
+      "name": "chat fare and itinerary intents stay distinct",
+      "pass": true,
+      "ms": 187
+    },
+    {
+      "name": "no live arrival estimate is invented",
+      "pass": true,
+      "ms": 42
+    },
+    {
+      "name": "logout invalidates access and refresh",
+      "pass": true,
+      "ms": 42
+    },
+    {
+      "name": "static application and sensitive files isolation",
+      "pass": true,
+      "ms": 40
+    }
+  ]
+}

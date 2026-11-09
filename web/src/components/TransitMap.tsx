@@ -23,6 +23,7 @@ export interface MapProps {
   region: string;
   routes?: GeoJSON.FeatureCollection;
   places?: Place[];
+  fitPlaces?: boolean;
   stops?: Stop[];
   selected?: string | null;
   focus?: [number, number] | null;
@@ -34,6 +35,7 @@ export default function TransitMap({
   region,
   routes = empty,
   places = [],
+  fitPlaces = false,
   stops = [],
   selected,
   focus,
@@ -187,10 +189,15 @@ export default function TransitMap({
     });
     (m.getSource("places") as GeoJSONSource)?.setData(points(places));
     (m.getSource("stops") as GeoJSONSource)?.setData(points(stops));
-    if (selected) {
-      const coords = filtered.features.flatMap((f) =>
-        f.geometry.type === "LineString" ? f.geometry.coordinates : [],
-      );
+    if (selected || fitPlaces) {
+      const coords = selected
+        ? filtered.features.flatMap((f) =>
+            f.geometry.type === "LineString" ? f.geometry.coordinates : [],
+          )
+        : places.flatMap((p) => {
+            const pos = point(p);
+            return pos ? [pos] : [];
+          });
       if (coords.length)
         m.fitBounds(
           [
@@ -203,12 +210,18 @@ export default function TransitMap({
               Math.max(...coords.map((p) => p[1])),
             ],
           ],
-          { padding: 60, maxZoom: 14, duration: 400 },
+          {
+            padding: 60,
+            maxZoom: 14,
+            duration: matchMedia("(prefers-reduced-motion: reduce)").matches
+              ? 0
+              : 400,
+          },
         );
     }
-  }, [ready, routes, places, stops, selected]);
+  }, [ready, routes, places, stops, selected, fitPlaces]);
   useEffect(() => {
-    if (ready && !selected)
+    if (ready && !selected && !fitPlaces)
       map.current?.flyTo({
         center: centers[region] || centers.DN,
         zoom: compact ? 11 : 11.6,
@@ -216,7 +229,7 @@ export default function TransitMap({
           ? 0
           : 700,
       });
-  }, [region, ready, compact, selected]);
+  }, [region, ready, compact, selected, fitPlaces]);
   useEffect(() => {
     if (ready && focus)
       map.current?.flyTo({
@@ -238,6 +251,7 @@ export default function TransitMap({
           region={region}
           routes={routes}
           places={places}
+          fitPlaces={fitPlaces}
           stops={stops}
           selected={selected}
           focus={focus}

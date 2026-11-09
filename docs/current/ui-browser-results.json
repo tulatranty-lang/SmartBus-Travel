@@ -1,0 +1,21 @@
+{
+  "at": "2026-11-09T13:12:59.822Z",
+  "platform": "win32",
+  "checks": [
+    "Production React home loads real SQL data and licensed local photography",
+    "Keyboard quick search opens correct SQL place detail and Escape closes it",
+    "Route details link to the actual selected route on the map",
+    "Manual coordinates return the real nearest stop without device GPS",
+    "Browser registration creates a real account with session-only storage",
+    "Favorite place persists through a full reload and can be removed",
+    "A generated plan is saved in SQL, collapses and reopens from history",
+    "Community form creates a pending SQL review and keeps it out of public results",
+    "Chat answers from actual SQL without requesting device location",
+    "Normal account cannot enter admin; granted account can moderate its pending review",
+    "Mobile navigation, content and dialog fit 390 px and 320 px",
+    "WebGL-disabled browser renders real routes through the 2D fallback"
+  ],
+  "errors": [],
+  "csp": [],
+  "passed": 12
+}
