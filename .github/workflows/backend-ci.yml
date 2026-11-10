@@ -93,6 +93,8 @@ jobs:
         run: node ../scripts/check-browser.cjs
       - name: Verify public map simulation and mobile layout
         run: node ../scripts/check-simulation-browser.cjs
+      - name: Verify estimated fleet in the main map
+        run: node ../scripts/check-map-browser.cjs
       - name: Save browser acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4

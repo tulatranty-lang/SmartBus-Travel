@@ -195,7 +195,7 @@ const server = http.createServer((request, response) => {
       });
     await page.goto(base + "#/");
     await page
-      .getByRole("button", { name: "Xem chuyến xe mô phỏng" })
+      .getByRole("button", { name: "Xem xe trên bản đồ" })
       .waitFor();
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".stat-card strong")].some(

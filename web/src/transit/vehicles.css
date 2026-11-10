@@ -1,0 +1,114 @@
+.estimated-bus-marker {
+  position: relative;
+  display: block;
+  width: 44px;
+  height: 64px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  overflow: visible;
+  appearance: none;
+  --bus-color: #248fbd;
+  --bus-bearing: 0deg;
+  z-index: 3;
+  filter: drop-shadow(0 2px 2px #163d3c44);
+}
+.estimated-bus-marker:focus-visible {
+  outline: 3px solid #e9b650;
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+.estimated-bus-vehicle {
+  position: absolute;
+  left: 8px;
+  top: 3px;
+  width: 28px;
+  height: 58px;
+  transform: rotate(var(--bus-bearing));
+  transform-origin: 50% 50%;
+  transition: transform 100ms linear;
+  pointer-events: none;
+}
+.estimated-bus-paint {
+  fill: var(--bus-color);
+}
+.estimated-bus-brakes {
+  fill: #a86156;
+}
+.estimated-bus-stopped .estimated-bus-brakes {
+  fill: #ff654e;
+  filter: drop-shadow(0 0 1px #ff654e);
+}
+.estimated-bus-code {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 27px;
+  padding: 3px 5px;
+  border: 1px solid #fff;
+  border-radius: 5px;
+  background: #fffef9;
+  color: #154b62;
+  font: 700 10px/1.2 system-ui;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px #16414333;
+  pointer-events: none;
+}
+.estimated-bus-estimate {
+  position: absolute;
+  left: 8px;
+  top: 11px;
+  width: 28px;
+  height: 42px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+}
+.estimated-bus-selected {
+  z-index: 8 !important;
+}
+.estimated-bus-selected .estimated-bus-code {
+  background: #155a72;
+  color: white;
+  border-color: #fff;
+}
+.estimated-bus-selected .estimated-bus-estimate {
+  left: 0;
+  top: 5px;
+  width: 44px;
+  height: 54px;
+  border-color: #2788a68c;
+  box-shadow: 0 0 0 6px #48aac326;
+  background: #48aac315;
+}
+.leaflet-marker-icon.estimated-bus-leaflet {
+  background: transparent;
+  border: 0;
+}
+.estimated-bus-leaflet .estimated-bus-marker {
+  margin: 0;
+}
+.estimated-bus-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #346b6c;
+}
+.estimated-bus-hint:before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: #248fbd;
+  border-radius: 50%;
+}
+.estimated-map-dot {
+  width: 6px;
+  height: 6px;
+  background: #248fbd;
+  border-radius: 50%;
+  display: inline-block;
+}
