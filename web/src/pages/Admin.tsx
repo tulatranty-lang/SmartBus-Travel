@@ -1,0 +1,915 @@
+import { useState, type FormEvent } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Activity,
+  ArrowLeft,
+  ArrowRight,
+  BusFront,
+  Check,
+  CheckCircle2,
+  ClipboardList,
+  Eye,
+  FileJson,
+  Flag,
+  MapPin,
+  MessageCircle,
+  PenLine,
+  Plus,
+  Search,
+  ShieldCheck,
+  Upload,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { api } from "../api";
+import {
+  useApp,
+  useResource,
+  useDebounced,
+  regions,
+  categories,
+  date,
+  number,
+} from "../state";
+import { parseImport, type ImportRow } from "../import-validation";
+import type { Place, Review, Stats } from "../types";
+import {
+  Badge,
+  Button,
+  Busy,
+  Empty,
+  ErrorState,
+  Field,
+  IconButton,
+  Modal,
+  PageHeading,
+} from "../components/ui";
+import { ActivityHistory, SignInRequired } from "./PersonalPages";
+const statuses: Record<string, string> = {
+  all: "Tất cả",
+  pending: "Chờ duyệt",
+  approved: "Đã duyệt",
+  approved_seed: "Bài tham khảo",
+  hidden: "Đã ẩn",
+  rejected: "Chưa được duyệt",
+};
+export default function Admin() {
+  const { user } = useApp();
+  if (!user) return <SignInRequired title="Đăng nhập để tiếp tục quản trị" />;
+  if (user.role !== "admin")
+    return (
+      <Empty
+        icon={ShieldCheck}
+        title="Khu vực dành cho quản trị viên"
+        description="Tài khoản của bạn chưa có quyền quản trị hệ thống."
+      />
+    );
+  return <AdminWorkspace />;
+}
+function AdminWorkspace() {
+  const [tab, setTab] = useState("reviews"),
+    stats = useResource<Stats>("admin-stats", "/stats/overview");
+  return (
+    <>
+      <PageHeading
+        eyebrow="SMARTBUS / QUẢN TRỊ"
+        title="Chăm chút từng hành trình."
+        description="Quản lý nội dung, điểm đến và phản hồi trong một không gian."
+      />
+      <div className="stat-grid admin-stats">
+        {[
+          { key: "totalRoutes" as const, label: "Tuyến xe", icon: BusFront },
+          {
+            key: "totalTourismPlaces" as const,
+            label: "Điểm đến",
+            icon: MapPin,
+          },
+          {
+            key: "totalReviews" as const,
+            label: "Trải nghiệm",
+            icon: MessageCircle,
+          },
+          { key: "totalStops" as const, label: "Điểm dừng", icon: Flag },
+        ].map((m, i) => (
+          <div
+            className={`stat-card stat-${["teal", "orange", "purple", "blue"][i]}`}
+            key={m.key}
+          >
+            <span className="stat-icon">
+              <m.icon size={22} />
+            </span>
+            <div>
+              <strong>
+                {stats.data ? number(stats.data.data[m.key]) : "—"}
+              </strong>
+              <span>{m.label}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      {stats.error && <ErrorState error={stats.error} retry={stats.refetch} />}
+      <div className="admin-tabs" role="group" aria-label="Nội dung quản trị">
+        {[
+          { id: "reviews", label: "Trải nghiệm", icon: MessageCircle },
+          { id: "posts", label: "Bài cộng đồng", icon: ClipboardList },
+          { id: "places", label: "Điểm đến", icon: MapPin },
+          { id: "import", label: "Nhập dữ liệu", icon: Upload },
+          { id: "reports", label: "Phản hồi", icon: Flag },
+          { id: "activity", label: "Hoạt động", icon: Activity },
+        ].map((t) => (
+          <button
+            key={t.id}
+            aria-pressed={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={tab === t.id ? "active" : ""}
+          >
+            <t.icon size={16} />
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === "reviews" || tab === "posts" ? (
+        <Moderation key={tab} posts={tab === "posts"} />
+      ) : tab === "places" ? (
+        <PlacesAdmin />
+      ) : tab === "import" ? (
+        <ImportAdmin />
+      ) : tab === "reports" ? (
+        <ReportsAdmin />
+      ) : (
+        <ActivityHistory admin />
+      )}
+    </>
+  );
+}
+function Moderation({ posts }: { posts: boolean }) {
+  const client = useQueryClient(),
+    [q, setQ] = useState(""),
+    [status, setStatus] = useState("pending"),
+    [opened, setOpened] = useState<Review | null>(null),
+    text = useDebounced(q);
+  const rows = useResource<Review[]>(
+    posts ? "admin-posts" : "admin-reviews",
+    posts ? "/admin/community-posts/pending" : "/admin/reviews",
+    posts ? {} : { status, q: text },
+  );
+  const mutation = useMutation({
+    mutationFn: ({ id, action }: { id: number; action: "approve" | "hide" }) =>
+      api(
+        posts
+          ? `/admin/community-posts/${id}/${action === "approve" ? "approve" : "reject"}`
+          : `/admin/reviews/${id}/${action}`,
+        { method: action === "approve" ? "POST" : posts ? "POST" : "PUT" },
+      ),
+    onSuccess: () => {
+      client.invalidateQueries({
+        queryKey: [posts ? "admin-posts" : "admin-reviews"],
+      });
+      client.invalidateQueries({ queryKey: ["community"] });
+      client.invalidateQueries({ queryKey: ["admin-stats"] });
+      client.invalidateQueries({ queryKey: ["admin-activity"] });
+      toast.success("Đã cập nhật trạng thái nội dung.");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  return (
+    <section className="surface admin-panel">
+      <header className="admin-panel-header">
+        <div>
+          <h2>
+            {posts ? "Bài cộng đồng chờ duyệt" : "Kiểm duyệt trải nghiệm"}
+          </h2>
+          <p className="muted">
+            Đọc nội dung trước khi duyệt hoặc ẩn khỏi cộng đồng.
+          </p>
+        </div>
+        <Badge tone="teal">{rows.data?.data.length || 0} bài</Badge>
+      </header>
+      {!posts && (
+        <div className="admin-filter">
+          <label className="search-field">
+            <Search size={17} />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Tiêu đề, tác giả, địa điểm…"
+              aria-label="Tìm nội dung quản trị"
+            />
+          </label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            aria-label="Trạng thái bài viết"
+          >
+            {Object.entries(statuses).map(([v, n]) => (
+              <option value={v} key={v}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {rows.isPending ? (
+        <Busy />
+      ) : rows.error ? (
+        <ErrorState error={rows.error} retry={rows.refetch} />
+      ) : !rows.data?.data.length ? (
+        <Empty
+          icon={CheckCircle2}
+          title="Danh sách đã gọn gàng"
+          description="Chưa có nội dung phù hợp với trạng thái đang chọn."
+        />
+      ) : (
+        <div className="moderation-list">
+          {rows.data.data.map((r) => (
+            <article key={r.id}>
+              <div>
+                <Badge tone={r.status === "pending" ? "orange" : "neutral"}>
+                  {statuses[r.status] || r.status}
+                </Badge>
+                <h3>{r.title}</h3>
+                <p className="muted">
+                  {r.authorName || r.userName} ·{" "}
+                  {r.placeName || "Bài cộng đồng"} · {date(r.createdAt)}
+                </p>
+                <p className="line-clamp-2">{r.content}</p>
+              </div>
+              <div className="moderation-actions">
+                <Button variant="secondary" onClick={() => setOpened(r)}>
+                  <Eye size={14} />
+                  Đọc
+                </Button>
+                <Button
+                  busy={
+                    mutation.isPending &&
+                    mutation.variables?.id === r.id &&
+                    mutation.variables?.action === "approve"
+                  }
+                  disabled={mutation.isPending || r.status === "approved"}
+                  onClick={() =>
+                    mutation.mutate({ id: r.id, action: "approve" })
+                  }
+                >
+                  <Check size={14} />
+                  Duyệt
+                </Button>
+                <Button
+                  variant="secondary"
+                  busy={
+                    mutation.isPending &&
+                    mutation.variables?.id === r.id &&
+                    mutation.variables?.action === "hide"
+                  }
+                  disabled={
+                    mutation.isPending ||
+                    ["rejected", "hidden"].includes(r.status)
+                  }
+                  onClick={() => mutation.mutate({ id: r.id, action: "hide" })}
+                >
+                  <X size={14} />
+                  Ẩn
+                </Button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+      <Modal
+        open={!!opened}
+        onOpenChange={(v) => {
+          if (!v) setOpened(null);
+        }}
+        title={opened?.title || "Nội dung"}
+        wide
+      >
+        {opened && (
+          <>
+            <p className="muted">
+              {opened.authorName || opened.userName} · {opened.placeName}
+            </p>
+            <p className="review-full-content">{opened.content}</p>
+          </>
+        )}
+      </Modal>
+    </section>
+  );
+}
+function PlacesAdmin() {
+  const client = useQueryClient(),
+    [q, setQ] = useState(""),
+    [page, setPage] = useState(1),
+    [editing, setEditing] = useState<Place | true | null>(null),
+    [hiding, setHiding] = useState<Place | null>(null),
+    text = useDebounced(q),
+    rows = useResource<Place[]>("admin-places", "/admin/places", {
+      q: text,
+      page,
+      limit: 20,
+    });
+  const hide = useMutation({
+    mutationFn: (id: number) =>
+      api("/admin/places/" + id, { method: "DELETE" }),
+    onSuccess: () => {
+      setHiding(null);
+      invalidatePlaces(client);
+      toast.success("Đã ẩn điểm đến khỏi giao diện công khai.");
+    },
+  });
+  return (
+    <section className="surface admin-panel">
+      <header className="admin-panel-header">
+        <div>
+          <h2>Quản lý điểm đến</h2>
+          <p className="muted">
+            Chỉnh sửa thông tin và kiểm tra tọa độ trước khi công khai.
+          </p>
+        </div>
+        <Button onClick={() => setEditing(true)}>
+          <Plus size={16} />
+          Thêm điểm đến
+        </Button>
+      </header>
+      <div className="admin-filter">
+        <label className="search-field">
+          <Search size={17} />
+          <input
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Tìm điểm đến…"
+            aria-label="Tìm điểm đến quản trị"
+          />
+        </label>
+      </div>
+      {rows.isPending ? (
+        <Busy />
+      ) : rows.error ? (
+        <ErrorState error={rows.error} retry={rows.refetch} />
+      ) : !rows.data?.data.length ? (
+        <Empty
+          title="Chưa có điểm đến phù hợp"
+          description="Thử từ khóa khác hoặc thêm điểm đến mới."
+        />
+      ) : (
+        <>
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Điểm đến</th>
+                  <th>Khu vực</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.data.data.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <strong>{p.name}</strong>
+                      <small>
+                        {categories[p.category] ||
+                          p.categoryName ||
+                          "Chưa phân loại"}
+                      </small>
+                    </td>
+                    <td>{regions[p.provinceCode] || p.provinceCode}</td>
+                    <td>
+                      <Badge tone={p.isActive ? "teal" : "neutral"}>
+                        {p.isActive ? "Đang hiển thị" : "Đã ẩn"}
+                      </Badge>
+                    </td>
+                    <td>
+                      <div className="table-actions">
+                        <IconButton
+                          icon={PenLine}
+                          label={`Sửa ${p.name}`}
+                          onClick={() => setEditing(p)}
+                        />
+                        <IconButton
+                          icon={X}
+                          label={`Ẩn ${p.name}`}
+                          disabled={!p.isActive}
+                          onClick={() => {
+                            hide.reset();
+                            setHiding(p);
+                          }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="pagination">
+            <span>
+              Trang {page} · {rows.data.data.length} điểm đến
+            </span>
+            <div>
+              <Button
+                variant="secondary"
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                <ArrowLeft size={14} />
+                Trước
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={rows.data.data.length < 20}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Tiếp
+                <ArrowRight size={14} />
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+      <Modal
+        open={!!editing}
+        onOpenChange={(v) => {
+          if (!v) setEditing(null);
+        }}
+        title={
+          editing === true
+            ? "Thêm một điểm đến mới"
+            : "Chăm chút thông tin điểm đến"
+        }
+        wide
+      >
+        {editing && (
+          <PlaceForm
+            key={editing === true ? "new" : editing.id}
+            place={editing === true ? undefined : editing}
+            done={() => setEditing(null)}
+          />
+        )}
+      </Modal>
+      <Modal
+        open={!!hiding}
+        onOpenChange={(v) => {
+          if (!v && !hide.isPending) setHiding(null);
+        }}
+        title="Ẩn điểm đến?"
+        description={hiding?.name}
+      >
+        <p>
+          Thông tin vẫn được giữ trong hệ thống và có thể hiển thị lại bằng cách
+          chỉnh sửa.
+        </p>
+        {hide.error && (
+          <p className="form-error" role="alert">
+            {hide.error.message}
+          </p>
+        )}
+        <div className="dialog-actions">
+          <Button
+            variant="secondary"
+            disabled={hide.isPending}
+            onClick={() => setHiding(null)}
+          >
+            Giữ hiển thị
+          </Button>
+          <Button
+            variant="danger"
+            busy={hide.isPending}
+            onClick={() => hiding && hide.mutate(hiding.id)}
+          >
+            Ẩn điểm đến
+          </Button>
+        </div>
+      </Modal>
+    </section>
+  );
+}
+function invalidatePlaces(client: ReturnType<typeof useQueryClient>) {
+  for (const key of [
+    "admin-places",
+    "places",
+    "place-detail",
+    "stats",
+    "admin-stats",
+    "map-routes",
+  ])
+    client.invalidateQueries({ queryKey: [key] });
+}
+function PlaceForm({ place, done }: { place?: Place; done: () => void }) {
+  const client = useQueryClient(),
+    app = useApp(),
+    mutation = useMutation({
+      mutationFn: (body: unknown) =>
+        api("/admin/places" + (place ? "/" + place.id : ""), {
+          method: place ? "PUT" : "POST",
+          body,
+        }),
+      onSuccess: () => {
+        invalidatePlaces(client);
+        toast.success("Đã lưu thông tin điểm đến.");
+        done();
+      },
+    });
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (mutation.isPending) return;
+    const f = new FormData(e.currentTarget);
+    mutation.mutate({
+      name: String(f.get("name")).trim(),
+      provinceCode: f.get("provinceCode"),
+      category: f.get("category"),
+      latitude: Number(f.get("latitude")),
+      longitude: Number(f.get("longitude")),
+      description: String(f.get("description")).trim(),
+      openingHours: String(f.get("openingHours")).trim(),
+      ...(f.get("imageUrl")
+        ? { imageUrl: String(f.get("imageUrl")).trim() }
+        : {}),
+      isActive: f.get("isActive") === "on",
+    });
+  }
+  return (
+    <form className="form-stack" onSubmit={submit}>
+      <Field label="Tên điểm đến">
+        <input
+          name="name"
+          defaultValue={place?.name}
+          required
+          minLength={2}
+          maxLength={200}
+        />
+      </Field>
+      <div className="form-row">
+        <Field label="Khu vực">
+          <select
+            name="provinceCode"
+            defaultValue={place?.provinceCode || app.region}
+          >
+            {Object.entries(regions).map(([v, n]) => (
+              <option value={v} key={v}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Nhóm điểm đến">
+          <select name="category" defaultValue={place?.category || "general"}>
+            {Object.entries(categories)
+              .filter(([v]) => v)
+              .map(([v, n]) => (
+                <option value={v} key={v}>
+                  {n}
+                </option>
+              ))}
+          </select>
+        </Field>
+      </div>
+      <div className="form-row">
+        <Field label="Vĩ độ">
+          <input
+            name="latitude"
+            type="number"
+            min={8}
+            max={24}
+            step="any"
+            required
+            defaultValue={place?.latitude}
+          />
+        </Field>
+        <Field label="Kinh độ">
+          <input
+            name="longitude"
+            type="number"
+            min={102}
+            max={110}
+            step="any"
+            required
+            defaultValue={place?.longitude}
+          />
+        </Field>
+      </div>
+      <Field label="Mô tả">
+        <textarea
+          name="description"
+          rows={4}
+          maxLength={3000}
+          defaultValue={place?.description || place?.shortDescription}
+        />
+      </Field>
+      <Field label="Giờ mở cửa">
+        <input
+          name="openingHours"
+          maxLength={200}
+          defaultValue={place?.openingHours}
+        />
+      </Field>
+      <Field
+        label="Đường dẫn ảnh"
+        hint="Chỉ dùng ảnh có quyền sử dụng, với địa chỉ HTTPS hoặc HTTP."
+      >
+        <input
+          name="imageUrl"
+          type="url"
+          pattern="https?://.*"
+          maxLength={1000}
+          defaultValue={
+            place?.thumbnailUrl && /^https?:/.test(place.thumbnailUrl)
+              ? place.thumbnailUrl
+              : ""
+          }
+        />
+      </Field>
+      <label className="check-row">
+        <input
+          name="isActive"
+          type="checkbox"
+          defaultChecked={place ? place.isActive : true}
+        />
+        Hiển thị công khai
+      </label>
+      {mutation.error && (
+        <p role="alert" className="form-error">
+          {mutation.error.message}
+        </p>
+      )}
+      <Button type="submit" busy={mutation.isPending}>
+        <Check size={16} />
+        Lưu điểm đến
+      </Button>
+    </form>
+  );
+}
+type ImportHistory = {
+  id: number;
+  importType: string;
+  fileName: string;
+  totalRows: number;
+  insertedRows: number;
+  status: string;
+  importedAt: string;
+};
+function ImportAdmin() {
+  const client = useQueryClient(),
+    [kind, setKind] = useState<"tourism-data" | "bus-data">("tourism-data"),
+    [text, setText] = useState(""),
+    [error, setError] = useState(""),
+    [preview, setPreview] = useState<{ items: ImportRow[] } | null>(null);
+  const history = useResource<ImportHistory[]>(
+      "import-history",
+      "/import/history",
+    ),
+    mutation = useMutation({
+      mutationFn: () =>
+        api<{ processedRows: number }>("/import/" + kind, {
+          method: "POST",
+          body: preview,
+        }),
+      onSuccess: (r) => {
+        setText("");
+        setPreview(null);
+        client.invalidateQueries({ queryKey: ["import-history"] });
+        invalidatePlaces(client);
+        client.invalidateQueries({ queryKey: ["routes"] });
+        toast.success(`Đã nhập thành công ${r.data.processedRows} bản ghi.`);
+      },
+    });
+  function inspect() {
+    try {
+      setPreview(parseImport(text, kind));
+      setError("");
+      mutation.reset();
+    } catch (e) {
+      setPreview(null);
+      setError((e as Error).message);
+    }
+  }
+  async function file(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 2 * 1024 * 1024) {
+      setError("Tệp JSON không được vượt quá 2 MB.");
+      return;
+    }
+    setText(await f.text());
+    setPreview(null);
+    setError("");
+    e.target.value = "";
+  }
+  return (
+    <section className="surface admin-panel">
+      <header className="admin-panel-header">
+        <div>
+          <h2>Nhập dữ liệu có kiểm soát</h2>
+          <p className="muted">Xem trước, xác nhận rồi mới ghi vào hệ thống.</p>
+        </div>
+        <FileJson size={25} />
+      </header>
+      <div className="import-workspace">
+        <div className="form-stack">
+          <Field label="Loại dữ liệu">
+            <select
+              disabled={mutation.isPending}
+              value={kind}
+              onChange={(e) => {
+                setKind(e.target.value as typeof kind);
+                setPreview(null);
+                setError("");
+              }}
+            >
+              <option value="tourism-data">Điểm đến du lịch</option>
+              <option value="bus-data">Tuyến xe buýt</option>
+            </select>
+          </Field>
+          <Field
+            label="Nội dung JSON"
+            hint={
+              kind === "tourism-data"
+                ? "Mỗi bản ghi cần name, provinceCode, latitude, longitude; description tùy chọn."
+                : "Mỗi bản ghi cần routeCode, name, provinceCode; description tùy chọn. Không nhập điểm dừng hay hình học tuyến qua biểu mẫu này."
+            }
+          >
+            <textarea
+              value={text}
+              rows={10}
+              spellCheck={false}
+              disabled={mutation.isPending}
+              onChange={(e) => {
+                setText(e.target.value);
+                setPreview(null);
+              }}
+              placeholder={'{"items": […]}'}
+            />
+          </Field>
+          <div className="import-file-row">
+            <label className="button button-secondary">
+              <Upload size={15} />
+              Chọn tệp JSON
+              <input
+                className="sr-only"
+                type="file"
+                accept="application/json,.json"
+                onChange={file}
+                disabled={mutation.isPending}
+              />
+            </label>
+            <Button
+              variant="secondary"
+              onClick={inspect}
+              disabled={!text.trim() || mutation.isPending}
+            >
+              <Eye size={15} />
+              Kiểm tra & xem trước
+            </Button>
+          </div>
+          {error && (
+            <p role="alert" className="form-error">
+              {error}
+            </p>
+          )}
+          {preview && (
+            <div className="import-preview">
+              <Badge tone="teal">
+                {preview.items.length} bản ghi hợp lệ ở bước kiểm tra
+              </Badge>
+              <ul>
+                {preview.items.slice(0, 5).map((r, i) => (
+                  <li key={i}>
+                    {r.name} · {regions[r.provinceCode.toUpperCase()]}
+                  </li>
+                ))}
+              </ul>
+              <p>
+                Bản ghi trùng mã hoặc tên chuẩn hóa sẽ được cập nhật. Toàn bộ
+                lượt nhập được ghi trong một giao dịch; máy chủ sẽ kiểm tra lại
+                dữ liệu.
+              </p>
+              <Button
+                busy={mutation.isPending}
+                onClick={() => mutation.mutate()}
+              >
+                <Check size={15} />
+                Xác nhận nhập {preview.items.length} bản ghi
+              </Button>
+            </div>
+          )}
+          {mutation.error && (
+            <p className="form-error" role="alert">
+              {mutation.error.message} Chưa xác nhận ghi dữ liệu thành công.
+            </p>
+          )}
+        </div>
+        <section className="import-history">
+          <h3>Các lượt nhập gần đây</h3>
+          {history.isPending ? (
+            <Busy />
+          ) : history.error ? (
+            <ErrorState error={history.error} retry={history.refetch} />
+          ) : history.data?.data.length ? (
+            history.data.data.map((h) => (
+              <article key={h.id}>
+                <CheckCircle2 size={17} />
+                <div>
+                  <strong>
+                    {h.importType === "tourism-data"
+                      ? "Điểm đến"
+                      : h.importType === "bus-data"
+                        ? "Tuyến xe"
+                        : h.importType}{" "}
+                    · {h.insertedRows}/{h.totalRows} bản ghi
+                  </strong>
+                  <small>
+                    {h.fileName} · {h.status}
+                  </small>
+                  <small>{date(h.importedAt)}</small>
+                </div>
+              </article>
+            ))
+          ) : (
+            <p className="muted">Chưa có lượt nhập nào.</p>
+          )}
+        </section>
+      </div>
+    </section>
+  );
+}
+type Report = {
+  id: number;
+  routeId: string;
+  note: string;
+  status: string;
+  createdAt: string;
+};
+function ReportsAdmin() {
+  const client = useQueryClient(),
+    rows = useResource<Report[]>("admin-reports", "/reports"),
+    labels: Record<string, string> = {
+      new: "Mới gửi",
+      processing: "Đang kiểm tra",
+      resolved: "Đã xử lý",
+      rejected: "Đã đóng",
+    },
+    mutation = useMutation({
+      mutationFn: ({ id, status }: { id: number; status: string }) =>
+        api(`/reports/${id}/status`, { method: "PUT", body: { status } }),
+      onSuccess: () => {
+        client.invalidateQueries({ queryKey: ["admin-reports"] });
+        toast.success("Đã cập nhật phản hồi.");
+      },
+      onError: (e) => toast.error(e.message),
+    });
+  return (
+    <section className="surface admin-panel">
+      <header className="admin-panel-header">
+        <div>
+          <h2>Lắng nghe người bạn đồng hành</h2>
+          <p className="muted">
+            Kiểm tra và cập nhật trạng thái góp ý về tuyến xe.
+          </p>
+        </div>
+      </header>
+      {rows.isPending ? (
+        <Busy />
+      ) : rows.error ? (
+        <ErrorState error={rows.error} retry={rows.refetch} />
+      ) : !rows.data?.data.length ? (
+        <Empty
+          icon={Flag}
+          title="Chưa có phản hồi cần xử lý"
+          description="Góp ý của người dùng sẽ xuất hiện tại đây."
+        />
+      ) : (
+        <div className="moderation-list">
+          {rows.data.data.map((r) => (
+            <article key={r.id}>
+              <div>
+                <Badge tone={r.status === "new" ? "orange" : "teal"}>
+                  {labels[r.status] || r.status}
+                </Badge>
+                <h3>Tuyến {r.routeId || "chưa xác định"}</h3>
+                <p>{r.note || "Phản hồi chưa kèm nội dung."}</p>
+                <small className="muted">{date(r.createdAt)}</small>
+              </div>
+              <Field label={`Trạng thái phản hồi #${r.id}`}>
+                <select
+                  value={r.status}
+                  disabled={mutation.isPending}
+                  onChange={(e) =>
+                    mutation.mutate({ id: r.id, status: e.target.value })
+                  }
+                >
+                  {Object.entries(labels).map(([v, n]) => (
+                    <option key={v} value={v}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}

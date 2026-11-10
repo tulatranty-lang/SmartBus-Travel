@@ -1,9 +1,9 @@
-const { query } = require('../config/db');
-const { BUS_LIMIT_PER_PROVINCE } = require('../common/constants/app.constants');
-const activity = require('../modules/activity/activity.repository');
+const { query } = require("../config/db");
+const { BUS_LIMIT_PER_PROVINCE } = require("../common/constants/app.constants");
+const activity = require("../modules/activity/activity.repository");
 
 function routeCode(value) {
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
 function normalizeDate(value) {
@@ -13,11 +13,17 @@ function normalizeDate(value) {
 function parseJson(value, fallback = []) {
   if (!value) return fallback;
   if (Array.isArray(value)) return value;
-  try { return JSON.parse(value); } catch { return fallback; }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
 }
 
 function normalizeProvinceCode(row) {
-  return String(row.provinceCode || row.province_code || row.province || 'UNKNOWN').toUpperCase();
+  return String(
+    row.provinceCode || row.province_code || row.province || "UNKNOWN",
+  ).toUpperCase();
 }
 
 function limitPerProvince(rows = [], limit = BUS_LIMIT_PER_PROVINCE) {
@@ -74,14 +80,17 @@ async function getRoutes() {
   `);
   return rs.recordset.map((r) => ({
     ...r,
-    path: parseJson(r.pathJson).map((p) => [Number(p.lat), Number(p.lng)]).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])),
+    path: parseJson(r.pathJson)
+      .map((p) => [Number(p.lat), Number(p.lng)])
+      .filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])),
     pathJson: undefined,
   }));
 }
 
 async function getRoute(id) {
   const rid = routeCode(id);
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT TOP 1
       r.route_code AS id,
       r.route_code AS routeCode,
@@ -119,19 +128,24 @@ async function getRoute(id) {
     LEFT JOIN provinces p ON p.code = r.province_code
     WHERE (r.route_code = @id OR r.route_number = @id) AND COALESCE(r.is_active, 1) = 1
     ORDER BY CASE WHEN r.route_code=@id THEN 0 ELSE 1 END
-  `, { id: rid });
+  `,
+    { id: rid },
+  );
   const r = rs.recordset[0];
   if (!r) return null;
   return {
     ...r,
-    path: parseJson(r.pathJson).map((p) => [Number(p.lat), Number(p.lng)]).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])),
+    path: parseJson(r.pathJson)
+      .map((p) => [Number(p.lat), Number(p.lng)])
+      .filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])),
     pathJson: undefined,
   };
 }
 
 async function getStops(routeId = null) {
   const rid = routeId ? routeCode(routeId) : null;
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT
       CAST(s.id AS NVARCHAR(30)) AS id,
       s.external_stop_code AS externalStopCode,
@@ -165,14 +179,21 @@ async function getStops(routeId = null) {
     LEFT JOIN bus_routes r ON r.route_code = rs.route_code
     WHERE @routeId IS NULL OR rs.route_code = @routeId
     ORDER BY COALESCE(s.province_code, ''), COALESCE(rs.route_code, ''), COALESCE(rs.sequence_no, 99999), s.name
-  `, { routeId: rid });
-  return rs.recordset.map((s) => ({ ...s, routes: parseJson(s.routesJson), routesJson: undefined }));
+  `,
+    { routeId: rid },
+  );
+  return rs.recordset.map((s) => ({
+    ...s,
+    routes: parseJson(s.routesJson),
+    routesJson: undefined,
+  }));
 }
 
 async function getBuses(routeId = null, filters = {}) {
   const rid = routeId ? routeCode(routeId) : null;
   const province = filters.province || filters.provinceCode || null;
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT
       b.bus_code AS id,
       b.bus_code AS uid,
@@ -192,26 +213,35 @@ async function getBuses(routeId = null, filters = {}) {
     WHERE (@routeId IS NULL OR b.route_code = @routeId OR r.route_number = @routeId)
       AND (@province IS NULL OR r.province_code = @province)
     ORDER BY r.province_code, r.route_number, b.bus_code
-  `, { routeId: rid, province });
-  const rows = rs.recordset.map((b) => ({ ...b, progress: Number(b.progress || 0), speed: Number(b.speed || 22) }));
+  `,
+    { routeId: rid, province },
+  );
+  const rows = rs.recordset.map((b) => ({
+    ...b,
+    progress: Number(b.progress || 0),
+    speed: Number(b.speed || 22),
+  }));
   return limitPerProvince(rows, filters.limitPerProvince);
 }
 
 async function addReport(report) {
-  const rs = await query(`
+  const rs = await query(
+    `
     INSERT INTO reports(user_id, route_code, plate, crowding, problem_type, note, status)
     OUTPUT INSERTED.id, INSERTED.user_id AS userId, INSERTED.route_code AS routeId, INSERTED.plate,
            INSERTED.crowding, INSERTED.problem_type AS problemType, INSERTED.note, INSERTED.status,
            INSERTED.created_at AS createdAt
     VALUES(@userId, @routeId, @plate, @crowding, @problemType, @note, 'new')
-  `, {
-    userId: report.userId || null,
-    routeId: report.routeId ? routeCode(report.routeId) : null,
-    plate: report.plate || null,
-    crowding: report.crowding || null,
-    problemType: report.problemType || 'crowding',
-    note: report.note || null,
-  });
+  `,
+    {
+      userId: report.userId || null,
+      routeId: report.routeId ? routeCode(report.routeId) : null,
+      plate: report.plate || null,
+      crowding: report.crowding || null,
+      problemType: report.problemType || "crowding",
+      note: report.note || null,
+    },
+  );
   return rs.recordset[0];
 }
 
@@ -223,64 +253,91 @@ async function getReports() {
     FROM reports
     ORDER BY created_at DESC
   `);
-  return rs.recordset.map((r) => ({ ...r, createdAt: normalizeDate(r.createdAt) }));
+  return rs.recordset.map((r) => ({
+    ...r,
+    createdAt: normalizeDate(r.createdAt),
+  }));
 }
 
 async function updateReportStatus(id, status) {
-  const rs = await query(`
+  const rs = await query(
+    `
     UPDATE reports
     SET status = @status
     OUTPUT INSERTED.id, INSERTED.user_id AS userId, INSERTED.route_code AS routeId, INSERTED.plate,
            INSERTED.crowding, INSERTED.problem_type AS problemType, INSERTED.note, INSERTED.status,
            INSERTED.created_at AS createdAt
     WHERE id = @id
-  `, { id: Number(id), status });
+  `,
+    { id: Number(id), status },
+  );
   return rs.recordset[0] || null;
 }
 
 async function addChatLog(log) {
-  const rs = await query(`
+  const rs = await query(
+    `
     INSERT INTO chatbot_logs(user_id, question, answer, intent, lat, lng)
     OUTPUT INSERTED.id, INSERTED.user_id AS userId, INSERTED.question AS message,
            INSERTED.answer AS reply, INSERTED.intent, INSERTED.lat, INSERTED.lng, INSERTED.created_at AS createdAt
     VALUES(@userId, @message, @reply, @intent, @lat, @lng)
-  `, {
-    userId: log.userId || null,
-    message: log.message,
-    reply: log.reply,
-    intent: log.intent || null,
-    lat: log.lat || null,
-    lng: log.lng || null,
-  });
-  // Mirror to new chat_logs/chat_history tables when schema extension exists.
-  try {
-    await query(`INSERT INTO chat_logs(user_id, message, reply, intent, lat, lng) VALUES(@userId, @message, @reply, @intent, @lat, @lng)`, {
+  `,
+    {
       userId: log.userId || null,
       message: log.message,
       reply: log.reply,
       intent: log.intent || null,
       lat: log.lat || null,
       lng: log.lng || null,
-    });
+    },
+  );
+  // Mirror to new chat_logs/chat_history tables when schema extension exists.
+  try {
+    await query(
+      `INSERT INTO chat_logs(user_id, message, reply, intent, lat, lng) VALUES(@userId, @message, @reply, @intent, @lat, @lng)`,
+      {
+        userId: log.userId || null,
+        message: log.message,
+        reply: log.reply,
+        intent: log.intent || null,
+        lat: log.lat || null,
+        lng: log.lng || null,
+      },
+    );
   } catch (_err) {}
   try {
-    await query(`INSERT INTO chat_history(user_id, message, bot_response, intent, related_place_id, related_route_id) VALUES(@userId, @message, @reply, @intent, @relatedPlaceId, @relatedRouteId)`, {
-      userId: log.userId || null,
-      message: log.message,
-      reply: log.reply,
+    await query(
+      `INSERT INTO chat_history(user_id, message, bot_response, intent, related_place_id, related_route_id) VALUES(@userId, @message, @reply, @intent, @relatedPlaceId, @relatedRouteId)`,
+      {
+        userId: log.userId || null,
+        message: log.message,
+        reply: log.reply,
+        intent: log.intent || null,
+        relatedPlaceId: log.relatedPlaceId || null,
+        relatedRouteId: log.relatedRouteId || null,
+      },
+    );
+  } catch (_err) {}
+  await activity.logActivity({
+    userId: log.userId || null,
+    actionType: "chat_ask",
+    targetType: "chatbot",
+    targetId: rs.recordset[0]?.id,
+    description: String(log.message || "").slice(0, 300),
+    metadata: {
       intent: log.intent || null,
       relatedPlaceId: log.relatedPlaceId || null,
       relatedRouteId: log.relatedRouteId || null,
-    });
-  } catch (_err) {}
-  await activity.logActivity({ userId: log.userId || null, actionType: 'chat_ask', targetType: 'chatbot', targetId: rs.recordset[0]?.id, description: String(log.message || '').slice(0, 300), metadata: { intent: log.intent || null, relatedPlaceId: log.relatedPlaceId || null, relatedRouteId: log.relatedRouteId || null } });
+    },
+  });
   return rs.recordset[0];
 }
 
 async function getChatHistory(userId) {
   if (!userId) return [];
   try {
-    const rs = await query(`
+    const rs = await query(
+      `
       SELECT TOP 50
         h.id, h.user_id AS userId, h.message, h.bot_response AS reply, h.intent,
         h.related_place_id AS relatedPlaceId, h.related_route_id AS relatedRouteId, h.created_at AS createdAt,
@@ -290,47 +347,66 @@ async function getChatHistory(userId) {
       LEFT JOIN bus_routes r ON r.route_code = h.related_route_id
       WHERE h.user_id = @userId
       ORDER BY h.created_at DESC
-    `, { userId: Number(userId) });
-    return rs.recordset.map((r) => ({ ...r, createdAt: normalizeDate(r.createdAt) }));
+    `,
+      { userId: Number(userId) },
+    );
+    return rs.recordset.map((r) => ({
+      ...r,
+      createdAt: normalizeDate(r.createdAt),
+    }));
   } catch (_err) {
-    const rs = await query(`
+    const rs = await query(
+      `
       SELECT TOP 50
         id, user_id AS userId, question AS message, answer AS reply, intent, lat, lng, created_at AS createdAt
       FROM chatbot_logs
       WHERE user_id = @userId
       ORDER BY created_at DESC
-    `, { userId: Number(userId) });
-    return rs.recordset.map((r) => ({ ...r, createdAt: normalizeDate(r.createdAt) }));
+    `,
+      { userId: Number(userId) },
+    );
+    return rs.recordset.map((r) => ({
+      ...r,
+      createdAt: normalizeDate(r.createdAt),
+    }));
   }
 }
 
 async function findUserByEmail(email) {
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT TOP 1
       id,
       full_name AS fullName,
       email,
       password_hash AS passwordHash,
+      COALESCE(session_version,0) AS sessionVersion,
       role,
       is_active AS isActive,
       phone
     FROM users
     WHERE LOWER(email) = LOWER(@email)
-  `, { email });
+  `,
+    { email },
+  );
   return rs.recordset[0] || null;
 }
 
-async function createUser({ fullName, email, passwordHash, role = 'user' }) {
-  const rs = await query(`
+async function createUser({ fullName, email, passwordHash, role = "user" }) {
+  const rs = await query(
+    `
     INSERT INTO users(full_name, email, password_hash, role, is_active)
     OUTPUT INSERTED.id, INSERTED.full_name AS fullName, INSERTED.email, INSERTED.role, INSERTED.is_active AS isActive
     VALUES(@fullName, @email, @passwordHash, @role, 1)
-  `, { fullName, email, passwordHash, role });
+  `,
+    { fullName, email, passwordHash, role },
+  );
   return rs.recordset[0];
 }
 
 async function getVehicles(filters = {}) {
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT
       v.id,
       v.vehicle_code AS vehicleCode,
@@ -353,12 +429,15 @@ async function getVehicles(filters = {}) {
     WHERE (@province IS NULL OR v.province_code=@province OR r.province_code=@province)
       AND (@routeId IS NULL OR v.route_code=@routeId OR r.route_number=@routeId)
     ORDER BY COALESCE(v.province_code, r.province_code), v.vehicle_code
-  `, { province: filters.province || null, routeId: filters.routeId || null });
+  `,
+    { province: filters.province || null, routeId: filters.routeId || null },
+  );
   return rs.recordset;
 }
 
 async function getVehicleLocations(filters = {}) {
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT
       COALESCE(v.vehicle_code, b.bus_code) AS vehicleCode,
       COALESCE(v.vehicle_name, b.bus_code) AS vehicleName,
@@ -380,7 +459,9 @@ async function getVehicleLocations(filters = {}) {
     WHERE (@province IS NULL OR COALESCE(v.province_code, r.province_code)=@province)
       AND (@routeId IS NULL OR COALESCE(v.route_code, b.route_code)=@routeId OR r.route_number=@routeId)
     ORDER BY COALESCE(v.province_code, r.province_code), COALESCE(v.route_code, b.route_code), COALESCE(v.vehicle_code, b.bus_code)
-  `, { province: filters.province || null, routeId: filters.routeId || null });
+  `,
+    { province: filters.province || null, routeId: filters.routeId || null },
+  );
   return limitPerProvince(rs.recordset, filters.limitPerProvince);
 }
 

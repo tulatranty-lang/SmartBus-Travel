@@ -1,38 +1,15 @@
-# Cách chạy SQL SmartBus v4
+# Cài và nâng cấp SQL Server
 
-## Cách sạch nhất khi đang bị lỗi cũ
+Dùng CLI từ thư mục gốc thay vì tự chạy các file SQL theo số thứ tự:
 
-Nếu database `SmartBusDB` chưa có dữ liệu quan trọng, nên xóa database cũ rồi chạy lại từ đầu để tránh cột/index cũ còn sót lại.
+```bash
+npm run db:setup
+```
 
-Thứ tự khuyến nghị:
+Lệnh này tạo database nếu chưa có; chạy schema theo thứ tự `01 → 99 → 06 → 07 → 08 → 09 → 10 → 11 → 12`, sau đó import `02 → 03 → 04 → 05`. Toàn bộ thay đổi trong một transaction, khóa migration bằng `sp_getapplock`. Mỗi file được ghi SHA-256 vào `smartbus_migrations`; lần sau bỏ qua file đã áp dụng.
 
-1. `01_SCHEMA_SMARTBUS_CORE.sql`
-2. `02_IMPORT_4_TINH_HIEN_CO.sql`
-3. `03_IMPORT_QUANG_NAM_CU.sql`
-4. `04_SEED_BUS_VEHICLES.sql`
-5. `05_SEED_CHATBOT_KNOWLEDGE.sql`
-6. `99_ARCHITECT_UPGRADE_FIXES.sql`
+Nâng cấp database đã có: sao lưu và chạy `npm run db:migrate`; không đổi DB_NAME, không xóa database, không sửa SQL đã ghi journal. Các bộ import cũ cập nhật lại liên kết tuyến/bến nên không tự nạp lại sau khi đã ghi nhận. Các file `00_*`, `schema.sql` và patch lịch sử ngoài danh sách trên không phải lệnh cài hiện hành.
 
-`00_CHAY_DAU_TIEN_TAO_DATABASE_DAY_DU.sql` là file tổng hợp/seed cũ, vẫn giữ để tương thích. Với bản nâng cấp kiến trúc, nên dùng bộ file tách nhỏ ở trên cho dễ kiểm soát lỗi.
+Migration 12 bổ sung session_version, index refresh token và sửa view tọa độ xe. CLI không sửa file 06: bỏ riêng batch view cũ bị trùng/sai cột và tạo view đúng ở 12. View này là vị trí tham khảo, không phải dữ liệu GPS trực tiếp.
 
-## Nếu không muốn xóa database cũ
-
-Chạy `99_ARCHITECT_UPGRADE_FIXES.sql` trước để mở rộng cột text và chuẩn hóa index, sau đó chạy lại các file import bị lỗi.
-
-Các bảng kết quả `bus_stops_invalid_gis` hoặc `tourist_places_invalid_gis` ở cuối file 99 chỉ là báo cáo kiểm tra tọa độ, không phải lỗi.
-
-
-## Ghi chú v5 về file `01_IMPORT_DU_LIEU_V3_XE_BUS_DU_LICH.sql`
-
-File này là file import tổng hợp cũ. Bản v5 đã bổ sung các cột `tourist_places.image_source` và `tourist_places.note` để file này không còn báo lỗi `Invalid column name 'image_source'` hoặc `Invalid column name 'note'`.
-
-Khuyến nghị chạy bộ tách nhỏ theo thứ tự:
-
-1. `01_SCHEMA_SMARTBUS_CORE.sql`
-2. `02_IMPORT_4_TINH_HIEN_CO.sql`
-3. `03_IMPORT_QUANG_NAM_CU.sql`
-4. `04_SEED_BUS_VEHICLES.sql`
-5. `05_SEED_CHATBOT_KNOWLEDGE.sql`
-6. `99_ARCHITECT_UPGRADE_FIXES.sql`
-
-Nếu lỡ chạy file import tổng hợp cũ thì vẫn chạy được sau khi đã chạy schema v5.
+Cấu hình và xử lý lỗi: [README gốc](../README.md). Kết quả kiểm thử cài mới/nâng cấp: [VERIFICATION](../docs/current/VERIFICATION.md).

@@ -1,9 +1,9 @@
-I<!doctype html>
+<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SmartBus Travel Connect – GIS xe buýt & du lịch 4 tỉnh</title>
+    <title>SmartBus Travel Connect – GIS xe buýt & du lịch miền Trung</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
@@ -57,7 +57,7 @@ I<!doctype html>
         <section class="landing-hero landing-hero-pro">
           <div class="landing-hero-copy">
             <div class="landing-kicker">
-              GIS xe buýt · GPS Google Map · Du lịch gần trạm
+              Tuyến xe · Điểm dừng · Du lịch miền Trung
             </div>
             <h1>Khám phá xe buýt & du lịch miền Trung</h1>
             <p>
@@ -95,8 +95,8 @@ I<!doctype html>
               >
             </div>
             <div class="landing-trust-row" aria-label="Điểm mạnh SmartBus">
-              <span>✓ Dữ liệu SQL Server</span>
-              <span>✓ Bản đồ Leaflet/GIS</span>
+              <span>✓ Tuyến và điểm dừng</span>
+              <span>✓ Bản đồ trực quan</span>
               <span>✓ Chatbot tiếng Việt</span>
             </div>
           </div>
@@ -105,9 +105,9 @@ I<!doctype html>
             aria-label="Minh họa bản đồ SmartBus"
           >
             <div class="landing-map-preview pro-map-preview">
-              <span class="map-badge badge-live">LIVE DEMO</span>
-              <span class="map-badge badge-gis">GIS ready</span>
-              <span class="map-badge badge-gps">GPS stops</span>
+              <span class="map-badge badge-live">BẢN ĐỒ MINH HỌA</span>
+              <span class="map-badge badge-gis">Miền Trung</span>
+              <span class="map-badge badge-gps">Điểm dừng</span>
               <span class="map-dot qt">QT</span>
               <span class="map-dot hue">Huế</span>
               <span class="map-dot dn">ĐN</span>
@@ -170,7 +170,7 @@ I<!doctype html>
               <h2>Một nơi cho tuyến xe, du lịch và hành trình</h2>
               <p>
                 Từ tìm tuyến, xem bến GPS, hỏi chatbot đến lưu địa điểm yêu
-                thích — tất cả được gom trong một giao diện dễ demo.
+                thích — tìm hành trình phù hợp trong một giao diện.
               </p>
             </div>
           </div>
@@ -261,7 +261,7 @@ I<!doctype html>
                 type="search"
                 placeholder="Tìm tuyến, tỉnh, đầu/cuối tuyến..."
               />
-              <select id="landing-province-filter">
+              <select id="landing-province-filter" aria-label="Lọc tuyến theo khu vực">
                 <option value="">Tất cả tỉnh/thành</option>
               </select>
             </div>
@@ -291,7 +291,7 @@ I<!doctype html>
         </section>
       </main>
     </section>
-    <div id="page-login" class="hidden">
+    <div id="page-login" class="hidden" role="dialog" aria-modal="true" aria-labelledby="auth-panel-title">
       <div class="login-brand">
         <div class="brand-inner">
           <div class="brand-logo">
@@ -314,26 +314,12 @@ I<!doctype html>
             <div class="brand-bus-icon">🚌</div>
           </div>
           <div class="brand-headline">
-            SmartBus GIS<em>4 tỉnh miền Trung.</em>
+            SmartBus<em>Hành trình miền Trung.</em>
           </div>
           <p class="brand-sub">
-            Theo dõi tuyến, bến, xe buýt, điểm du lịch và chatbot cho Quảng Trị,
-            Huế, Đà Nẵng, Quảng Ngãi.
+            Tìm tuyến, khám phá địa điểm và lưu những hành trình của riêng bạn.
           </p>
-          <div class="brand-stats">
-            <div>
-              <span class="bstat-val">50+</span
-              ><span class="bstat-lbl">Xe mô phỏng</span>
-            </div>
-            <div>
-              <span class="bstat-val">25</span
-              ><span class="bstat-lbl">Tuyến xe</span>
-            </div>
-            <div>
-              <span class="bstat-val">4 tỉnh</span
-              ><span class="bstat-lbl">GIS/GPS</span>
-            </div>
-          </div>
+
         </div>
       </div>
       <div class="login-form-panel">
@@ -353,7 +339,7 @@ I<!doctype html>
           </p>
           <form id="login-form" novalidate>
             <div class="fg">
-              <label class="fg-label">
+              <label class="fg-label" for="inp-email">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -379,7 +365,7 @@ I<!doctype html>
               <span class="fg-err" id="err-email"></span>
             </div>
             <div class="fg">
-              <label class="fg-label">
+              <label class="fg-label" for="inp-pw">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -396,7 +382,7 @@ I<!doctype html>
                   class="fg-inp"
                   type="password"
                   id="inp-pw"
-                  placeholder="Tối thiểu 6 ký tự"
+                  placeholder="Tối thiểu 8 ký tự"
                   autocomplete="current-password"
                   style="padding-right: 42px"
                 />
@@ -428,7 +414,7 @@ I<!doctype html>
                 ><input type="checkbox" id="remember" /> Ghi nhớ đăng
                 nhập</label
               >
-              <a href="#" class="lf-link">Quên mật khẩu?</a>
+
             </div>
             <button type="submit" class="btn-primary" id="login-btn">
               <span class="btn-txt">Đăng nhập</span>
@@ -440,7 +426,7 @@ I<!doctype html>
           </form>
           <form id="register-form" class="hidden" novalidate>
             <div class="fg">
-              <label class="fg-label">Họ tên</label>
+              <label class="fg-label" for="reg-name">Họ tên</label>
               <div class="fg-inp-wrap">
                 <input
                   class="fg-inp"
@@ -452,7 +438,7 @@ I<!doctype html>
               </div>
             </div>
             <div class="fg">
-              <label class="fg-label">Email</label>
+              <label class="fg-label" for="reg-email">Email</label>
               <div class="fg-inp-wrap">
                 <input
                   class="fg-inp"
@@ -464,13 +450,13 @@ I<!doctype html>
               </div>
             </div>
             <div class="fg">
-              <label class="fg-label">Mật khẩu</label>
+              <label class="fg-label" for="reg-pw">Mật khẩu</label>
               <div class="fg-inp-wrap">
                 <input
                   class="fg-inp"
                   type="password"
                   id="reg-pw"
-                  placeholder="Tối thiểu 6 ký tự"
+                  placeholder="Tối thiểu 8 ký tự"
                   autocomplete="new-password"
                 />
               </div>
@@ -819,7 +805,7 @@ I<!doctype html>
               </h3>
               <p style="color: var(--txt2); font-size: 0.9rem">
                 Xem rõ tuyến nào thuộc tỉnh nào, giờ chạy, tần suất, số xe, điểm
-                GPS và xe đang mô phỏng.
+                Tọa độ trong bộ dữ liệu; chưa phải định vị xe trực tiếp.
               </p>
             </div>
             <div class="route-catalog-toolbar">
@@ -1526,7 +1512,7 @@ I<!doctype html>
         </form>
       </section>
     </div>
-    <script src="script.js"></script>
+    <script src="runtime-config.js"></script><script src="script.js"></script>
     <script src="js/performance.js"></script>
   </body>
 </html>

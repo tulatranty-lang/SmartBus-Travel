@@ -1,0 +1,52 @@
+{
+  "routes": 39,
+  "totalVertices": 298,
+  "minimumVertices": 3,
+  "maximumVertices": 14,
+  "examples": [
+    {
+      "id": "DN-02",
+      "name": "Bến xe Trung tâm – ĐH Việt Hàn – Hội An/Cửa Đại",
+      "vertices": 9,
+      "maxGapKm": 15.41
+    },
+    {
+      "id": "DN-03",
+      "name": "Sân bay Đà Nẵng – Bà Nà Hills",
+      "vertices": 6,
+      "maxGapKm": 11.13
+    },
+    {
+      "id": "DN-06",
+      "name": "Sân bay Đà Nẵng – Đại học Việt Hàn",
+      "vertices": 8,
+      "maxGapKm": 6.06
+    }
+  ],
+  "largestGaps": [
+    {
+      "id": "QT-HUE-18",
+      "name": "Bến xe phía Nam Huế – biển Gio Hải",
+      "vertices": 7,
+      "maxGapKm": 84.58
+    },
+    {
+      "id": "QNG-02",
+      "name": "TTĐH xe buýt Mai Linh – KDL Sa Huỳnh",
+      "vertices": 7,
+      "maxGapKm": 58.81
+    },
+    {
+      "id": "HUE-03",
+      "name": "Bến xe phía Nam – Vinh Hiền",
+      "vertices": 6,
+      "maxGapKm": 55.55
+    },
+    {
+      "id": "HUE-12",
+      "name": "Bến xe phía Nam – A Lưới",
+      "vertices": 3,
+      "maxGapKm": 40.1
+    }
+  ]
+}

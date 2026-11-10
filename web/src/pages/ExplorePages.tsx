@@ -1,0 +1,897 @@
+import type * as GeoJSON from "geojson";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowUpRight,
+  BusFront,
+  Camera,
+  ChevronRight,
+  Compass,
+  Landmark,
+  Leaf,
+  LocateFixed,
+  MapPin,
+  Navigation,
+  Route as RouteIcon,
+  Search,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  TreePine,
+  UtensilsCrossed,
+  Waves,
+  X,
+} from "lucide-react";
+import {
+  useApp,
+  useResource,
+  useDebounced,
+  regions,
+  categories,
+  normalized,
+  number,
+  routeName,
+  point,
+  distance,
+} from "../state";
+import type { Stats, Place, Route, Stop } from "../types";
+import {
+  Badge,
+  Button,
+  Busy,
+  CardSkeletons,
+  Empty,
+  ErrorState,
+  PageHeading,
+  SectionTitle,
+  Skeleton,
+  Field,
+} from "../components/ui";
+import { PlaceCard, RouteCard, SaveButton } from "../components/cards";
+const TransitMap = lazy(() => import("../components/TransitMap"));
+export function Home() {
+  const nav = useNavigate(),
+    { user, region, setRegion, setPlaceId, setRouteId, setChatOpen } = useApp();
+  const [q, setQ] = useState(""),
+    [kind, setKind] = useState("places");
+  const stats = useResource<Stats>("stats", "/stats/overview"),
+    places = useResource<Place[]>("places", "/tourism/places", {
+      provinceCode: region,
+      limit: 6,
+    }),
+    routes = useResource<Route[]>("routes", "/routes", {
+      provinceCode: region,
+      limit: 100,
+    }),
+    geo = useResource<GeoJSON.FeatureCollection>("map-routes", "/map/routes", {
+      provinceCode: region,
+    });
+  const measurements = [
+    {
+      label: "Tuyến xe buýt",
+      value: stats.data?.data.totalRoutes,
+      icon: BusFront,
+      color: "teal",
+      to: "/routes",
+    },
+    {
+      label: "Điểm dừng kết nối",
+      value: stats.data?.data.totalStops,
+      icon: MapPin,
+      color: "blue",
+      to: "/explore",
+    },
+    {
+      label: "Điểm đến chờ bạn",
+      value: stats.data?.data.totalTourismPlaces,
+      icon: Compass,
+      color: "orange",
+      to: "/places",
+    },
+    {
+      label: "Chia sẻ hành trình",
+      value: stats.data?.data.totalReviews,
+      icon: Star,
+      color: "purple",
+      to: "/community",
+    },
+  ];
+  function search(e: FormEvent) {
+    e.preventDefault();
+    nav(`/${kind}?q=${encodeURIComponent(q)}`);
+  }
+  return (
+    <>
+      <div className="welcome-line">
+        <span>
+          {user
+            ? `Chào ${user.fullName.split(" ").at(-1)},`
+            : "Xin chào, người bạn đồng hành."}
+          <span className="wave-hand">✦</span>
+        </span>
+        <span>
+          <span className="status-dot" />
+          Một hành trình mới đang chờ bạn
+        </span>
+      </div>
+      <section className="hero">
+        <img
+          className="hero-image"
+          src={import.meta.env.BASE_URL + "images/danang.jpg"}
+          alt="Cầu Rồng bên sông Hàn, Đà Nẵng"
+          fetchPriority="high"
+        />
+        <div className="hero-shade" />
+        <div className="hero-content">
+          <div className="hero-eyebrow">
+            <span />
+            <span>BẢN ĐỒ CHI TIẾT. NHÌN GẦN TỪNG CHUYẾN XE.</span>
+          </div>
+          <h1>
+            Nhìn rõ đường.
+            <br />
+            Hiểu từng <em>chuyến xe.</em>
+          </h1>
+          <p>
+            Theo xe qua nút giao, phóng gần từng khúc cua.
+            <br className="desktop-only" />
+            Khám phá miền Trung từ một chuyến xe.
+          </p>
+          <Button onClick={() => nav("/simulation")}>
+            Xem chuyến xe mô phỏng
+            <ArrowUpRight size={18} />
+          </Button>
+        </div>
+        <div className="hero-location">
+          <span>
+            <MapPin size={16} />
+          </span>
+          <div>
+            <strong>Sông Hàn, Đà Nẵng</strong>
+            <small>Một điểm dừng. Ngàn cảm hứng.</small>
+          </div>
+        </div>
+        <span className="hero-vertical">SỐNG CHẬM. KHÁM PHÁ NHIỀU.</span>
+      </section>
+      <section className="journey-search surface">
+        <div className="search-tabs" role="group" aria-label="Loại tìm kiếm">
+          <button
+            aria-pressed={kind === "places"}
+            className={kind === "places" ? "active" : ""}
+            onClick={() => setKind("places")}
+          >
+            <Compass size={16} />
+            Tìm điểm đến
+          </button>
+          <button
+            aria-pressed={kind === "routes"}
+            className={kind === "routes" ? "active" : ""}
+            onClick={() => setKind("routes")}
+          >
+            <BusFront size={16} />
+            Tìm tuyến xe
+          </button>
+          <button onClick={() => nav("/explore?nearby=1")}>
+            <Navigation size={16} />
+            Bến gần tôi
+          </button>
+        </div>
+        <form onSubmit={search} className="journey-search-form">
+          <label>
+            <MapPin size={21} />
+            <div>
+              <span>BẠN MUỐN ĐẾN ĐÂU?</span>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={
+                  kind === "places"
+                    ? "Biển, phố cổ hay một nơi thật mới…"
+                    : "Tên tuyến, điểm đầu hoặc điểm cuối…"
+                }
+                aria-label="Nơi bạn muốn khám phá"
+              />
+            </div>
+          </label>
+          <label className="journey-region">
+            <Compass size={21} />
+            <div>
+              <span>KHU VỰC</span>
+              <select
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                aria-label="Khu vực tìm kiếm"
+              >
+                {Object.entries(regions).map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </label>
+          <Button type="submit">
+            <Search size={18} />
+            Khám phá ngay
+          </Button>
+        </form>
+      </section>
+      <section className="stat-grid">
+        {measurements.map((m) => (
+          <button
+            className={`stat-card stat-${m.color}`}
+            key={m.label}
+            onClick={() => nav(m.to)}
+          >
+            <span className="stat-icon">
+              <m.icon size={22} />
+            </span>
+            <div>
+              <strong>{m.value == null ? "—" : number(m.value)}</strong>
+              <span>{m.label}</span>
+            </div>
+            <ArrowUpRight className="stat-arrow" size={17} />
+          </button>
+        ))}
+      </section>
+      <SectionTitle
+        title="Một miền Trung, nhiều cảm hứng."
+        subtitle={`Những điểm đến đáng khám phá tại ${regions[region]}.`}
+        onClick={() => nav("/places")}
+        to="Tất cả điểm đến"
+      />
+      {places.isPending ? (
+        <CardSkeletons />
+      ) : places.error ? (
+        <ErrorState error={places.error} retry={places.refetch} />
+      ) : places.data?.data.length ? (
+        <div className="card-grid">
+          {places.data.data.slice(0, 3).map((p) => (
+            <PlaceCard
+              key={p.id}
+              place={p}
+              onSelect={(p) => setPlaceId(p.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <Empty
+          title="Khu vực đang chờ thêm điểm đến"
+          description="Thử chọn khu vực khác để tiếp tục khám phá."
+        />
+      )}
+      <div className="overview-bottom">
+        <section className="surface map-preview">
+          <SectionTitle
+            title="Kết nối từng điểm đến"
+            subtitle="Tìm một tuyến xe, mở thêm một góc nhìn."
+            onClick={() => nav("/explore")}
+            to="Mở bản đồ"
+          />
+          <div className="preview-map-box">
+            <DeferredMap
+              region={region}
+              routes={geo.data?.data}
+              places={places.data?.data || []}
+              onPlace={setPlaceId}
+              onRoute={setRouteId}
+            />
+          </div>
+          <div className="map-preview-footer">
+            <span className="legend-line" />
+            Tuyến xe
+            <span className="legend-pin" />
+            Điểm đến<span className="muted">Dữ liệu tham khảo</span>
+          </div>
+        </section>
+        <section className="surface quick-routes">
+          <SectionTitle
+            title="Lên xe, đến nơi."
+            subtitle={`Tuyến xe tại ${regions[region]}`}
+            onClick={() => nav("/routes")}
+            to="Xem tất cả"
+          />
+          {routes.isPending ? (
+            <Busy />
+          ) : routes.error ? (
+            <ErrorState error={routes.error} retry={routes.refetch} />
+          ) : (
+            <div className="quick-route-list">
+              {routes.data?.data.slice(0, 3).map((r) => (
+                <button key={r.id} onClick={() => setRouteId(r.id)}>
+                  <span className="quick-route-code">{routeName(r)}</span>
+                  <span>
+                    <strong>{r.startPoint || r.name}</strong>
+                    <small>{r.endPoint || r.operatingHours}</small>
+                  </span>
+                  <ChevronRight size={18} />
+                </button>
+              ))}
+            </div>
+          )}
+          <button className="planner-promo" onClick={() => nav("/planner")}>
+            <span>
+              <RouteIcon size={22} />
+            </span>
+            <div>
+              <strong>Để SmartBus lên lịch trình.</strong>
+              <small>Bạn chọn cảm hứng, chúng tôi kết nối.</small>
+            </div>
+            <ArrowRight size={18} />
+          </button>
+        </section>
+      </div>
+      <section className="green-banner">
+        <div className="green-banner-icon">
+          <Leaf size={28} />
+        </div>
+        <div>
+          <strong>Đi cùng nhau. Đi xanh hơn.</strong>
+          <p>Mỗi chuyến xe buýt là một cách khác để yêu miền Trung.</p>
+        </div>
+        <Button variant="secondary" onClick={() => setChatOpen(true)}>
+          <Sparkles size={17} />
+          Hỏi người bạn đường
+          <ArrowRight size={16} />
+        </Button>
+      </section>
+    </>
+  );
+}
+function DeferredMap(props: React.ComponentProps<typeof TransitMap>) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, set] = useState(false);
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          set(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "150px" },
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div ref={ref} style={{ height: "100%" }}>
+      {visible ? (
+        <Suspense fallback={<Skeleton className="map-skeleton" />}>
+          <TransitMap {...props} />
+        </Suspense>
+      ) : (
+        <Skeleton className="map-skeleton" />
+      )}
+    </div>
+  );
+}
+export function RoutesPage() {
+  const { region, setRouteId } = useApp();
+  const [params, setParams] = useSearchParams();
+  const [q, setQ] = useState(params.get("q") || "");
+  const text = useDebounced(q);
+  const data = useResource<Route[]>("routes", "/routes", {
+    provinceCode: region,
+    limit: 100,
+  });
+  const rows =
+    data.data?.data.filter((r) =>
+      normalized([r.id, r.name, r.startPoint, r.endPoint].join(" ")).includes(
+        normalized(text),
+      ),
+    ) || [];
+  return (
+    <>
+      <PageHeading
+        eyebrow="ĐI MỘT CHUYẾN XE, THẤY MỘT MIỀN ĐẤT"
+        title="Tuyến xe buýt"
+        description={`Kết nối những điểm đến tại ${regions[region]}.`}
+      >
+        <Badge tone="teal">
+          <BusFront size={14} />
+          {data.data?.pagination?.total ?? "—"} tuyến trong khu vực
+        </Badge>
+      </PageHeading>
+      <div className="filter-toolbar surface">
+        <label className="search-field">
+          <Search size={19} />
+          <input
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setParams(e.target.value ? { q: e.target.value } : {}, {
+                replace: true,
+              });
+            }}
+            placeholder="Tìm mã tuyến, điểm đầu, điểm cuối…"
+            aria-label="Tìm tuyến xe"
+          />
+          {q && (
+            <button
+              onClick={() => {
+                setQ("");
+                setParams({});
+              }}
+            >
+              Xóa
+            </button>
+          )}
+        </label>
+        <span className="filter-summary">
+          <SlidersHorizontal size={16} />
+          {rows.length} kết quả
+        </span>
+      </div>
+      {data.isPending ? (
+        <CardSkeletons count={6} />
+      ) : data.error ? (
+        <ErrorState error={data.error} retry={data.refetch} />
+      ) : rows.length ? (
+        <div className="card-grid">
+          {rows.map((r) => (
+            <RouteCard
+              key={r.id}
+              route={r}
+              onSelect={(r) => setRouteId(r.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <Empty
+          icon={BusFront}
+          title="Chưa tìm thấy tuyến phù hợp"
+          description="Thử một mã tuyến, tên bến khác hoặc đổi khu vực ở phía trên."
+        />
+      )}
+    </>
+  );
+}
+const tabs = [
+  { id: "", label: "Tất cả", icon: Compass },
+  { id: "beach", label: "Biển & đảo", icon: Waves },
+  { id: "culture", label: "Văn hóa", icon: Landmark },
+  { id: "nature", label: "Thiên nhiên", icon: TreePine },
+  { id: "checkin", label: "Check-in", icon: Camera },
+  { id: "food", label: "Ẩm thực", icon: UtensilsCrossed },
+];
+export function PlacesPage() {
+  const { region, setPlaceId } = useApp();
+  const [params, setParams] = useSearchParams();
+  const [q, setQ] = useState(params.get("q") || ""),
+    [category, setCategory] = useState(""),
+    [page, setPage] = useState(1);
+  const text = useDebounced(q);
+  useEffect(() => setPage(1), [region, text, category]);
+  const data = useResource<Place[]>("places", "/tourism/places", {
+    provinceCode: region,
+    q: text,
+    category,
+    page,
+    limit: 9,
+  });
+  return (
+    <>
+      <PageHeading
+        eyebrow="VẺ ĐẸP BẮT ĐẦU TỪ SỰ TÒ MÒ"
+        title="Điểm đến của cảm hứng"
+        description={`Dừng chân tại ${regions[region]}, tìm thêm điều đáng nhớ.`}
+      />
+      <div className="filter-toolbar surface">
+        <label className="search-field">
+          <Search size={19} />
+          <input
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setParams(e.target.value ? { q: e.target.value } : {}, {
+                replace: true,
+              });
+            }}
+            placeholder="Bạn muốn khám phá nơi nào?"
+            aria-label="Tìm địa điểm"
+          />
+          {q && (
+            <button
+              onClick={() => {
+                setQ("");
+                setParams({});
+              }}
+            >
+              Xóa
+            </button>
+          )}
+        </label>
+        <span className="filter-summary">
+          <SlidersHorizontal size={16} />
+          {data.data?.pagination?.total ?? "—"} điểm đến
+        </span>
+      </div>
+      <div className="category-tabs" role="group" aria-label="Loại địa điểm">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            className={category === t.id ? "active" : ""}
+            aria-pressed={category === t.id}
+            onClick={() => setCategory(t.id)}
+          >
+            <t.icon size={18} />
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {data.isPending ? (
+        <CardSkeletons count={6} />
+      ) : data.error ? (
+        <ErrorState error={data.error} retry={data.refetch} />
+      ) : data.data?.data.length ? (
+        <>
+          <div className="card-grid">
+            {data.data.data.map((p) => (
+              <PlaceCard
+                key={p.id}
+                place={p}
+                onSelect={(p) => setPlaceId(p.id)}
+              />
+            ))}
+          </div>
+          <div className="pagination">
+            <span>
+              {data.data.pagination?.total} địa điểm · Trang {page}
+            </span>
+            <div>
+              <Button
+                variant="secondary"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                <ArrowLeft size={15} />
+                Trước
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={!data.data.pagination?.hasMore}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Tiếp
+                <ArrowRight size={15} />
+              </Button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <Empty
+          icon={Compass}
+          title="Chưa tìm thấy điểm đến"
+          description="Thử đổi từ khóa, loại địa điểm hoặc khu vực để khám phá thêm."
+        />
+      )}
+    </>
+  );
+}
+export function ExplorePage() {
+  const nav = useNavigate();
+  const {
+    region,
+    setPlaceId,
+    setRouteId,
+    position,
+    setPosition,
+    locating,
+    locate,
+  } = useApp();
+  const [params, setParams] = useSearchParams();
+  const [tab, setTab] = useState(
+      params.get("nearby")
+        ? "nearby"
+        : params.get("places")
+          ? "places"
+          : "routes",
+    ),
+    [q, setQ] = useState(""),
+    [focus, setFocus] = useState<[number, number] | null>(null);
+  const selected = params.get("route"),
+    text = useDebounced(q),
+    chosen = (params.get("places") || "")
+      .split(",")
+      .filter(Boolean)
+      .map(Number);
+  useEffect(() => {
+    if (params.has("places")) setTab("places");
+    else if (params.has("nearby")) setTab("nearby");
+    else if (params.has("route")) setTab("routes");
+  }, [params]);
+  const previousRegion = useRef(region);
+  useEffect(() => {
+    if (previousRegion.current !== region) {
+      previousRegion.current = region;
+      setParams({}, { replace: true });
+      setFocus(null);
+    }
+  }, [region, setParams]);
+  const routes = useResource<Route[]>("routes", "/routes", {
+      provinceCode: region,
+      limit: 100,
+    }),
+    places = useResource<Place[]>("places", "/tourism/places", {
+      provinceCode: region,
+      q: text,
+      limit: 80,
+    }),
+    geo = useResource<GeoJSON.FeatureCollection>("map-routes", "/map/routes", {
+      provinceCode: region,
+    }),
+    stops = useResource<Stop[]>("stops", "/stops", {
+      provinceCode: region,
+      limit: 100,
+    }),
+    nearest = useResource<{
+      stop: Stop;
+      nearestStop?: Stop;
+      distanceMeters: number;
+      walkingMinutes: number;
+    }>(
+      "nearest",
+      "/stops/nearest",
+      { lat: position?.lat, lng: position?.lng },
+      !!position && tab === "nearby",
+    );
+  const listRoutes =
+      routes.data?.data.filter((r) =>
+        normalized([r.id, r.name, r.startPoint, r.endPoint].join(" ")).includes(
+          normalized(text),
+        ),
+      ) || [],
+    listPlaces =
+      places.data?.data.filter(
+        (p) => !chosen.length || chosen.includes(p.id),
+      ) || [],
+    near = nearest.data?.data.stop || nearest.data?.data.nearestStop;
+  function manual(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget),
+      lat = Number(f.get("lat")),
+      lng = Number(f.get("lng"));
+    setPosition({ lat, lng });
+    setFocus([lng, lat]);
+  }
+  return (
+    <div className="explore-layout">
+      <section className="map-list-panel">
+        <div className="map-list-heading">
+          <p className="eyebrow">MỌI ĐIỂM ĐẾN ĐỀU CÓ KẾT NỐI</p>
+          <h1>Khám phá trên bản đồ</h1>
+          <p className="muted">{regions[region]} · Hành trình trong tầm tay</p>
+        </div>
+        <label className="map-search search-field">
+          <Search size={18} />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Tìm tuyến hoặc điểm đến…"
+            aria-label="Tìm trên bản đồ"
+          />
+          {q && (
+            <button onClick={() => setQ("")} aria-label="Xóa tìm kiếm">
+              <X size={16} />
+            </button>
+          )}
+        </label>
+        <div className="map-list-tabs" role="group" aria-label="Lớp bản đồ">
+          {[
+            { id: "routes", name: "Tuyến xe", icon: BusFront },
+            { id: "places", name: "Điểm đến", icon: Compass },
+            { id: "nearby", name: "Gần tôi", icon: Navigation },
+          ].map((t) => (
+            <button
+              key={t.id}
+              className={tab === t.id ? "active" : ""}
+              aria-pressed={tab === t.id}
+              onClick={() => setTab(t.id)}
+            >
+              <t.icon size={16} />
+              {t.name}
+            </button>
+          ))}
+        </div>
+        {selected && (
+          <div className="selected-route-banner">
+            <span>Đang xem tuyến {selected}</span>
+            <button onClick={() => setParams({})} aria-label="Bỏ chọn tuyến">
+              <X size={15} />
+            </button>
+          </div>
+        )}
+        <div className="map-list-scroll">
+          {tab === "routes" ? (
+            routes.isPending ? (
+              <Busy />
+            ) : routes.error ? (
+              <ErrorState error={routes.error} retry={routes.refetch} />
+            ) : listRoutes.length ? (
+              listRoutes.map((r) => (
+                <article
+                  key={r.id}
+                  className={`map-result ${selected === r.id ? "selected" : ""}`}
+                >
+                  <button
+                    className="map-result-main"
+                    onClick={() =>
+                      setParams(selected === r.id ? {} : { route: r.id })
+                    }
+                  >
+                    <span className="map-route-code">{routeName(r)}</span>
+                    <div>
+                      <strong>{r.name}</strong>
+                      <small>
+                        {r.operatingHours || "Thông tin đang cập nhật"}
+                      </small>
+                    </div>
+                  </button>
+                  <div className="map-result-actions">
+                    <button onClick={() => setRouteId(r.id)}>
+                      Chi tiết tuyến
+                    </button>
+                    <SaveButton kind="route" id={r.id} />
+                  </div>
+                </article>
+              ))
+            ) : (
+              <Empty
+                title="Chưa có tuyến phù hợp"
+                description="Thử tìm tên tuyến hoặc đổi khu vực."
+              />
+            )
+          ) : tab === "places" ? (
+            places.isPending ? (
+              <Busy />
+            ) : places.error ? (
+              <ErrorState error={places.error} retry={places.refetch} />
+            ) : listPlaces.length ? (
+              listPlaces.map((p) => (
+                <article key={p.id} className="map-result">
+                  <button
+                    className="map-result-main"
+                    onClick={() => setFocus(point(p))}
+                  >
+                    <span className="map-place-dot">
+                      <MapPin size={20} />
+                    </span>
+                    <div>
+                      <strong>{p.name}</strong>
+                      <small>{categories[p.category] || "Điểm khám phá"}</small>
+                    </div>
+                  </button>
+                  <div className="map-result-actions">
+                    <button onClick={() => setPlaceId(p.id)}>
+                      Khám phá địa điểm
+                    </button>
+                    <SaveButton kind="place" id={p.id} />
+                  </div>
+                </article>
+              ))
+            ) : (
+              <Empty
+                title="Chưa thấy điểm đến"
+                description="Thử một từ khóa khác để mở thêm kết nối."
+              />
+            )
+          ) : (
+            <div className="nearby-panel">
+              <div className="nearby-intro">
+                <span>
+                  <LocateFixed size={26} />
+                </span>
+                <h3>Chuyến xe gần bạn</h3>
+                <p>Bật vị trí để tìm điểm dừng thuận tiện nhất.</p>
+                <Button busy={locating} onClick={locate}>
+                  <LocateFixed size={17} />
+                  Dùng vị trí của tôi
+                </Button>
+              </div>
+              <details className="manual-coordinates">
+                <summary>Hoặc nhập tọa độ</summary>
+                <form onSubmit={manual}>
+                  <div className="form-row">
+                    <Field label="Vĩ độ">
+                      <input
+                        name="lat"
+                        type="number"
+                        min={8}
+                        max={24}
+                        step="any"
+                        required
+                        placeholder="16.0544"
+                      />
+                    </Field>
+                    <Field label="Kinh độ">
+                      <input
+                        name="lng"
+                        type="number"
+                        min={102}
+                        max={110}
+                        step="any"
+                        required
+                        placeholder="108.2022"
+                      />
+                    </Field>
+                  </div>
+                  <Button type="submit" variant="secondary">
+                    Tìm bến gần tọa độ
+                  </Button>
+                </form>
+              </details>
+              {position &&
+                (nearest.isFetching ? (
+                  <Busy text="Đang tìm điểm dừng gần bạn…" />
+                ) : nearest.error ? (
+                  <ErrorState error={nearest.error} retry={nearest.refetch} />
+                ) : (
+                  near && (
+                    <article className="nearest-card">
+                      <span className="eyebrow">ĐIỂM DỪNG GẦN NHẤT</span>
+                      <h3>{near.name}</h3>
+                      <div className="nearest-distance">
+                        <strong>
+                          {distance(nearest.data?.data.distanceMeters)}
+                        </strong>
+                        <span>Khoảng cách đường chim bay</span>
+                      </div>
+                      <p>{near.address}</p>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setFocus(point(near))}
+                      >
+                        <MapPin size={16} />
+                        Xem vị trí trên bản đồ
+                      </Button>
+                    </article>
+                  )
+                ))}
+            </div>
+          )}
+        </div>
+      </section>
+      <section className="explore-map">
+        <button
+          className="map-simulation-link"
+          onClick={() => nav("/simulation")}
+        >
+          <BusFront size={17} />
+          Xem xe di chuyển <ArrowRight size={15} />
+        </button>
+        <Suspense fallback={<Skeleton className="map-skeleton" />}>
+          <TransitMap
+            region={region}
+            routes={geo.data?.data}
+            selected={selected}
+            places={listPlaces}
+            fitPlaces={chosen.length > 0}
+            stops={stops.data?.data || []}
+            focus={focus}
+            onPlace={setPlaceId}
+            onRoute={(id) => setParams({ route: id })}
+          />
+        </Suspense>
+        <div className="map-bottom-caption">
+          <span className="legend-line" />
+          Điểm tuyến gốc · chưa khớp làn
+          <span className="legend-pin" />
+          Điểm đến
+          <span className="legend-stop" />
+          Điểm dừng
+        </div>
+      </section>
+    </div>
+  );
+}

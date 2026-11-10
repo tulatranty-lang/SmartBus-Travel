@@ -1,14 +1,14 @@
-const slugify = require('slugify');
-const { query } = require('../../config/db');
-const cache = require('../../common/utils/cache.util');
-const { isValidLatLng } = require('../../common/utils/gis-validator.util');
+const slugify = require("slugify");
+const { query } = require("../../config/db");
+const cache = require("../../common/utils/cache.util");
+const { isValidLatLng } = require("../../common/utils/gis-validator.util");
 
 function withCategory(place) {
   return {
     ...place,
     id: Number(place.id),
-    category: place.category || 'general',
-    categoryName: place.categoryName || 'Địa điểm',
+    category: place.category || "general",
+    categoryName: place.categoryName || "Địa điểm",
     isActive: place.isActive !== false && place.isActive !== 0,
     averageRating: Number(place.averageRating || 0),
     reviewCount: Number(place.reviewCount || 0),
@@ -16,35 +16,55 @@ function withCategory(place) {
 }
 
 function makeSlug(name) {
-  return slugify(String(name || 'dia-diem'), { lower: true, strict: true, locale: 'vi' }) || `place-${Date.now()}`;
+  return (
+    slugify(String(name || "dia-diem"), {
+      lower: true,
+      strict: true,
+      locale: "vi",
+    }) || `place-${Date.now()}`
+  );
 }
 
 function normalizeProvinceCode(input = {}) {
-  const raw = input.provinceCode || input.province_code || input.province || '';
+  const raw = input.provinceCode || input.province_code || input.province || "";
   const text = String(raw).trim();
   if (!text) return null;
   const upper = text.toUpperCase();
-  if (['DN', 'HUE', 'QT', 'QNG', 'QN_CU'].includes(upper)) return upper;
-  if (upper.includes('ĐÀ NẴNG') || upper.includes('DA NANG')) return 'DN';
-  if (upper.includes('HUẾ') || upper.includes('HUE')) return 'HUE';
-  if (upper.includes('QUẢNG TRỊ') || upper.includes('QUANG TRI')) return 'QT';
-  if (upper.includes('QUẢNG NGÃI') || upper.includes('QUANG NGAI')) return 'QNG';
-  if (upper.includes('HỘI AN') || upper.includes('HOI AN') || upper.includes('QUẢNG NAM') || upper.includes('QUANG NAM')) return 'QN_CU';
+  if (["DN", "HUE", "QT", "QNG", "QN_CU"].includes(upper)) return upper;
+  if (upper.includes("ĐÀ NẴNG") || upper.includes("DA NANG")) return "DN";
+  if (upper.includes("HUẾ") || upper.includes("HUE")) return "HUE";
+  if (upper.includes("QUẢNG TRỊ") || upper.includes("QUANG TRI")) return "QT";
+  if (upper.includes("QUẢNG NGÃI") || upper.includes("QUANG NGAI"))
+    return "QNG";
+  if (
+    upper.includes("HỘI AN") ||
+    upper.includes("HOI AN") ||
+    upper.includes("QUẢNG NAM") ||
+    upper.includes("QUANG NAM")
+  )
+    return "QN_CU";
   return upper.slice(0, 30);
 }
 
 async function resolveCategoryId(input = {}) {
   if (input.categoryId) return Number(input.categoryId);
-  const raw = String(input.category || input.categoryName || 'general').trim();
+  const raw = String(input.category || input.categoryName || "general").trim();
   if (!raw) return null;
-  const code = slugify(raw, { lower: true, strict: true, locale: 'vi' }) || 'general';
-  const found = await query(`SELECT TOP 1 id FROM tourist_categories WHERE code=@code OR name=@name`, { code, name: raw });
+  const code =
+    slugify(raw, { lower: true, strict: true, locale: "vi" }) || "general";
+  const found = await query(
+    `SELECT TOP 1 id FROM tourist_categories WHERE code=@code OR name=@name`,
+    { code, name: raw },
+  );
   if (found.recordset[0]) return Number(found.recordset[0].id);
-  const inserted = await query(`
+  const inserted = await query(
+    `
     INSERT INTO tourist_categories(code, name, icon, sort_order, is_active)
     OUTPUT INSERTED.id
     VALUES(@code, @name, N'📍', 999, 1)
-  `, { code, name: raw });
+  `,
+    { code, name: raw },
+  );
   return Number(inserted.recordset[0].id);
 }
 
@@ -59,16 +79,18 @@ async function listCategories() {
 }
 
 async function findPlaces(filters = {}) {
-  const includeInactive = String(filters.includeInactive || '').toLowerCase() === 'true' || filters.includeInactive === true;
-  const q = String(filters.q || filters.keyword || '').trim();
-  const province = String(filters.provinceCode || filters.province || '').trim().toUpperCase();
-  const category = String(filters.category || '').trim();
-  const limit = Math.max(1, Math.min(80, Number(filters.limit || filters.pageSize || 36) || 36));
+  const { params, where } = placeFilters(filters);
+  const limit = Math.max(
+    1,
+    Math.min(80, Number(filters.limit || filters.pageSize || 36) || 36),
+  );
   const page = Math.max(1, Number(filters.page || 1) || 1);
-  const offsetRaw = Number(filters.offset);
-  const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? Math.floor(offsetRaw) : (page - 1) * limit;
-
-  const rs = await query(`
+  const offset =
+    filters.offset != null
+      ? Math.max(0, Math.floor(Number(filters.offset)))
+      : (page - 1) * limit;
+  const rs = await query(
+    `
     SELECT
       p.id,
       p.name,
@@ -102,38 +124,20 @@ async function findPlaces(filters = {}) {
     FROM tourist_places p
     LEFT JOIN tourist_categories c ON c.id = p.category_id
     LEFT JOIN provinces pr ON pr.code = p.province_code
-    WHERE (@includeInactive = 1 OR COALESCE(p.is_active, 1) = 1)
-      AND (@q IS NULL OR p.name LIKE '%' + @q + '%' OR p.description LIKE '%' + @q + '%' OR p.short_description LIKE '%' + @q + '%' OR p.address LIKE '%' + @q + '%' OR p.tags LIKE '%' + @q + '%' OR pr.name LIKE '%' + @q + '%')
-      AND (@province IS NULL OR UPPER(p.province_code) = @province OR UPPER(pr.name) LIKE '%' + @province + '%')
-      AND (@category IS NULL OR c.code = @category OR c.name = @category)
+    WHERE ${where}
     ORDER BY p.average_rating DESC, p.review_count DESC, p.name
     OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-  `, {
-    includeInactive: includeInactive ? 1 : 0,
-    q: q || null,
-    province: province || null,
-    category: category || null,
-    offset,
-    limit,
-  });
+  `,
+    { ...params, offset, limit },
+  );
+  const places = rs.recordset.map(withCategory);
 
-  let places = rs.recordset.map(withCategory).filter((p) => isValidLatLng(p.latitude, p.longitude, true));
-  if (filters.routeId || filters.routeCode) {
-    const rid = String(filters.routeId || filters.routeCode).trim();
-    const links = await query(`
-      SELECT ps.place_id AS placeId
-      FROM place_nearby_stops ps
-      LEFT JOIN bus_routes br ON br.route_code = ps.route_code
-      WHERE ps.route_code=@routeId OR ps.route_display_code=@routeId OR br.route_number=@routeId
-    `, { routeId: rid });
-    const ids = new Set(links.recordset.map((x) => Number(x.placeId)));
-    places = places.filter((p) => ids.has(Number(p.id)));
-  }
   return places;
 }
 
 async function findById(id) {
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT TOP 1
       p.id,
       p.name,
@@ -162,13 +166,15 @@ async function findById(id) {
     FROM tourist_places p
     LEFT JOIN tourist_categories c ON c.id = p.category_id
     WHERE p.id=@id AND COALESCE(p.is_active, 1) = 1
-  `, { id: Number(id) });
+  `,
+    { id: Number(id) },
+  );
   return rs.recordset[0] ? withCategory(rs.recordset[0]) : null;
 }
 
-
 async function findByIdForAdmin(id) {
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT TOP 1
       p.id,
       p.name,
@@ -198,12 +204,15 @@ async function findByIdForAdmin(id) {
     FROM tourist_places p
     LEFT JOIN tourist_categories c ON c.id = p.category_id
     WHERE p.id=@id
-  `, { id: Number(id) });
+  `,
+    { id: Number(id) },
+  );
   return rs.recordset[0] ? withCategory(rs.recordset[0]) : null;
 }
 
 async function nearbyStops(placeId) {
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT
       ps.place_id AS placeId,
       CAST(ps.stop_id AS NVARCHAR(30)) AS stopId,
@@ -221,18 +230,20 @@ async function nearbyStops(placeId) {
     LEFT JOIN bus_routes br ON br.route_code = ps.route_code
     WHERE ps.place_id = @placeId
     ORDER BY ps.distance_meters
-  `, { placeId: Number(placeId) });
+  `,
+    { placeId: Number(placeId) },
+  );
   return rs.recordset;
 }
-
 
 async function nearbyStopsForPlaces(placeIds = []) {
   const ids = [...new Set((placeIds || []).map(Number).filter(Boolean))];
   const result = new Map(ids.map((id) => [id, []]));
   if (!ids.length) return result;
-  const values = ids.map((id, index) => `(@id${index})`).join(',');
+  const values = ids.map((id, index) => `(@id${index})`).join(",");
   const params = Object.fromEntries(ids.map((id, index) => [`id${index}`, id]));
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT
       ps.place_id AS placeId,
       CAST(ps.stop_id AS NVARCHAR(30)) AS stopId,
@@ -250,7 +261,9 @@ async function nearbyStopsForPlaces(placeIds = []) {
     LEFT JOIN bus_stops s ON s.id = ps.stop_id
     LEFT JOIN bus_routes br ON br.route_code = ps.route_code
     ORDER BY ps.place_id, ps.distance_meters
-  `, params);
+  `,
+    params,
+  );
   for (const row of rs.recordset) {
     const key = Number(row.placeId);
     if (!result.has(key)) result.set(key, []);
@@ -260,7 +273,8 @@ async function nearbyStopsForPlaces(placeIds = []) {
 }
 
 async function reviews(placeId, includePending = false) {
-  const rs = await query(`
+  const rs = await query(
+    `
     SELECT
       r.id,
       r.place_id AS placeId,
@@ -281,40 +295,25 @@ async function reviews(placeId, includePending = false) {
     WHERE r.place_id = @placeId
       AND (@includePending = 1 OR r.status = 'approved')
     ORDER BY r.created_at DESC
-  `, { placeId: Number(placeId), includePending: includePending ? 1 : 0 });
+  `,
+    { placeId: Number(placeId), includePending: includePending ? 1 : 0 },
+  );
   return rs.recordset;
 }
 
 async function favoritePlace(userId, placeId) {
-  const params = { userId: Number(userId), placeId: Number(placeId) };
-  await query(`
-    IF OBJECT_ID(N'dbo.favorites_places', N'U') IS NOT NULL
-    BEGIN
-      IF NOT EXISTS (SELECT 1 FROM favorites_places WHERE user_id=@userId AND place_id=@placeId)
-        INSERT INTO favorites_places(user_id, place_id) VALUES(@userId, @placeId)
-    END
-    IF OBJECT_ID(N'dbo.place_favorites', N'U') IS NOT NULL
-    BEGIN
-      IF NOT EXISTS (SELECT 1 FROM place_favorites WHERE user_id=@userId AND place_id=@placeId)
-        INSERT INTO place_favorites(user_id, place_id) VALUES(@userId, @placeId)
-    END
-  `, params);
-  return { placeId: Number(placeId), favorited: true };
+  return require("../favorites/favorites.repository").addPlace(userId, placeId);
 }
-
 async function unfavoritePlace(userId, placeId) {
-  const params = { userId: Number(userId), placeId: Number(placeId) };
-  await query(`
-    IF OBJECT_ID(N'dbo.favorites_places', N'U') IS NOT NULL
-      DELETE FROM favorites_places WHERE user_id=@userId AND place_id=@placeId;
-    IF OBJECT_ID(N'dbo.place_favorites', N'U') IS NOT NULL
-      DELETE FROM place_favorites WHERE user_id=@userId AND place_id=@placeId;
-  `, params);
-  return { placeId: Number(placeId), favorited: false };
+  return require("../favorites/favorites.repository").removePlace(
+    userId,
+    placeId,
+  );
 }
 
 async function myFavorites(userId) {
-  const rs = await query(`
+  const rs = await query(
+    `
     WITH fav AS (
       SELECT place_id, MAX(created_at) AS created_at FROM (
         SELECT place_id, created_at FROM favorites_places WHERE user_id=@userId
@@ -336,14 +335,24 @@ async function myFavorites(userId) {
     LEFT JOIN tourist_categories c ON c.id = p.category_id
     WHERE COALESCE(p.is_active, 1) = 1
     ORDER BY fav.created_at DESC
-  `, { userId: Number(userId) });
+  `,
+    { userId: Number(userId) },
+  );
   return rs.recordset.map(withCategory);
 }
 
 async function upsertPlace(input) {
   const categoryId = await resolveCategoryId(input);
   const provinceCode = normalizeProvinceCode(input);
-  const isActive = input.isActive === undefined && input.is_active === undefined ? null : (input.isActive === false || input.is_active === false || String(input.isActive || input.is_active).toLowerCase() === 'false' || String(input.isActive || input.is_active) === '0' ? 0 : 1);
+  const isActive =
+    input.isActive === undefined && input.is_active === undefined
+      ? null
+      : input.isActive === false ||
+          input.is_active === false ||
+          String(input.isActive || input.is_active).toLowerCase() === "false" ||
+          String(input.isActive || input.is_active) === "0"
+        ? 0
+        : 1;
   const commonParams = {
     name: input.name,
     slug: input.slug || (input.name ? makeSlug(input.name) : null),
@@ -361,12 +370,15 @@ async function upsertPlace(input) {
     maxBudget: input.maxBudget || null,
     bestTime: input.bestTime || input.best_time || null,
     tips: input.tips || input.nearbySuggestions || null,
-    tags: Array.isArray(input.tags) ? input.tags.join(', ') : (input.tags || null),
+    tags: Array.isArray(input.tags)
+      ? input.tags.join(", ")
+      : input.tags || null,
     isActive,
   };
 
   if (input.id) {
-    const rs = await query(`
+    const rs = await query(
+      `
       UPDATE tourist_places
       SET name=COALESCE(@name, name),
           slug=COALESCE(@slug, slug),
@@ -389,32 +401,74 @@ async function upsertPlace(input) {
           updated_at=SYSDATETIME()
       OUTPUT INSERTED.id
       WHERE id=@id
-    `, { id: Number(input.id), ...commonParams });
-    cache.clear('tourism:places:');
+    `,
+      { id: Number(input.id), ...commonParams },
+    );
+    cache.clear("tourism:places:");
     return rs.recordset[0] ? findByIdForAdmin(input.id) : null;
   }
 
-  const rs = await query(`
+  const rs = await query(
+    `
     INSERT INTO tourist_places(name, slug, description, short_description, province_code, category_id, address, latitude, longitude, image_url, opening_hours, suggested_duration_minutes, min_budget, max_budget, best_time, nearby_suggestions, tags, is_active)
     OUTPUT INSERTED.id
     VALUES(@name, @slug, @description, @shortDescription, @provinceCode, @categoryId, @address, @latitude, @longitude, @imageUrl, @openingHours, COALESCE(@duration, 90), @minBudget, @maxBudget, @bestTime, @tips, @tags, COALESCE(@isActive, 1))
-  `, commonParams);
-  cache.clear('tourism:places:');
+  `,
+    commonParams,
+  );
+  cache.clear("tourism:places:");
   return findByIdForAdmin(rs.recordset[0].id);
 }
 
 async function removePlace(id) {
-  const rs = await query(`
+  const rs = await query(
+    `
     UPDATE tourist_places
     SET is_active=0, updated_at=SYSDATETIME()
     OUTPUT INSERTED.id
     WHERE id=@id
-  `, { id: Number(id) });
-  cache.clear('tourism:places:');
+  `,
+    { id: Number(id) },
+  );
+  cache.clear("tourism:places:");
   return { id: Number(id), deleted: Boolean(rs.recordset[0]) };
 }
 
+// Use exactly the same predicates before pagination for rows and total.
+function placeFilters(f = {}) {
+  return {
+    params: {
+      includeInactive:
+        f.includeInactive === true || f.includeInactive === "true" ? 1 : 0,
+      q: String(f.q || f.keyword || "").trim() || null,
+      province:
+        String(f.provinceCode || f.province || "")
+          .trim()
+          .toUpperCase() || null,
+      category: String(f.category || "").trim() || null,
+      routeId: String(f.routeId || f.routeCode || "").trim() || null,
+    },
+    where: `(@includeInactive=1 OR COALESCE(p.is_active,1)=1)
+      AND (@includeInactive=1 OR (p.latitude BETWEEN 8 AND 24 AND p.longitude BETWEEN 102 AND 110))
+      AND (@q IS NULL OR p.name LIKE '%'+@q+'%' OR p.description LIKE '%'+@q+'%' OR p.short_description LIKE '%'+@q+'%' OR p.address LIKE '%'+@q+'%' OR p.tags LIKE '%'+@q+'%' OR pr.name LIKE '%'+@q+'%')
+      AND (@province IS NULL OR UPPER(p.province_code)=@province OR UPPER(pr.name) LIKE '%'+@province+'%')
+      AND (@category IS NULL OR c.code=@category OR c.name=@category)
+      AND (@routeId IS NULL OR EXISTS(SELECT 1 FROM place_nearby_stops ps LEFT JOIN bus_routes br ON br.route_code=ps.route_code
+        WHERE ps.place_id=p.id AND (ps.route_code=@routeId OR ps.route_display_code=@routeId OR br.route_number=@routeId)))`,
+  };
+}
+async function countPlaces(filters = {}) {
+  const { where, params } = placeFilters(filters);
+  const result = await query(
+    `SELECT COUNT(*) total FROM tourist_places p
+    LEFT JOIN provinces pr ON pr.code=p.province_code
+    LEFT JOIN tourist_categories c ON c.id=p.category_id WHERE ${where}`,
+    params,
+  );
+  return result.recordset[0].total;
+}
 module.exports = {
+  countPlaces,
   listCategories,
   findPlaces,
   findById,
