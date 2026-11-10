@@ -1,5 +1,7 @@
 # SmartBus — mô phỏng đường phố tích hợp
 
+> Từ 11/11/2026, chức năng chính là xe ước tính ngay trong bản đồ Khám phá. Xem [MAIN_MAP_FLEET.md](MAIN_MAP_FLEET.md). Trang thử nghiệm trong tài liệu này được giữ để kiểm tra mô hình riêng.
+
 Ngày kiểm tra: 10/11/2026. Mở `/#/simulation` trong ứng dụng Express hoặc [bản công khai](https://tulatranty-lang.github.io/SmartBus-Travel/#/simulation).
 
 ## Phạm vi đang chạy

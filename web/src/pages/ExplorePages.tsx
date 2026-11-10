@@ -3,6 +3,7 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -57,6 +58,13 @@ import {
   Field,
 } from "../components/ui";
 import { PlaceCard, RouteCard, SaveButton } from "../components/cards";
+import {
+  useTransitOperations,
+  OperationsToolbar,
+  SelectedBus,
+  FleetList,
+} from "../transit/operations";
+const emptyRoutes: Route[] = [];
 const TransitMap = lazy(() => import("../components/TransitMap"));
 export function Home() {
   const nav = useNavigate(),
@@ -146,8 +154,8 @@ export function Home() {
             <br className="desktop-only" />
             Khám phá miền Trung từ một chuyến xe.
           </p>
-          <Button onClick={() => nav("/simulation")}>
-            Xem chuyến xe mô phỏng
+          <Button onClick={() => nav("/explore")}>
+            Xem xe trên bản đồ
             <ArrowUpRight size={18} />
           </Button>
         </div>
@@ -580,7 +588,6 @@ export function PlacesPage() {
   );
 }
 export function ExplorePage() {
-  const nav = useNavigate();
   const {
     region,
     setPlaceId,
@@ -596,10 +603,17 @@ export function ExplorePage() {
         ? "nearby"
         : params.get("places")
           ? "places"
-          : "routes",
+          : params.has("route")
+            ? "routes"
+            : "vehicles",
     ),
     [q, setQ] = useState(""),
     [focus, setFocus] = useState<[number, number] | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
+      null,
+    ),
+    [followVehicle, setFollowVehicle] = useState(false),
+    [perspective, setPerspective] = useState(false);
   const selected = params.get("route"),
     text = useDebounced(q),
     chosen = (params.get("places") || "")
@@ -617,6 +631,8 @@ export function ExplorePage() {
       previousRegion.current = region;
       setParams({}, { replace: true });
       setFocus(null);
+      setSelectedVehicleId(null);
+      setFollowVehicle(false);
     }
   }, [region, setParams]);
   const routes = useResource<Route[]>("routes", "/routes", {
@@ -646,16 +662,37 @@ export function ExplorePage() {
       { lat: position?.lat, lng: position?.lng },
       !!position && tab === "nearby",
     );
-  const listRoutes =
-      routes.data?.data.filter((r) =>
-        normalized([r.id, r.name, r.startPoint, r.endPoint].join(" ")).includes(
-          normalized(text),
-        ),
-      ) || [],
-    listPlaces =
-      places.data?.data.filter(
-        (p) => !chosen.length || chosen.includes(p.id),
-      ) || [],
+  const operations = useTransitOperations(
+    region,
+    selected,
+    routes.data?.data || emptyRoutes,
+    geo.data?.data,
+    params.get("at"),
+  );
+  const selectedBus = [
+    ...operations.prediction.vehicles,
+    ...operations.prediction.parkedVehicles,
+  ].find((v) => v.id === selectedVehicleId);
+  function selectBus(id: string) {
+    setSelectedVehicleId(id);
+    setFollowVehicle(true);
+  }
+  const listRoutes = useMemo(
+      () =>
+        routes.data?.data.filter((r) =>
+          normalized(
+            [r.id, r.name, r.startPoint, r.endPoint].join(" "),
+          ).includes(normalized(text)),
+        ) || [],
+      [routes.data, text],
+    ),
+    listPlaces = useMemo(
+      () =>
+        places.data?.data.filter(
+          (p) => !chosen.length || chosen.includes(p.id),
+        ) || [],
+      [places.data, params.get("places")],
+    ),
     near = nearest.data?.data.stop || nearest.data?.data.nearestStop;
   function manual(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -669,8 +706,8 @@ export function ExplorePage() {
     <div className="explore-layout">
       <section className="map-list-panel">
         <div className="map-list-heading">
-          <p className="eyebrow">MỌI ĐIỂM ĐẾN ĐỀU CÓ KẾT NỐI</p>
-          <h1>Khám phá trên bản đồ</h1>
+          <p className="eyebrow">BẢN ĐỒ · TUYẾN ĐƯỜNG · VỊ TRÍ XE</p>
+          <h1>Xe buýt ở đâu?</h1>
           <p className="muted">{regions[region]} · Hành trình trong tầm tay</p>
         </div>
         <label className="map-search search-field">
@@ -689,6 +726,7 @@ export function ExplorePage() {
         </label>
         <div className="map-list-tabs" role="group" aria-label="Lớp bản đồ">
           {[
+            { id: "vehicles", name: "Xe buýt", icon: BusFront },
             { id: "routes", name: "Tuyến xe", icon: BusFront },
             { id: "places", name: "Điểm đến", icon: Compass },
             { id: "nearby", name: "Gần tôi", icon: Navigation },
@@ -713,7 +751,14 @@ export function ExplorePage() {
           </div>
         )}
         <div className="map-list-scroll">
-          {tab === "routes" ? (
+          {tab === "vehicles" ? (
+            <FleetList
+              operations={operations}
+              search={text}
+              selectedId={selectedVehicleId}
+              onSelect={selectBus}
+            />
+          ) : tab === "routes" ? (
             routes.isPending ? (
               <Busy />
             ) : routes.error ? (
@@ -736,6 +781,14 @@ export function ExplorePage() {
                       <small>
                         {r.operatingHours || "Thông tin đang cập nhật"}
                       </small>
+                      <span className="route-fleet-count">
+                        {
+                          operations.prediction.vehicles.filter(
+                            (v) => v.routeId === r.id,
+                          ).length
+                        }{" "}
+                        xe trên bản đồ (ước tính)
+                      </span>
                     </div>
                   </button>
                   <div className="map-result-actions">
@@ -862,34 +915,55 @@ export function ExplorePage() {
           )}
         </div>
       </section>
-      <section className="explore-map">
-        <button
-          className="map-simulation-link"
-          onClick={() => nav("/simulation")}
-        >
-          <BusFront size={17} />
-          Xem xe di chuyển <ArrowRight size={15} />
-        </button>
+      <section className="explore-map explore-operational-map">
         <Suspense fallback={<Skeleton className="map-skeleton" />}>
           <TransitMap
             region={region}
-            routes={geo.data?.data}
+            routes={operations.roadGeo}
             selected={selected}
             places={listPlaces}
             fitPlaces={chosen.length > 0}
-            stops={stops.data?.data || []}
+            stops={operations.mapStops}
             focus={focus}
             onPlace={setPlaceId}
             onRoute={(id) => setParams({ route: id })}
+            vehicles={operations.prediction.vehicles}
+            selectedVehicleId={selectedVehicleId}
+            followVehicle={followVehicle}
+            perspective={perspective}
+            onVehicle={selectBus}
           />
         </Suspense>
-        <div className="map-bottom-caption">
-          <span className="legend-line" />
-          Điểm tuyến gốc · chưa khớp làn
-          <span className="legend-pin" />
-          Điểm đến
-          <span className="legend-stop" />
-          Điểm dừng
+        <OperationsToolbar
+          operations={operations}
+          perspective={perspective}
+          setPerspective={setPerspective}
+        />
+        {!operations.network.isPending &&
+          operations.prediction.counts.active === 0 &&
+          !selectedBus && (
+            <div className="operations-off-hours">
+              Không có xe đang đi theo lịch ở giờ này.
+              <button onClick={() => operations.at("08:00")}>
+                Xem lúc 08:00
+              </button>
+            </div>
+          )}
+        {selectedBus && (
+          <SelectedBus
+            bus={selectedBus}
+            follow={followVehicle}
+            setFollow={setFollowVehicle}
+            close={() => {
+              setSelectedVehicleId(null);
+              setFollowVehicle(false);
+            }}
+          />
+        )}
+        <div className="operations-map-note">
+          <i />
+          Đường bám mạng đường · xe và thời gian đến là ước tính, chưa có GPS
+          trực tiếp
         </div>
       </section>
     </div>

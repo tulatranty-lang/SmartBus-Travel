@@ -8,7 +8,7 @@ Giao diện mới nằm trong `web/src`, được dựng vào `frontend/app` và
 
 Dữ liệu tuyến và tọa độ được nhập từ bộ tài liệu sẵn có trong repository. Đây là dữ liệu tham khảo, chưa phải feed vị trí xe/giờ đến trực tiếp từ đơn vị vận hành. Tên khu vực có Quảng Nam cũ và tuyến liên vùng; không dùng số khu vực như số đơn vị hành chính hiện hành. Bài review mẫu cũ được đánh dấu `is_seed`/“Bài mẫu”.
 
-**Mô phỏng đường phố:** mở `/#/simulation` để xem đoạn Cầu Rồng → Võ Văn Kiệt → Võ Nguyên Giáp trên nền hình học OSM, với xe điện Kim Long 40 người tham chiếu tuyến 06. Có ba tình huống, bám xe IDM, giới hạn tăng tốc/độ êm, phanh theo độ cong, theo dõi hai trục khi cua, chờ đèn và mở cửa theo số khách. Bảng “Nguồn & độ chính xác” ghi từng nguồn Danabus, Báo Đà Nẵng, hãng xe và mạng xã hội chính thức; thông số ước tính được đánh dấu. Đây là mô phỏng, chưa có GPS xe trực tiếp và chưa nghiệm thu mép đường. Xem [cấu hình và kết quả kiểm tra](docs/current/SIMULATION_RELEASE.md).
+**Bản đồ là chức năng chính:** mở `/#/explore` để xem xe buýt ước tính ngay trên tuyến đường, số xe đang đi/nghỉ đầu bến, hướng chạy, điểm tiếp theo và thời gian đến. Vị trí được tính từ lịch, đội xe và thời gian hành trình; có chế độ giờ hiện tại hoặc chọn giờ xem. 39 bản ghi tuyến đã có hình đường riêng cho hai chiều, giữ nguyên GPS nguồn. Không có feed GPS thật; hình tuyến còn cần soát được đánh dấu. Xem [cách tính và kiểm tra](docs/current/MAIN_MAP_FLEET.md). Màn hình `/#/simulation` giữ làm công cụ kiểm tra mô hình cũ.
 
 ## Chạy trên Windows
 
@@ -138,7 +138,7 @@ Kiểm tra trình duyệt với cùng cấu hình database thử ở trên: `npm
 
 Khuyến nghị chạy **cùng origin**: `npm start` phục vụ frontend và API; `/runtime-config.js` tự nhận API prefix. Không cần sửa JavaScript khi đổi domain chung.
 
-GitHub Pages phục vụ bản công khai tại [SmartBus Travel](https://tulatranty-lang.github.io/SmartBus-Travel/#/simulation), không chạy Node.js/SQL Server. Bản này xem được mô phỏng, 39 tuyến, 243 điểm nguồn riêng biệt và 60 điểm du lịch từ dữ liệu đã có trong Git, không xuất tài khoản hoặc nội dung SQL cá nhân. 298 vị trí theo thứ tự các tuyến được giữ nguyên. Chạy `npm run data:public` khi chủ động cập nhật bộ dữ liệu công khai; CI kiểm tra tính nhất quán. Các đường nối điểm nguồn ở trang Khám phá được vẽ nét đứt, không được nhận là đường hoặc làn đã xác thực.
+GitHub Pages phục vụ bản công khai tại [SmartBus Travel](https://tulatranty-lang.github.io/SmartBus-Travel/#/explore), không chạy Node.js/SQL Server. Bản này xem được mô phỏng, 39 tuyến, 243 điểm nguồn riêng biệt và 60 điểm du lịch từ dữ liệu đã có trong Git, không xuất tài khoản hoặc nội dung SQL cá nhân. 298 vị trí theo thứ tự các tuyến được giữ nguyên. Chạy `npm run data:public` khi chủ động cập nhật bộ dữ liệu công khai; CI kiểm tra tính nhất quán. Trang Khám phá nay dùng hình học bám đường hai chiều để vẽ tuyến và tính vị trí xe; những hành lang còn cần soát được đánh dấu, chưa phải làn bus đã xác thực ngoài thực địa.
 
 Sau sửa giao diện, chạy `npm run build`; CI kiểm tra bản dựng và tài nguyên trong `docs` giống nhau. Đường dẫn tương đối và HashRouter hỗ trợ `/SmartBus-Travel/`. Tài khoản, lưu hành trình và gửi nội dung cần backend. Để dùng backend HTTPS trên Pages, đặt URL API vào `web/public/runtime-config.js` rồi dựng lại; backend cần `CORS_ORIGIN=https://tulatranty-lang.github.io`. Có thể đặt `window.SMARTBUS_PUBLIC_SNAPSHOT=false` để tắt chế độ dữ liệu công khai khi dùng cấu hình riêng. Bản Express cùng origin dùng SQL như trước, không tự chuyển sang dữ liệu công khai khi máy chủ gặp lỗi.
 

@@ -42,7 +42,6 @@ import { isPublicSnapshot } from "../public-data";
 const primary = [
   { to: "/", label: "Tổng quan", icon: Home },
   { to: "/explore", label: "Bản đồ khám phá", icon: Map },
-  { to: "/simulation", label: "Mô phỏng đường phố", icon: Navigation },
   { to: "/routes", label: "Tuyến xe buýt", icon: BusFront },
   { to: "/places", label: "Điểm đến", icon: Compass },
   { to: "/planner", label: "Lên lịch trình", icon: Route },
@@ -114,7 +113,7 @@ export default function Layout() {
   }, [credits, photos.length]);
   return (
     <div
-      className={`app-shell ${location.pathname === "/simulation" ? "simulation-active" : ""}`}
+      className={`app-shell ${location.pathname === "/simulation" ? "simulation-active" : ""} ${location.pathname === "/explore" ? "map-active" : ""}`}
     >
       <a
         className="skip-link"
@@ -366,7 +365,7 @@ export default function Layout() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
           >
-            {isPublicSnapshot() && (
+            {isPublicSnapshot() && location.pathname !== "/explore" && (
               <div className="public-data-note">
                 Bản công khai · Xem tuyến, điểm đến và mô phỏng. Tài khoản và
                 lưu hành trình cần bản có máy chủ.
@@ -385,7 +384,7 @@ export default function Layout() {
         </footer>
       </div>
       <nav className="bottom-nav" aria-label="Điều hướng trên điện thoại">
-        {[primary[0], primary[1], primary[2], primary[5], secondary[0]].map(
+        {[primary[0], primary[1], primary[2], primary[4], secondary[0]].map(
           (v) => (
             <NavLink
               key={v.to}

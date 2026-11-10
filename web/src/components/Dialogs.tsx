@@ -586,11 +586,11 @@ export function DetailsDialogs() {
                   variant="secondary"
                   onClick={() => {
                     setRouteId(null);
-                    nav("/simulation");
+                    nav("/explore?route=DN-06");
                   }}
                 >
                   <BusFront size={16} />
-                  Xem mô phỏng đoạn tuyến 06
+                  Xem xe trên bản đồ tuyến 06
                 </Button>
               )}
               <section className="detail-section">
