@@ -1,0 +1,2554 @@
+{
+  "auditDate": "2026-11-10",
+  "head": "9c4e703a97f0878987f580fbd1e47428d4cb7fee",
+  "main": "4d0db3231c798c3fd27b8645ed7a65082fffd288",
+  "method": "Local tracked OOXML and JSON inspection; remote main tree/branch heads checked through connected GitHub. Counts are records, not independent GPS observations. URL agreement is not field validation.",
+  "files": [
+    {
+      "path": "backend-api/data/import/smartbus-bus-data.normalized.json",
+      "bytes": 588243,
+      "sha256": "89a103fe4de26742ae7752d8c97b1f59454308ac2e38e0b6250e557a6c6aaf24",
+      "headBlob": "93f692b34e24ebc842c2c90d8865cd46916f44ac",
+      "mainBlob": "93f692b34e24ebc842c2c90d8865cd46916f44ac",
+      "workingTreeMatchesHead": true
+    },
+    {
+      "path": "backend-api/data/import/smartbus-docx-4tinh.generated.json",
+      "bytes": 497716,
+      "sha256": "40459a09308c7ed5bf0cb6a29c1de227a93d3b3803069ff25ef63ae3084437bd",
+      "headBlob": "b81cc1362bd71c3097065831c681ee6a3c4e2a02",
+      "mainBlob": "b81cc1362bd71c3097065831c681ee6a3c4e2a02",
+      "workingTreeMatchesHead": true
+    },
+    {
+      "path": "backend-api/data/import/smartbus-tourism-data.normalized.json",
+      "bytes": 249130,
+      "sha256": "b05d31818cb9818d8ecbfda0389b53d6e75752ce068a5537c24408ebfafeb7f6",
+      "headBlob": "f1bcc4d7b37049e9579ab126fe2dad78c35cf012",
+      "mainBlob": "f1bcc4d7b37049e9579ab126fe2dad78c35cf012",
+      "workingTreeMatchesHead": true
+    },
+    {
+      "path": "backend-api/data/import/smartbus_du_lich_V3_tieng_viet_co_toa_do.xlsx",
+      "bytes": 40681,
+      "sha256": "9316535c4fdcffab06d95b54f708dfccc35541757245c05411496d68a7cb3735",
+      "headBlob": "0d62ccaf5656e76ff0f520015aad5fe8e9d69a4d",
+      "mainBlob": "0d62ccaf5656e76ff0f520015aad5fe8e9d69a4d",
+      "workingTreeMatchesHead": true
+    },
+    {
+      "path": "backend-api/data/import/SmartBus_DuLich_GanXeBus_GPS_GoogleMap_4Tinh.docx",
+      "bytes": 58181,
+      "sha256": "b6e52524849d72249ac21b409c872d5db1d995e1ad5975e3824c448f1cd1886f",
+      "headBlob": "9ea7f2dc0dbe058849f2ffba394068613d64abe1",
+      "mainBlob": "9ea7f2dc0dbe058849f2ffba394068613d64abe1",
+      "workingTreeMatchesHead": true
+    },
+    {
+      "path": "backend-api/data/import/SmartBus_DuLich_GanXeBus_GPS_GoogleMap_QuangNamCu.docx",
+      "bytes": 51527,
+      "sha256": "fc8d24232c5bc2557b469fe4b79c79941279c5ee48092d14a208ef94cf408f85",
+      "headBlob": "57bea7b2f1e4ffd4982347547f48a4f8748563e7",
+      "mainBlob": "57bea7b2f1e4ffd4982347547f48a4f8748563e7",
+      "workingTreeMatchesHead": true
+    },
+    {
+      "path": "backend-api/data/import/SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+      "bytes": 57804,
+      "sha256": "876ff88e1e45a5c0dc974c67294f7d0474cf16d1c79fbf096974a6875313e464",
+      "headBlob": "232a8efef14d1bba960fa233a673adf90faa2e91",
+      "mainBlob": "232a8efef14d1bba960fa233a673adf90faa2e91",
+      "workingTreeMatchesHead": true
+    },
+    {
+      "path": "backend-api/data/import/SmartBus_TuyenXeBus_GPS_GoogleMap_QuangNamCu.docx",
+      "bytes": 52019,
+      "sha256": "efc92e73d43469f326f518bced733afc9d0d45a3ab9ab5aa3cc34e59f33eaae0",
+      "headBlob": "39173cd589b2b558ebb5769dd5d67a389e40e2de",
+      "mainBlob": "39173cd589b2b558ebb5769dd5d67a389e40e2de",
+      "workingTreeMatchesHead": true
+    },
+    {
+      "path": "backend-api/data/import/smartbus_xe_bus_V3_tieng_viet_co_toa_do.xlsx",
+      "bytes": 59854,
+      "sha256": "c55f73df07c8502974fae5ccfa57f7a960b750570c97f3eab75dd0482f15026d",
+      "headBlob": "ac88b5a795f4a3b6d3a373ed586a059cb6728f0c",
+      "mainBlob": "ac88b5a795f4a3b6d3a373ed586a059cb6728f0c",
+      "workingTreeMatchesHead": true
+    },
+    {
+      "path": "backend-api/data/seed-data.js",
+      "bytes": 46591,
+      "sha256": "095e88813140fb864eafc1a56482ba2118bceee4cf233e842ac93064a5ee648d",
+      "headBlob": "b9044c95ee4d77908eb2f2cf452dc6a00fafc718",
+      "mainBlob": "b9044c95ee4d77908eb2f2cf452dc6a00fafc718",
+      "workingTreeMatchesHead": true
+    },
+    {
+      "path": "rasa-smartbus-bot/data_bus/stops.csv",
+      "bytes": 13472,
+      "sha256": "dc287d9d9a020c12d2ba0e480c2dc2d9e079fc43036e59ae69b6ade2c5978399",
+      "headBlob": "89008fcf244bcb16153c137496e521c821a6de77",
+      "mainBlob": "89008fcf244bcb16153c137496e521c821a6de77",
+      "workingTreeMatchesHead": true
+    },
+    {
+      "path": "rasa-smartbus-bot/data_bus/routes.csv",
+      "bytes": 1133,
+      "sha256": "be0f79b961c776ab10df1b606bf1d281fc6b3bf3c932fdd45c67f14486564bee",
+      "headBlob": "0258f5c418ed5a11f5925529815cfd8f1a4f4652",
+      "mainBlob": "0258f5c418ed5a11f5925529815cfd8f1a4f4652",
+      "workingTreeMatchesHead": true
+    }
+  ],
+  "docx": {
+    "SmartBus_DuLich_GanXeBus_GPS_GoogleMap_4Tinh.docx": {
+      "tablesDataRows": [
+        36,
+        36,
+        36,
+        4
+      ],
+      "points": {
+        "records": 36,
+        "validNumericWgs84": 36,
+        "invalid": [],
+        "distinctCoordinatePairs": 36,
+        "boundingBoxLatLng": [
+          [
+            14.6775,
+            106.7356
+          ],
+          [
+            17.1667,
+            109.116
+          ]
+        ],
+        "mapsLinks": 36,
+        "mapsLinksMatchingCoordinates": 36,
+        "mapsLinkMismatches": [],
+        "qualityLabels": {
+          "see document note": 36
+        }
+      },
+      "intro": [
+        "SMARTBUS - DỮ LIỆU DU LỊCH GẦN XE BUÝT VÀ GPS GOOGLE MAP",
+        "Phạm vi: Quảng Trị, Huế, Đà Nẵng, Quảng Ngãi",
+        "Ngày tổng hợp: 02/06/2026 15:38",
+        "Ghi chú dữ liệu:  Mỗi địa điểm có latitude/longitude và link Google Maps mở trực tiếp từ GPS. Cột ảnh mẫu dùng link tìm ảnh đẹp để tránh làm nặng file và tránh rủi ro bản quyền khi nhúng ảnh trực tiếp.",
+        "File này dùng cho màn hình du lịch SmartBus, chatbot gợi ý điểm đến và chức năng tìm địa điểm gần tuyến/trạm xe buýt."
+      ]
+    },
+    "SmartBus_DuLich_GanXeBus_GPS_GoogleMap_QuangNamCu.docx": {
+      "tablesDataRows": [
+        24,
+        24,
+        24,
+        5
+      ],
+      "points": {
+        "records": 24,
+        "validNumericWgs84": 24,
+        "invalid": [],
+        "distinctCoordinatePairs": 24,
+        "boundingBoxLatLng": [
+          [
+            15.3357,
+            107.694
+          ],
+          [
+            15.986,
+            108.7502
+          ]
+        ],
+        "mapsLinks": 24,
+        "mapsLinksMatchingCoordinates": 24,
+        "mapsLinkMismatches": [],
+        "qualityLabels": {
+          "see document note": 24
+        }
+      },
+      "intro": [
+        "SMARTBUS - DỮ LIỆU DU LỊCH GẦN XE BUÝT VÀ GPS GOOGLE MAP",
+        "Phạm vi: Quảng Nam cũ (nay thuộc TP Đà Nẵng mới)",
+        "Ngày tổng hợp: 03/06/2026 10:25",
+        "Ghi chú dữ liệu: Tọa độ dùng hệ WGS84 dạng latitude/longitude và có link mở trực tiếp Google Maps. Với điểm dừng nhỏ chưa có GTFS công khai, tọa độ được gắn theo bến/đường/địa danh gần nhất trên lộ trình để dùng làm dữ liệu nền cho SmartBus.",
+        "Mức độ tin cậy: điểm chính/bến xe/di tích nổi tiếng có độ tin cậy cao; điểm dừng đường phố nhỏ có thể cần kiểm tra lại bằng khảo sát thực địa hoặc Google Maps thủ công trước khi đưa vào bản chính thức."
+      ]
+    },
+    "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx": {
+      "tablesDataRows": [
+        25,
+        169,
+        16
+      ],
+      "points": {
+        "records": 169,
+        "validNumericWgs84": 169,
+        "invalid": [],
+        "distinctCoordinatePairs": 109,
+        "boundingBoxLatLng": [
+          [
+            14.67,
+            106.9625
+          ],
+          [
+            17.1,
+            109.06
+          ]
+        ],
+        "mapsLinks": 169,
+        "mapsLinksMatchingCoordinates": 169,
+        "mapsLinkMismatches": [],
+        "qualityLabels": {
+          "GPS/điểm lớn ước lượng từ bản đồ công khai": 169
+        }
+      },
+      "intro": [
+        "SMARTBUS - DỮ LIỆU TUYẾN XE BUÝT, ĐIỂM DỪNG VÀ GPS GOOGLE MAP",
+        "Phạm vi: Quảng Trị, Huế, Đà Nẵng, Quảng Ngãi",
+        "Ngày tổng hợp: 02/06/2026 15:38",
+        "Ghi chú dữ liệu:  Tọa độ dùng hệ WGS84 dạng latitude/longitude. Cột Google Maps là link mở trực tiếp bằng tọa độ GPS dạng https://www.google.com/maps?q=lat,lon. Với các điểm dừng nhỏ chưa có GTFS/biển dừng công khai, tọa độ được gom theo điểm lớn/nút giao/lộ trình để phục vụ bản đồ SmartBus.",
+        "Các bảng dưới đây bám theo yêu cầu: tuyến đường, điểm dừng, giờ hoạt động, số xe, tốc độ, thời gian nghỉ giữa chuyến/nghỉ trưa và tọa độ từng điểm."
+      ]
+    },
+    "SmartBus_TuyenXeBus_GPS_GoogleMap_QuangNamCu.docx": {
+      "tablesDataRows": [
+        14,
+        129,
+        17
+      ],
+      "points": {
+        "records": 129,
+        "validNumericWgs84": 129,
+        "invalid": [],
+        "distinctCoordinatePairs": 54,
+        "boundingBoxLatLng": [
+          [
+            15.3357,
+            107.9746
+          ],
+          [
+            16.1118,
+            108.7259
+          ]
+        ],
+        "mapsLinks": 129,
+        "mapsLinksMatchingCoordinates": 129,
+        "mapsLinkMismatches": [],
+        "qualityLabels": {
+          "GPS điểm chính/bến xe": 28,
+          "Ước lượng theo mốc đường/địa danh Google Maps": 101
+        }
+      },
+      "intro": [
+        "SMARTBUS - DỮ LIỆU TUYẾN XE BUÝT, ĐIỂM DỪNG VÀ GPS GOOGLE MAP",
+        "Phạm vi: Quảng Nam cũ (nay thuộc TP Đà Nẵng mới)",
+        "Ngày tổng hợp: 03/06/2026 10:25",
+        "Ghi chú dữ liệu: Tọa độ dùng hệ WGS84 dạng latitude/longitude và có link mở trực tiếp Google Maps. Với điểm dừng nhỏ chưa có GTFS công khai, tọa độ được gắn theo bến/đường/địa danh gần nhất trên lộ trình để dùng làm dữ liệu nền cho SmartBus.",
+        "Mức độ tin cậy: điểm chính/bến xe/di tích nổi tiếng có độ tin cậy cao; điểm dừng đường phố nhỏ có thể cần kiểm tra lại bằng khảo sát thực địa hoặc Google Maps thủ công trước khi đưa vào bản chính thức."
+      ]
+    }
+  },
+  "normalizedBus": {
+    "routes": 39,
+    "stops": {
+      "records": 243,
+      "validNumericWgs84": 243,
+      "invalid": [],
+      "distinctCoordinatePairs": 163,
+      "boundingBoxLatLng": [
+        [
+          14.67,
+          106.9625
+        ],
+        [
+          17.1,
+          109.06
+        ]
+      ],
+      "mapsLinks": 243,
+      "mapsLinksMatchingCoordinates": 243,
+      "mapsLinkMismatches": [],
+      "qualityLabels": {
+        "GPS/điểm lớn ước lượng từ bản đồ công khai": 114,
+        "GPS điểm chính/bến xe": 28,
+        "Ước lượng theo mốc đường/địa danh Google Maps": 101
+      }
+    },
+    "routeStopOccurrences": 298,
+    "directions": {
+      "chiều_đi": 298
+    },
+    "descriptionCoverage": 39,
+    "docxCoordinateNameMismatches": [],
+    "routeStopReferenceMismatches": [],
+    "pathsNotEqualOrderedRouteStops": [],
+    "lostSourceUrls": [
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 2,
+        "routeCode": "QT-01",
+        "name": "KCN Đông Hà – Vĩnh Chấp",
+        "description": "KCN Đông Hà - Lý Thường Kiệt - Lê Lợi - QL9 - Hùng Vương - Trần Hưng Đạo - Chợ Tư Sòng - Cam Thanh - Cam An - Gio Linh - Dốc Miếu - Hồ Xá - QL1A - Vĩnh Chấp",
+        "sourceLinks": [
+          "https://blog.vexere.com/xe-buyt-quang-tri/"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 3,
+        "routeCode": "QT-02",
+        "name": "KCN Nam Đông Hà – Bưu điện Hải Lăng",
+        "description": "KCN Nam Đông Hà - Hùng Vương - Lý Thường Kiệt - Lê Lợi - QL9 - Hùng Vương - QL1A - Ái Tử - TX Quảng Trị - Hải Lăng - THCS Hải Lăng - Bưu điện Hải Lăng",
+        "sourceLinks": [
+          "https://blog.vexere.com/xe-buyt-quang-tri/"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 4,
+        "routeCode": "QT-03",
+        "name": "Ngã ba Cùa – Cửa Việt/Cửa Tùng – Chợ Do",
+        "description": "Ngã ba Cùa - QL9 - Đường 9B - Hùng Vương - Trần Hưng Đạo - QL1A - Ngã tư Sòng - Tỉnh lộ 9 - Cửa Việt - Cửa Tùng - Chợ Do",
+        "sourceLinks": [
+          "https://blog.vexere.com/xe-buyt-quang-tri/"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 5,
+        "routeCode": "QT-HUE-18",
+        "name": "Bến xe phía Nam Huế – biển Gio Hải",
+        "description": "Bến xe phía Nam Huế - trục QL1/đường ven biển - Gio Hải",
+        "sourceLinks": [
+          "https://baoxaydung.vn/tuyen-xe-buyt-hue-quang-tri-vua-khai-truong-hoat-dong-the-nao-192241231212729529.htm"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 6,
+        "routeCode": "HUE-01",
+        "name": "Bến xe phía Bắc – KCN Phú Bài",
+        "description": "Bến xe phía Bắc - Lý Thái Tổ - Lê Duẩn - Cầu Dã Viên - Bùi Thị Xuân - Lê Lợi - Hùng Vương - Bà Triệu - Tố Hữu - Võ Nguyên Giáp - Văn Tiến Dũng - QL49B - An Dương Vương - Nguyễn Tất Thành - KCN Phú Bài",
+        "sourceLinks": [
+          "https://benxehue.vn/lo-trinh-tuyen"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 7,
+        "routeCode": "HUE-03",
+        "name": "Bến xe phía Nam – Vinh Hiền",
+        "description": "BX Phía Nam - An Dương Vương - Tự Đức/TL10 - Phạm Văn Đồng - QL49B - Đập Thảo Long - Cầu Tam Giang - Điền Hải - Điền Môn - Vinh Hiền",
+        "sourceLinks": [
+          "https://visithue.vn/cac-tuyen-xe-buyt-noi-tinh-tren-dia-ban-tinh-thua-thien-hue/?pid=MjMxODN8Y3NkbGRs0"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 8,
+        "routeCode": "HUE-04",
+        "name": "Bến xe phía Nam – Phong Điền",
+        "description": "BX Phía Nam - An Dương Vương - Hùng Vương - Bà Triệu - Lê Quý Đôn - Đống Đa - Nguyễn Huệ - ĐH Y Dược - Lê Lợi - Trần Hưng Đạo - Lê Duẩn - Lý Thái Tổ - BX Phía Bắc - QL1A - Chợ An Lỗ - Phong Điền",
+        "sourceLinks": [
+          "https://blog.vexere.com/xe-buyt-hue/"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 9,
+        "routeCode": "HUE-05",
+        "name": "Bến xe phía Nam – Tuần/Lăng Khải Định",
+        "description": "BX Phía Nam - An Dương Vương - Hùng Vương - Hà Nội - Chợ Đông Ba - Trần Hưng Đạo - Lê Lợi - Ga Huế - Điện Biên Phủ - Đàn Nam Giao - Thiên An - Lăng Khải Định - Tuần",
+        "sourceLinks": [
+          "https://blog.vexere.com/xe-buyt-hue/"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 10,
+        "routeCode": "HUE-06",
+        "name": "Bến xe phía Nam – Sịa/Quảng Vinh",
+        "description": "BX Phía Nam - An Dương Vương - Hùng Vương - Nguyễn Huệ - Đống Đa - Hà Nội - Đông Ba - Huỳnh Thúc Kháng - Đào Duy Anh - Tăng Bạt Hổ - Cầu Bạch Yến - Tản Đà - Nguyễn Chí Thanh - Sịa - Quảng Vinh",
+        "sourceLinks": [
+          "https://blog.vexere.com/xe-buyt-hue/"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 11,
+        "routeCode": "HUE-10",
+        "name": "Bến xe Đông Ba – Lăng Cô/Hải Vân",
+        "description": "Đông Ba - Trần Hưng Đạo - Cầu Phú Xuân - Hà Nội - Hùng Vương - An Dương Vương - Nguyễn Tất Thành - KCN Phú Bài - Phú Lộc - QL1A - Lăng Cô - Trạm trung chuyển hầm Hải Vân",
+        "sourceLinks": [
+          "https://visithue.vn/cac-tuyen-xe-buyt-noi-tinh-tren-dia-ban-tinh-thua-thien-hue/?pid=MjMxODN8Y3NkbGRs0"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 12,
+        "routeCode": "HUE-12",
+        "name": "Bến xe phía Nam – A Lưới",
+        "description": "BX Phía Nam - An Dương Vương - Võ Văn Kiệt - Khải Định - Cầu Tuần - QL49 - Hồ Chí Minh - A Lưới",
+        "sourceLinks": [
+          "https://visithue.vn/cac-tuyen-xe-buyt-noi-tinh-tren-dia-ban-tinh-thua-thien-hue/?pid=MjMxODN8Y3NkbGRs0"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 13,
+        "routeCode": "DN-02",
+        "name": "Bến xe Trung tâm – ĐH Việt Hàn – Hội An/Cửa Đại",
+        "description": "Bến xe Trung tâm - Nam Trân - Lý Thái Tông - Nguyễn Tất Thành - Cầu Thuận Phước - Lê Đức Thọ - Hoàng Sa - Võ Nguyên Giáp - Trường Sa - Nam Kỳ Khởi Nghĩa - Trần Đại Nghĩa - ĐH Việt Hàn; LK02 tiếp Hội An/Cửa Đại",
+        "sourceLinks": [
+          "https://www.danangbus.vn/tin-tuc/tin-tuc/don-vi-van-hanh-tuyen-buyt-da-nang-hoi-an-5415.html"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 14,
+        "routeCode": "DN-03",
+        "name": "Sân bay Đà Nẵng – Bà Nà Hills",
+        "description": "Sân bay - trung tâm TP - Ngã ba Huế - Tôn Đức Thắng - Hoàng Văn Thái - Bà Nà - Suối Mơ - bãi đỗ xe KDL Bà Nà Hills",
+        "sourceLinks": [
+          "https://www.danangbus.vn/tin-tuc/tin-tuc/xe-buyt-da-nang--nguoi-ban-dong-hanh-mua-du-lich-5608.html"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 15,
+        "routeCode": "DN-05",
+        "name": "Khu chung cư Hòa Hiệp Nam – Công viên Biển Đông",
+        "description": "Hòa Hiệp Nam - Nguyễn Lương Bằng/Tôn Đức Thắng - trung tâm - cầu sông Hàn/đường ven biển - Công viên Biển Đông",
+        "sourceLinks": [
+          "https://www.danangbus.vn/tin-tuc/tin-tuc/thong-bao-ke-hoach-van-hanh-cac-tuyen-xe-buyt-tren-dia-ban-thanh-pho-da-nang-trong-dip-tet-binh-ngo-2026-5586.html"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 16,
+        "routeCode": "DN-06",
+        "name": "Sân bay Đà Nẵng – Đại học Việt Hàn",
+        "description": "Sân bay - Nguyễn Văn Linh - cầu Rồng - Võ Văn Kiệt - Võ Nguyên Giáp - Trường Sa - khu đô thị FPT - ĐH Việt Hàn",
+        "sourceLinks": [
+          "https://www.danangbus.vn/tin-tuc/tin-tuc/thong-bao-ke-hoach-van-hanh-cac-tuyen-xe-buyt-tren-dia-ban-thanh-pho-da-nang-trong-dip-tet-binh-ngo-2026-5586.html"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 17,
+        "routeCode": "DN-07",
+        "name": "Xuân Diệu – Hòa Phước",
+        "description": "Xuân Diệu - trung tâm Đà Nẵng - Cẩm Lệ - Hòa Phước/Ngã ba Tứ Câu",
+        "sourceLinks": [
+          "https://www.danangbus.vn/tin-tuc/tin-tuc/thong-bao-ke-hoach-van-hanh-cac-tuyen-xe-buyt-tren-dia-ban-thanh-pho-da-nang-trong-dip-tet-binh-ngo-2026-5586.html"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 18,
+        "routeCode": "DN-08",
+        "name": "Vũng Thùng – Phạm Hùng",
+        "description": "Vũng Thùng - trung tâm - khu vực Cẩm Lệ/Phạm Hùng",
+        "sourceLinks": [
+          "https://www.danangbus.vn/tin-tuc/tin-tuc/thong-bao-ke-hoach-van-hanh-cac-tuyen-xe-buyt-tren-dia-ban-thanh-pho-da-nang-trong-dip-tet-binh-ngo-2026-5586.html"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 19,
+        "routeCode": "DN-14",
+        "name": "Cảng Sông Hàn – Khu Công nghệ cao",
+        "description": "Cảng Sông Hàn - trung tâm - Nguyễn Tất Thành/Tôn Đức Thắng - Khu Công nghệ cao",
+        "sourceLinks": [
+          "https://www.danangbus.vn/tin-tuc/tin-tuc/thong-bao-ke-hoach-van-hanh-cac-tuyen-xe-buyt-tren-dia-ban-thanh-pho-da-nang-trong-dip-tet-binh-ngo-2026-5586.html"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 20,
+        "routeCode": "QNG-01",
+        "name": "TTĐH xe buýt Mai Linh – Cảng Dung Quất",
+        "description": "TTĐH xe buýt - Phan Đình Phùng - Huỳnh Thúc Kháng/Quang Trung - QL1 - Dốc Sỏi - Cảng Dung Quất",
+        "sourceLinks": [
+          "https://sxd.quangngai.gov.vn/chuyen-muc2/quan-ly-van-tai/xe-buyt"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 21,
+        "routeCode": "QNG-02",
+        "name": "TTĐH xe buýt Mai Linh – KDL Sa Huỳnh",
+        "description": "TTĐH - Phan Đình Phùng - Lê Lợi - Lê Thánh Tôn - Hà Huy Tập - Bắc Sơn - Quang Trung - QL1 - bãi đỗ xe KDL sinh thái Sa Huỳnh",
+        "sourceLinks": [
+          "https://sxd.quangngai.gov.vn/chuyen-muc2/quan-ly-van-tai/xe-buyt"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 22,
+        "routeCode": "QNG-03",
+        "name": "TTĐH xe buýt Mai Linh – Cảng Sa Kỳ",
+        "description": "TTĐH - Phan Đình Phùng - Lê Lợi - Lê Thánh Tôn - Nguyễn Du - Nguyễn Nghiêm - Quang Trung - Hùng Vương - Trương Định - Hai Bà Trưng - Trần Văn Trà - QL24B - Cảng Sa Kỳ",
+        "sourceLinks": [
+          "https://sxd.quangngai.gov.vn/chuyen-muc2/quan-ly-van-tai/xe-buyt"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 23,
+        "routeCode": "QNG-04",
+        "name": "TTĐH xe buýt Mai Linh – Ba Tơ – Ba Vì",
+        "description": "TTĐH - Phan Đình Phùng - Lê Lợi - Hà Huy Tập - Bắc Sơn - Quang Trung - QL1 - Ngã tư Thạch Trụ - TT Ba Tơ - Ba Vì",
+        "sourceLinks": [
+          "https://sxd.quangngai.gov.vn/chuyen-muc2/quan-ly-van-tai/xe-buyt"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 24,
+        "routeCode": "QNG-05",
+        "name": "TTĐH xe buýt Mai Linh – Khu đô thị Vạn Tường/Doosan Vina",
+        "description": "TTĐH - Phan Đình Phùng - Huỳnh Thúc Kháng - Quang Trung - Cao Bá Quát - 30/4 - Lê Thánh Tôn - Nguyễn Du - Bà Triệu - Nguyễn Văn Linh - QL1 - Bình Long - Dung Quất - Vạn Tường - Doosan Vina",
+        "sourceLinks": [
+          "https://sxd.quangngai.gov.vn/chuyen-muc2/quan-ly-van-tai/xe-buyt"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 25,
+        "routeCode": "QNG-06",
+        "name": "TTĐH xe buýt Mai Linh – Minh Long/Ngã ba Thanh Long",
+        "description": "TTĐH - Phan Đình Phùng - Lê Lợi - Lê Thánh Tôn - Phạm Văn Đồng - Nguyễn Nghiêm - Nguyễn Công Phương - ĐT624 - Ngã ba Thanh Long",
+        "sourceLinks": [
+          "https://sxd.quangngai.gov.vn/chuyen-muc2/quan-ly-van-tai/xe-buyt"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      },
+      {
+        "file": "SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx",
+        "table": 1,
+        "row": 26,
+        "routeCode": "QNG-08",
+        "name": "TTĐH xe buýt Mai Linh – Trà Bồng",
+        "description": "TTĐH - Trường Chinh - Lý Thường Kiệt/BX Quảng Ngãi - Đinh Tiên Hoàng - Lê Thánh Tôn - Quang Trung - Nguyễn Văn Linh - QL1 - Ngã ba Trà Bồng - ĐT622B - Trà Bồng",
+        "sourceLinks": [
+          "https://sxd.quangngai.gov.vn/chuyen-muc2/quan-ly-van-tai/xe-buyt"
+        ],
+        "sourceLabel": "Nguồn",
+        "normalizedSourceUrl": "Nguồn trong file Word SmartBus_TuyenXeBus_GPS_GoogleMap_4Tinh.docx"
+      }
+    ],
+    "sameNameCoordinateConflictsOver20m": []
+  },
+  "xlsx": {
+    "smartbus_du_lich_V3_tieng_viet_co_toa_do.xlsx": {
+      "01_Nguồn_kiểm_tra": 7,
+      "02_Địa_điểm_du_lịch": 25,
+      "03_Điểm_nổi_bật": 5,
+      "04_Gợi_ý_ẩm_thực": 12,
+      "05_Ngân_sách_tham_khảo": 25,
+      "06_Thời_tiết_mùa_đẹp": 4,
+      "07_Nguồn_ảnh": 25,
+      "08_Liên_kết_bus_du_lịch": 25,
+      "09_Dữ_liệu_cần_kiểm_tra": 2,
+      "10_Tóm_tắt": 5
+    },
+    "smartbus_xe_bus_V3_tieng_viet_co_toa_do.xlsx": {
+      "01_Nguồn_kiểm_tra": 7,
+      "02_Tỉnh_thành": 4,
+      "03_Tuyến_xe_bus": 11,
+      "04_Điểm_dừng_có_GPS": 130,
+      "05_Thứ_tự_dừng_theo_tuyến": 157,
+      "06_Lịch_hoạt_động": 11,
+      "07_Ước_tính_tốc_độ": 11,
+      "08_Dữ_liệu_cần_kiểm_tra": 2,
+      "09_Tóm_tắt": 6
+    }
+  },
+  "xlsxBus": {
+    "stops": {
+      "records": 130,
+      "validNumericWgs84": 130,
+      "invalid": [],
+      "distinctCoordinatePairs": 129,
+      "boundingBoxLatLng": [
+        [
+          14.6983,
+          106.949
+        ],
+        [
+          17.109,
+          109.0382
+        ]
+      ],
+      "mapsLinks": 130,
+      "mapsLinksMatchingCoordinates": 130,
+      "mapsLinkMismatches": [],
+      "qualityLabels": {
+        "ước_lượng_có_đánh_dấu": 130
+      }
+    },
+    "directions": {
+      "chiều_đi": 157
+    },
+    "coordinatePairsAbsentFromNormalized": 129,
+    "stopsAbsentByCoordinate": [
+      {
+        "name": "Bộ Chỉ huy BĐBP tỉnh Quảng Trị",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.8126,
+          107.1093
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.8126000,107.1093000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 2
+      },
+      {
+        "name": "Bệnh viện Đa khoa tỉnh Quảng Trị",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.8137,
+          107.1023
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.8137000,107.1023000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 3
+      },
+      {
+        "name": "Chợ Đông Hà",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.816,
+          107.101
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.8160000,107.1010000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 4
+      },
+      {
+        "name": "Cầu Đông Hà",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.8159,
+          107.1075
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.8159000,107.1075000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 5
+      },
+      {
+        "name": "Ngã tư Sòng / Cam An",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.8515,
+          107.0968
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.8515000,107.0968000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 6
+      },
+      {
+        "name": "Chợ Cầu Gio Linh",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.9163,
+          107.0725
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.9163000,107.0725000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 7
+      },
+      {
+        "name": "Thị trấn Gio Linh",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.927,
+          107.065
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.9270000,107.0650000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 8
+      },
+      {
+        "name": "Dốc Miếu",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.947,
+          107.0525
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.9470000,107.0525000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 9
+      },
+      {
+        "name": "Cầu Hiền Lương",
+        "provinceCode": "QT",
+        "coordinate": [
+          17.0078,
+          107.0494
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=17.0078000,107.0494000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 10
+      },
+      {
+        "name": "Bến xe Hồ Xá",
+        "provinceCode": "QT",
+        "coordinate": [
+          17.078,
+          106.971
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=17.0780000,106.9710000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 11
+      },
+      {
+        "name": "Km724+300 QL1A Vĩnh Chấp",
+        "provinceCode": "QT",
+        "coordinate": [
+          17.109,
+          106.949
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=17.1090000,106.9490000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 12
+      },
+      {
+        "name": "Khu công nghiệp Nam Đông Hà",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.7778,
+          107.1062
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.7778000,107.1062000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 13
+      },
+      {
+        "name": "Cây xăng Lý Thường Kiệt",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.8084,
+          107.0975
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.8084000,107.0975000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 14
+      },
+      {
+        "name": "Phân hiệu Đại học Huế - Lý Thường Kiệt",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.8068,
+          107.094
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.8068000,107.0940000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 15
+      },
+      {
+        "name": "Đường Lê Lợi Đông Hà",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.8115,
+          107.0955
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.8115000,107.0955000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 16
+      },
+      {
+        "name": "Công viên Lê Duẩn",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.8164,
+          107.1017
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.8164000,107.1017000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 17
+      },
+      {
+        "name": "Thị trấn Ái Tử",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.7664,
+          107.1304
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.7664000,107.1304000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 18
+      },
+      {
+        "name": "Thị xã Quảng Trị / Thành cổ",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.7505,
+          107.1852
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.7505000,107.1852000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 19
+      },
+      {
+        "name": "Nhà thờ La Vang",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.7163,
+          107.1969
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.7163000,107.1969000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 20
+      },
+      {
+        "name": "Thị trấn Hải Lăng",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.6758,
+          107.2331
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.6758000,107.2331000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 21
+      },
+      {
+        "name": "Trường THCS Hải Lăng",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.6765,
+          107.2345
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.6765000,107.2345000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 22
+      },
+      {
+        "name": "Bưu điện Hải Lăng",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.6749,
+          107.232
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.6749000,107.2320000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 23
+      },
+      {
+        "name": "Chợ Hải Lăng",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.6745,
+          107.2325
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.6745000,107.2325000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 24
+      },
+      {
+        "name": "UBND xã Cam Nghĩa",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.745,
+          106.964
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.7450000,106.9640000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 25
+      },
+      {
+        "name": "Ngã ba Cùa",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.752,
+          106.994
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.7520000,106.9940000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 26
+      },
+      {
+        "name": "Chợ Cam Lộ",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.7615,
+          106.9985
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.7615000,106.9985000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 27
+      },
+      {
+        "name": "Trường Tiểu học Nguyễn Thị Minh Khai Cam Lộ",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.7595,
+          107.003
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.7595000,107.0030000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 28
+      },
+      {
+        "name": "Bệnh viện Đa khoa Cam Lộ",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.7559,
+          107.0115
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.7559000,107.0115000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 29
+      },
+      {
+        "name": "Nhà máy xi măng Quảng Trị",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.786,
+          107.033
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.7860000,107.0330000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 30
+      },
+      {
+        "name": "Nghĩa trang Quốc gia Đường 9",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.818,
+          107.0599
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.8180000,107.0599000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 31
+      },
+      {
+        "name": "Trường Cao đẳng Sư phạm Quảng Trị",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.8165,
+          107.09
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.8165000,107.0900000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 32
+      },
+      {
+        "name": "Cửa Việt",
+        "provinceCode": "QT",
+        "coordinate": [
+          16.9078,
+          107.1877
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.9078000,107.1877000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 33
+      },
+      {
+        "name": "Cầu Cửa Tùng",
+        "provinceCode": "QT",
+        "coordinate": [
+          17.0004,
+          107.1001
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=17.0004000,107.1001000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 34
+      },
+      {
+        "name": "Thị trấn Cửa Tùng",
+        "provinceCode": "QT",
+        "coordinate": [
+          17.0036,
+          107.103
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=17.0036000,107.1030000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 35
+      },
+      {
+        "name": "Chợ Do",
+        "provinceCode": "QT",
+        "coordinate": [
+          17.0135,
+          107.104
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=17.0135000,107.1040000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 36
+      },
+      {
+        "name": "Bến xe Phía Bắc Huế",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4939,
+          107.5786
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4939000,107.5786000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 37
+      },
+      {
+        "name": "Lý Thái Tổ",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.487,
+          107.576
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4870000,107.5760000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 38
+      },
+      {
+        "name": "Lê Duẩn / Cầu Dã Viên",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.469,
+          107.574
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4690000,107.5740000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 39
+      },
+      {
+        "name": "Bùi Thị Xuân",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.461,
+          107.5665
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4610000,107.5665000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 40
+      },
+      {
+        "name": "Lê Lợi",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4663,
+          107.5892
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4663000,107.5892000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 41
+      },
+      {
+        "name": "Hùng Vương",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4634,
+          107.5952
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4634000,107.5952000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 42
+      },
+      {
+        "name": "Bà Triệu",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4595,
+          107.5954
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4595000,107.5954000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 43
+      },
+      {
+        "name": "Tố Hữu",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4555,
+          107.5965
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4555000,107.5965000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 44
+      },
+      {
+        "name": "Võ Nguyên Giáp",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.449,
+          107.6002
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4490000,107.6002000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 45
+      },
+      {
+        "name": "Văn Tiến Dũng",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4425,
+          107.6025
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4425000,107.6025000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 46
+      },
+      {
+        "name": "QL49B / An Đông",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4338,
+          107.6056
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4338000,107.6056000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 47
+      },
+      {
+        "name": "An Dương Vương",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.433,
+          107.6018
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4330000,107.6018000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 48
+      },
+      {
+        "name": "Nguyễn Tất Thành / Thủy Dương",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.3985,
+          107.6402
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.3985000,107.6402000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 49
+      },
+      {
+        "name": "Khu công nghiệp Phú Bài",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.392,
+          107.7104
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.3920000,107.7104000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 50
+      },
+      {
+        "name": "Bến xe Phía Nam Huế",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4353,
+          107.5973
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4353000,107.5973000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 51
+      },
+      {
+        "name": "Nguyễn Huệ",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4627,
+          107.5916
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4627000,107.5916000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 52
+      },
+      {
+        "name": "Lê Hồng Phong",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4632,
+          107.5875
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4632000,107.5875000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 53
+      },
+      {
+        "name": "Đống Đa",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4598,
+          107.5864
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4598000,107.5864000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 54
+      },
+      {
+        "name": "Cầu Phú Xuân",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4697,
+          107.5886
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4697000,107.5886000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 55
+      },
+      {
+        "name": "Bến xe Đông Ba",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4722,
+          107.5895
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4722000,107.5895000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 56
+      },
+      {
+        "name": "Đập Đá",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4719,
+          107.5987
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4719000,107.5987000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 57
+      },
+      {
+        "name": "Nguyễn Sinh Cung",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4783,
+          107.6062
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4783000,107.6062000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 58
+      },
+      {
+        "name": "Cầu Thuận An",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.5744,
+          107.6365
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.5744000,107.6365000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 59
+      },
+      {
+        "name": "Trần Hải Thành / Thuận An",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.5775,
+          107.6328
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.5775000,107.6328000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 60
+      },
+      {
+        "name": "Vinh Hiền",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.343,
+          107.955
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.3430000,107.9550000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 61
+      },
+      {
+        "name": "Lê Quý Đôn",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4598,
+          107.5895
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4598000,107.5895000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 62
+      },
+      {
+        "name": "Trần Hưng Đạo",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.4722,
+          107.59
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4722000,107.5900000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 63
+      },
+      {
+        "name": "Lê Duẩn",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.474,
+          107.582
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.4740000,107.5820000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 64
+      },
+      {
+        "name": "Lý Nhân Tông",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.502,
+          107.565
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.5020000,107.5650000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 65
+      },
+      {
+        "name": "Cách Mạng Tháng 8",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.5165,
+          107.5505
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.5165000,107.5505000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 66
+      },
+      {
+        "name": "Cầu An Lỗ",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.5508,
+          107.4807
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.5508000,107.4807000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 67
+      },
+      {
+        "name": "QL1A / Phong Thu",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.571,
+          107.425
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.5710000,107.4250000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 68
+      },
+      {
+        "name": "KCN Phong Điền",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.613,
+          107.358
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.6130000,107.3580000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 69
+      },
+      {
+        "name": "Phò Trạch",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.648,
+          107.309
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.6480000,107.3090000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 70
+      },
+      {
+        "name": "Bến xe Phong Điền",
+        "provinceCode": "HUE",
+        "coordinate": [
+          16.656,
+          107.288
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.6560000,107.2880000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 71
+      },
+      {
+        "name": "Chung cư Hòa Hiệp Nam",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.117,
+          108.125
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.1170000,108.1250000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 72
+      },
+      {
+        "name": "Nguyễn Tất Thành / Xuân Thiều",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.1024,
+          108.135
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.1024000,108.1350000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 73
+      },
+      {
+        "name": "Phan Văn Định",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0955,
+          108.1438
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0955000,108.1438000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 74
+      },
+      {
+        "name": "Nguyễn Lương Bằng / Đại học Bách khoa",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.073,
+          108.1537
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0730000,108.1537000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 75
+      },
+      {
+        "name": "Tôn Đức Thắng / Hòa Minh",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0671,
+          108.1665
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0671000,108.1665000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 76
+      },
+      {
+        "name": "Nguyễn Sinh Sắc",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.066,
+          108.1778
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0660000,108.1778000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 77
+      },
+      {
+        "name": "Kinh Dương Vương",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0665,
+          108.184
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0665000,108.1840000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 78
+      },
+      {
+        "name": "Lý Thái Tông",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0651,
+          108.1887
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0651000,108.1887000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 79
+      },
+      {
+        "name": "Dũng Sĩ Thanh Khê",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.067,
+          108.1932
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0670000,108.1932000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 80
+      },
+      {
+        "name": "Trần Cao Vân",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0715,
+          108.2045
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0715000,108.2045000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 81
+      },
+      {
+        "name": "Quang Trung",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0745,
+          108.214
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0745000,108.2140000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 82
+      },
+      {
+        "name": "Bạch Đằng",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.075,
+          108.224
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0750000,108.2240000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 83
+      },
+      {
+        "name": "Đường 3/2 / Cầu Thuận Phước",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.083,
+          108.221
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0830000,108.2210000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 84
+      },
+      {
+        "name": "Trạm xe buýt Xuân Diệu",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0884,
+          108.2202
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0884000,108.2202000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 85
+      },
+      {
+        "name": "Công viên Biển Đông",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0687,
+          108.2458
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0687000,108.2458000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 86
+      },
+      {
+        "name": "Bãi đỗ xe Hoàng Sa / Thọ Quang",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.1068,
+          108.261
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.1068000,108.2610000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 87
+      },
+      {
+        "name": "Nguyễn Phan Vinh",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.1005,
+          108.2565
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.1005000,108.2565000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 88
+      },
+      {
+        "name": "Ngô Quyền",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.089,
+          108.2375
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0890000,108.2375000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 89
+      },
+      {
+        "name": "Trần Thánh Tông",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.08,
+          108.236
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0800000,108.2360000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 90
+      },
+      {
+        "name": "Khúc Hạo",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0762,
+          108.2324
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0762000,108.2324000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 91
+      },
+      {
+        "name": "Lý Nhật Quang",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.078,
+          108.2285
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0780000,108.2285000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 92
+      },
+      {
+        "name": "Chu Huy Mân",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0835,
+          108.226
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0835000,108.2260000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 93
+      },
+      {
+        "name": "Cầu Thuận Phước",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.092,
+          108.2224
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0920000,108.2224000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 94
+      },
+      {
+        "name": "Xuân Diệu",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0884,
+          108.2202
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0884000,108.2202000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 95
+      },
+      {
+        "name": "Đường 3/2",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0804,
+          108.2197
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0804000,108.2197000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 96
+      },
+      {
+        "name": "Đống Đa",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0748,
+          108.2189
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0748000,108.2189000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 97
+      },
+      {
+        "name": "Lý Tự Trọng",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0715,
+          108.218
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0715000,108.2180000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 98
+      },
+      {
+        "name": "Nguyễn Thị Minh Khai",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.069,
+          108.217
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0690000,108.2170000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 99
+      },
+      {
+        "name": "Hùng Vương",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.067,
+          108.216
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0670000,108.2160000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 100
+      },
+      {
+        "name": "Hàm Nghi",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.065,
+          108.211
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0650000,108.2110000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 101
+      },
+      {
+        "name": "Lê Đình Lý",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.06,
+          108.211
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0600000,108.2110000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 102
+      },
+      {
+        "name": "Duy Tân / Sân bay Đà Nẵng",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0515,
+          108.2059
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0515000,108.2059000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 103
+      },
+      {
+        "name": "Cầu Trần Thị Lý",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0508,
+          108.2285
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0508000,108.2285000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 104
+      },
+      {
+        "name": "Nguyễn Văn Thoại",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0565,
+          108.237
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0565000,108.2370000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 105
+      },
+      {
+        "name": "Võ Nguyên Giáp",
+        "provinceCode": "DN",
+        "coordinate": [
+          16.0585,
+          108.2445
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=16.0585000,108.2445000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 106
+      },
+      {
+        "name": "TT điều hành xe buýt Mai Linh Quảng Ngãi",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.1205,
+          108.8047
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1205000,108.8047000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 107
+      },
+      {
+        "name": "Phan Đình Phùng",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.1198,
+          108.805
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1198000,108.8050000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 108
+      },
+      {
+        "name": "Huỳnh Thúc Kháng",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.1208,
+          108.8068
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1208000,108.8068000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 109
+      },
+      {
+        "name": "Quang Trung",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.1235,
+          108.8115
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1235000,108.8115000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 110
+      },
+      {
+        "name": "Lê Thánh Tôn",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.121,
+          108.812
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1210000,108.8120000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 111
+      },
+      {
+        "name": "Nguyễn Du",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.118,
+          108.812
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1180000,108.8120000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 112
+      },
+      {
+        "name": "Bà Triệu",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.115,
+          108.81
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1150000,108.8100000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 113
+      },
+      {
+        "name": "Nguyễn Văn Linh",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.116,
+          108.815
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1160000,108.8150000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 114
+      },
+      {
+        "name": "QL1A / Tịnh Phong",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.22,
+          108.77
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.2200000,108.7700000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 115
+      },
+      {
+        "name": "Dốc Sỏi",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.356,
+          108.753
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.3560000,108.7530000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 116
+      },
+      {
+        "name": "Cảng Dung Quất",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.428,
+          108.79
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.4280000,108.7900000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 117
+      },
+      {
+        "name": "Lê Lợi",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.1194,
+          108.807
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1194000,108.8070000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 118
+      },
+      {
+        "name": "Hà Huy Tập",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.122,
+          108.809
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1220000,108.8090000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 119
+      },
+      {
+        "name": "Bắc Sơn",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.126,
+          108.81
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1260000,108.8100000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 120
+      },
+      {
+        "name": "QL1A / Nghĩa Chánh",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.103,
+          108.81
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1030000,108.8100000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 121
+      },
+      {
+        "name": "Mộ Đức",
+        "provinceCode": "QNG",
+        "coordinate": [
+          14.964,
+          108.882
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=14.9640000,108.8820000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 122
+      },
+      {
+        "name": "Đức Phổ",
+        "provinceCode": "QNG",
+        "coordinate": [
+          14.815,
+          108.962
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=14.8150000,108.9620000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 123
+      },
+      {
+        "name": "Bãi đỗ xe KDL Sa Huỳnh",
+        "provinceCode": "QNG",
+        "coordinate": [
+          14.6983,
+          109.0382
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=14.6983000,109.0382000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 124
+      },
+      {
+        "name": "Nguyễn Nghiêm",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.1168,
+          108.8145
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1168000,108.8145000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 125
+      },
+      {
+        "name": "Hùng Vương",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.1215,
+          108.8172
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1215000,108.8172000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 126
+      },
+      {
+        "name": "Trương Định",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.1232,
+          108.8205
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1232000,108.8205000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 127
+      },
+      {
+        "name": "Hai Bà Trưng",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.1247,
+          108.826
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1247000,108.8260000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 128
+      },
+      {
+        "name": "Trần Văn Trà",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.143,
+          108.85
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1430000,108.8500000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 129
+      },
+      {
+        "name": "QL24B / Bình Sơn",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.177,
+          108.894
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.1770000,108.8940000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 130
+      },
+      {
+        "name": "Cảng Sa Kỳ",
+        "provinceCode": "QNG",
+        "coordinate": [
+          15.2041,
+          108.9459
+        ],
+        "mapsUrl": "https://www.google.com/maps?q=15.2041000,108.9459000",
+        "quality": "ước_lượng_có_đánh_dấu",
+        "row": 131
+      }
+    ],
+    "matchingNameDifferencesOver20m": [
+      {
+        "name": "Chợ Cầu Gio Linh",
+        "provinceCode": "QT",
+        "xlsxRow": 7,
+        "xlsxCoordinate": [
+          16.9163,
+          107.0725
+        ],
+        "normalizedCoordinate": [
+          16.918,
+          107.067
+        ],
+        "distanceM": 614.89
+      },
+      {
+        "name": "Dốc Miếu",
+        "provinceCode": "QT",
+        "xlsxRow": 9,
+        "xlsxCoordinate": [
+          16.947,
+          107.0525
+        ],
+        "normalizedCoordinate": [
+          16.9765,
+          107.065
+        ],
+        "distanceM": 3539.43
+      },
+      {
+        "name": "Bưu điện Hải Lăng",
+        "provinceCode": "QT",
+        "xlsxRow": 23,
+        "xlsxCoordinate": [
+          16.6749,
+          107.232
+        ],
+        "normalizedCoordinate": [
+          16.6935,
+          107.232
+        ],
+        "distanceM": 2068.23
+      },
+      {
+        "name": "Ngã ba Cùa",
+        "provinceCode": "QT",
+        "xlsxRow": 26,
+        "xlsxCoordinate": [
+          16.752,
+          106.994
+        ],
+        "normalizedCoordinate": [
+          16.803,
+          106.998
+        ],
+        "distanceM": 5686.92
+      },
+      {
+        "name": "Cửa Việt",
+        "provinceCode": "QT",
+        "xlsxRow": 33,
+        "xlsxCoordinate": [
+          16.9078,
+          107.1877
+        ],
+        "normalizedCoordinate": [
+          16.915,
+          107.196
+        ],
+        "distanceM": 1191.92
+      },
+      {
+        "name": "Chợ Do",
+        "provinceCode": "QT",
+        "xlsxRow": 36,
+        "xlsxCoordinate": [
+          17.0135,
+          107.104
+        ],
+        "normalizedCoordinate": [
+          17.085,
+          107.11
+        ],
+        "distanceM": 7975.99
+      },
+      {
+        "name": "Bến xe Phía Bắc Huế",
+        "provinceCode": "HUE",
+        "xlsxRow": 37,
+        "xlsxCoordinate": [
+          16.4939,
+          107.5786
+        ],
+        "normalizedCoordinate": [
+          16.491,
+          107.5789
+        ],
+        "distanceM": 324.05
+      },
+      {
+        "name": "Bến xe Phía Nam Huế",
+        "provinceCode": "HUE",
+        "xlsxRow": 51,
+        "xlsxCoordinate": [
+          16.4353,
+          107.5973
+        ],
+        "normalizedCoordinate": [
+          16.4435,
+          107.5965
+        ],
+        "distanceM": 915.78
+      },
+      {
+        "name": "Bến xe Đông Ba",
+        "provinceCode": "HUE",
+        "xlsxRow": 56,
+        "xlsxCoordinate": [
+          16.4722,
+          107.5895
+        ],
+        "normalizedCoordinate": [
+          16.47,
+          107.5865
+        ],
+        "distanceM": 402.71
+      },
+      {
+        "name": "Vinh Hiền",
+        "provinceCode": "HUE",
+        "xlsxRow": 61,
+        "xlsxCoordinate": [
+          16.343,
+          107.955
+        ],
+        "normalizedCoordinate": [
+          16.318,
+          107.983
+        ],
+        "distanceM": 4081.05
+      },
+      {
+        "name": "Công viên Biển Đông",
+        "provinceCode": "DN",
+        "xlsxRow": 86,
+        "xlsxCoordinate": [
+          16.0687,
+          108.2458
+        ],
+        "normalizedCoordinate": [
+          16.073,
+          108.245
+        ],
+        "distanceM": 485.72
+      },
+      {
+        "name": "Cầu Thuận Phước",
+        "provinceCode": "DN",
+        "xlsxRow": 94,
+        "xlsxCoordinate": [
+          16.092,
+          108.2224
+        ],
+        "normalizedCoordinate": [
+          16.091,
+          108.224
+        ],
+        "distanceM": 203.92
+      },
+      {
+        "name": "Võ Nguyên Giáp",
+        "provinceCode": "DN",
+        "xlsxRow": 106,
+        "xlsxCoordinate": [
+          16.0585,
+          108.2445
+        ],
+        "normalizedCoordinate": [
+          16.06,
+          108.245
+        ],
+        "distanceM": 175.14
+      },
+      {
+        "name": "Dốc Sỏi",
+        "provinceCode": "QNG",
+        "xlsxRow": 116,
+        "xlsxCoordinate": [
+          15.356,
+          108.753
+        ],
+        "normalizedCoordinate": [
+          15.353,
+          108.744
+        ],
+        "distanceM": 1021.06
+      },
+      {
+        "name": "Cảng Dung Quất",
+        "provinceCode": "QNG",
+        "xlsxRow": 117,
+        "xlsxCoordinate": [
+          15.428,
+          108.79
+        ],
+        "normalizedCoordinate": [
+          15.416,
+          108.783
+        ],
+        "distanceM": 1530.84
+      },
+      {
+        "name": "Cảng Sa Kỳ",
+        "provinceCode": "QNG",
+        "xlsxRow": 131,
+        "xlsxCoordinate": [
+          15.2041,
+          108.9459
+        ],
+        "normalizedCoordinate": [
+          15.224,
+          108.92
+        ],
+        "distanceM": 3552.37
+      }
+    ],
+    "nonNumericSequenceRows": [
+      {
+        "row": 2,
+        "route": "QT_ROUTE_01",
+        "sequence": "có"
+      },
+      {
+        "row": 13,
+        "route": "QT_ROUTE_02",
+        "sequence": "có"
+      },
+      {
+        "row": 27,
+        "route": "QT_ROUTE_03",
+        "sequence": "có"
+      },
+      {
+        "row": 42,
+        "route": "HUE_ROUTE_01",
+        "sequence": "có"
+      },
+      {
+        "row": 56,
+        "route": "HUE_ROUTE_03",
+        "sequence": "có"
+      },
+      {
+        "row": 70,
+        "route": "HUE_ROUTE_04",
+        "sequence": "có"
+      },
+      {
+        "row": 88,
+        "route": "DN_ROUTE_05",
+        "sequence": "có"
+      },
+      {
+        "row": 103,
+        "route": "DN_ROUTE_12",
+        "sequence": "có"
+      },
+      {
+        "row": 124,
+        "route": "QNG_ROUTE_01",
+        "sequence": "có"
+      },
+      {
+        "row": 135,
+        "route": "QNG_ROUTE_02",
+        "sequence": "có"
+      },
+      {
+        "row": 146,
+        "route": "QNG_ROUTE_03",
+        "sequence": "có"
+      }
+    ]
+  },
+  "generated": {
+    "bus": {
+      "provinces": 5,
+      "routes": 25,
+      "stops": 114,
+      "routeStops": 169,
+      "schedules": 16,
+      "speedEstimates": 0,
+      "rawSheets": 0
+    },
+    "tourism": {
+      "categories": 7,
+      "places": 36,
+      "busPlaceLinks": 36,
+      "highlights": 0,
+      "foodRecommendations": 4,
+      "budgets": 36,
+      "weather": 4,
+      "images": 36,
+      "rawSheets": 0
+    }
+  },
+  "normalizedTourism": {
+    "places": 60,
+    "busPlaceLinks": 60,
+    "points": {
+      "records": 60,
+      "validNumericWgs84": 60,
+      "invalid": [],
+      "distinctCoordinatePairs": 60,
+      "boundingBoxLatLng": [
+        [
+          14.6775,
+          106.7356
+        ],
+        [
+          17.1667,
+          109.116
+        ]
+      ],
+      "mapsLinks": 60,
+      "mapsLinksMatchingCoordinates": 60,
+      "mapsLinkMismatches": [],
+      "qualityLabels": {
+        "source+gps_estimate": 36,
+        "Cao": 7,
+        "Trung bình": 13,
+        "Cần kiểm tra thực địa": 4
+      }
+    }
+  },
+  "legacySeed": {
+    "routes": 12,
+    "vertices": 159,
+    "distinctCoordinatePairs": 112,
+    "routeDetails": [
+      {
+        "id": "02",
+        "name": "Bến xe TT – Hội An",
+        "vertices": 18
+      },
+      {
+        "id": "03",
+        "name": "Sân bay – Bà Nà Hills",
+        "vertices": 10
+      },
+      {
+        "id": "05",
+        "name": "Khu chung cư Hòa Hiệp Nam – Công viên Biển Đông",
+        "vertices": 13
+      },
+      {
+        "id": "06",
+        "name": "Sân bay – ĐH Việt Hàn",
+        "vertices": 12
+      },
+      {
+        "id": "07",
+        "name": "Xuân Diệu – Bến xe phía Nam",
+        "vertices": 16
+      },
+      {
+        "id": "08",
+        "name": "Vũng Thùng – Bến xe Phạm Hùng",
+        "vertices": 13
+      },
+      {
+        "id": "09",
+        "name": "Xuân Diệu – Ái Nghĩa",
+        "vertices": 14
+      },
+      {
+        "id": "11",
+        "name": "Xuân Diệu – BV Phụ sản Nhi",
+        "vertices": 12
+      },
+      {
+        "id": "12",
+        "name": "Xuân Diệu – Sân bay – Phạm Hùng",
+        "vertices": 12
+      },
+      {
+        "id": "13",
+        "name": "Kim Liên – ĐH Việt Hàn",
+        "vertices": 14
+      },
+      {
+        "id": "14",
+        "name": "Cảng Sông Hàn – Khu CNC",
+        "vertices": 11
+      },
+      {
+        "id": "21",
+        "name": "Bến xe TT – Tam Kỳ",
+        "vertices": 14
+      }
+    ],
+    "rasaCsvRecords": 159,
+    "rasaCsvMatchesEveryOrderedPath": true,
+    "quality": "Historical seed waypoints, no surveyed coordinate accuracy evidence in these files; route numbers alone cannot establish current variant identity."
+  },
+  "docxBusPointRoles": {
+    "endpoint": 50,
+    "major_stop_or_intermediate_point": 119,
+    "Đầu bến": 14,
+    "Điểm dừng/điểm lớn": 101,
+    "Cuối bến": 14
+  },
+  "duplicateNormalizedCopies": {
+    "smartbus-bus-data.normalized.json": {
+      "backend-api": "93f692b34e24ebc842c2c90d8865cd46916f44ac",
+      "frontend": "93f692b34e24ebc842c2c90d8865cd46916f44ac",
+      "docs": "93f692b34e24ebc842c2c90d8865cd46916f44ac"
+    },
+    "smartbus-tourism-data.normalized.json": {
+      "backend-api": "f1bcc4d7b37049e9579ab126fe2dad78c35cf012",
+      "frontend": "f1bcc4d7b37049e9579ab126fe2dad78c35cf012",
+      "docs": "f1bcc4d7b37049e9579ab126fe2dad78c35cf012"
+    }
+  },
+  "auditStartedDate": "2026-11-09",
+  "dateTimezone": "Asia/Saigon",
+  "externalRouteChecks": [
+    {
+      "routeCandidates": [
+        "DN-02",
+        "QN-02-2025"
+      ],
+      "reference": "https://www.danangbus.vn/lo-trinh-tuyen.html",
+      "finding": "Current published corridor uses city centre and Tien Son bridge; DN-02 in repo uses Thuan Phuoc/coastal corridor. QN-02-2025 is closer at road-corridor level; individual GPS not independently verified. Inbound/outbound city-centre roads differ."
+    },
+    {
+      "routeCandidates": [
+        "DN-06"
+      ],
+      "reference": "https://www.danangbus.vn/news/news/thong-bao-ve-viec-mo-tuyen-xe-buyt-so-06-san-bay-da-nang--dai-hoc-viet-han-5582.html",
+      "publicationDate": "2026-01-16",
+      "effectiveFrom": "2026-01-25",
+      "finding": "Broad corridor agrees; source describes airport access and FPT branch in greater detail than repo summary. No individual GPS accuracy conclusion."
+    }
+  ],
+  "unavailableIndependentCoordinateChecks": {
+    "provider": "OpenStreetMap Nominatim",
+    "sampleQueries": [
+      "Bến xe Trung tâm Đà Nẵng",
+      "Cầu Rồng, Đà Nẵng",
+      "Bến xe buýt Hội An"
+    ],
+    "result": "DNS resolution failed, no reference coordinates obtained, no external coordinate accuracy statistics claimed."
+  }
+}

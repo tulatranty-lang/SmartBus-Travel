@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-10",
+  "scope": "isolated OSM corridor pilot; original GPS and product map unchanged",
+  "engine": "MIT IDM adapter + SmartBus pilot controller; not SUMO",
+  "stats": {
+    "guards": 13,
+    "maxGuardCorrectionM": 0.0038,
+    "redCrossings": 0,
+    "overlaps": 0,
+    "busDwellSeconds": 12.05,
+    "busRedWaitSeconds": 12.1,
+    "maxBusAcceleration": 1.05,
+    "maxBusDeceleration": -2.89,
+    "maxBusSteeringDegrees": 34.69
+  },
+  "sweptBodyClearance": {
+    "estimatedRoadWidthEnvelopeOnly": true,
+    "maxOutsideEstimatedAsphaltM": 1.013,
+    "worst": {
+      "time": 151.75,
+      "s": 1081,
+      "way": "1282340742",
+      "point": [
+        1092.2973907074272,
+        256.84805763801614
+      ],
+      "closestRoadPoint": [
+        1088.4443647022904,
+        258.5518258415046
+      ],
+      "bodyLongitudinalM": 0,
+      "bodyLateralM": -1.275
+    },
+    "bodyCornerSamplesOutsideByOver10cm": 39,
+    "note": "Uses source width or inferred lane width; not a surveyed curb or legal-lane validation."
+  },
+  "geometryApproval": "needs-review",
+  "sumoNativeStatus": "blocked by Windows 0xC0E90002; no SUMO run claimed"
+}

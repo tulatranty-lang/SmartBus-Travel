@@ -17,6 +17,7 @@ import {
 } from "./pages/ExplorePages";
 import "./style.css";
 const Planner = lazy(() => import("./pages/Planner"));
+const Simulation = lazy(() => import("./pages/SimulationPage"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Favorites = lazy(() =>
   import("./pages/PersonalPages").then((m) => ({ default: m.Favorites })),
@@ -93,6 +94,7 @@ createRoot(document.getElementById("root")!).render(
                 <Route element={<Layout />}>
                   <Route index element={<Home />} />
                   <Route path="explore" element={<ExplorePage />} />
+                  <Route path="simulation" element={<Simulation />} />
                   <Route path="routes" element={<RoutesPage />} />
                   <Route path="places" element={<PlacesPage />} />
                   <Route path="planner" element={<Planner />} />

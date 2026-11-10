@@ -88,6 +88,7 @@ export default function CompatibleMap({
         color: f?.properties?.color || "#168c7c",
         weight: 4,
         opacity: 0.85,
+        dashArray: "7 6",
       }),
       onEachFeature: (feature, layer) => {
         const id = String(

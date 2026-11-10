@@ -23,6 +23,7 @@ import {
   LogOut,
   Map,
   MapPin,
+  Navigation,
   Menu,
   MessageCircle,
   Route,
@@ -37,9 +38,11 @@ import { useApp, useResource, regions, initials, date } from "../state";
 import { Button, Empty, ErrorState, IconButton, Modal, Busy } from "./ui";
 import { AuthDialog, DetailsDialogs, SearchDialog } from "./Dialogs";
 import { ChatPanel } from "./ChatPanel";
+import { isPublicSnapshot } from "../public-data";
 const primary = [
   { to: "/", label: "Tổng quan", icon: Home },
   { to: "/explore", label: "Bản đồ khám phá", icon: Map },
+  { to: "/simulation", label: "Mô phỏng đường phố", icon: Navigation },
   { to: "/routes", label: "Tuyến xe buýt", icon: BusFront },
   { to: "/places", label: "Điểm đến", icon: Compass },
   { to: "/planner", label: "Lên lịch trình", icon: Route },
@@ -110,7 +113,9 @@ export default function Layout() {
     return () => c.abort();
   }, [credits, photos.length]);
   return (
-    <div className="app-shell">
+    <div
+      className={`app-shell ${location.pathname === "/simulation" ? "simulation-active" : ""}`}
+    >
       <a
         className="skip-link"
         href="#main-content"
@@ -361,6 +366,12 @@ export default function Layout() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
           >
+            {isPublicSnapshot() && (
+              <div className="public-data-note">
+                Bản công khai · Xem tuyến, điểm đến và mô phỏng. Tài khoản và
+                lưu hành trình cần bản có máy chủ.
+              </div>
+            )}
             <Outlet />
           </motion.div>
         </main>
@@ -374,7 +385,7 @@ export default function Layout() {
         </footer>
       </div>
       <nav className="bottom-nav" aria-label="Điều hướng trên điện thoại">
-        {[primary[0], primary[1], primary[4], secondary[0], secondary[1]].map(
+        {[primary[0], primary[1], primary[2], primary[5], secondary[0]].map(
           (v) => (
             <NavLink
               key={v.to}
@@ -386,11 +397,13 @@ export default function Layout() {
               <span>
                 {v.to === "/explore"
                   ? "Bản đồ"
-                  : v.to === "/planner"
-                    ? "Lịch trình"
-                    : v.to === "/community"
-                      ? "Cộng đồng"
-                      : v.label}
+                  : v.to === "/simulation"
+                    ? "Mô phỏng"
+                    : v.to === "/planner"
+                      ? "Lịch trình"
+                      : v.to === "/community"
+                        ? "Cộng đồng"
+                        : v.label}
               </span>
             </NavLink>
           ),

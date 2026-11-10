@@ -5697,6 +5697,37 @@ small {
 .main-content:focus {
   outline: none;
 }
+.map-simulation-link {
+  position: absolute;
+  z-index: 4;
+  right: 15px;
+  top: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 15px;
+  border: 1px solid #d4e4da;
+  border-radius: 10px;
+  background: #fffef8;
+  color: #247f9f;
+  font-size: 12px;
+  box-shadow: 0 3px 14px #23423612;
+}
+.public-data-note {
+  font-size: 10px;
+  line-height: 1.6;
+  color: #7a805f;
+  background: #f3f3e9;
+  border: 1px solid #e7e9da;
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin-bottom: 20px;
+}
+.map-page-content .public-data-note {
+  margin: 0;
+  border-radius: 0;
+  padding: 7px 15px;
+}
 .app-footer button {
   display: flex;
   gap: 5px;

@@ -568,6 +568,31 @@ export function DetailsDialogs() {
                   Góp ý thông tin
                 </Button>
               </div>
+              {(r.sourceNote || r.id === "DN-06") && (
+                <p className="muted route-source-note">
+                  {r.sourceNote ||
+                    "Giờ trong tài liệu nguồn tuyến 06 có ghi chú lịch Tết. Xem thông tin đối chiếu trước khi dùng để lên chuyến đi."}{" "}
+                  <a
+                    href="https://www.danangbus.vn/lo-trinh-tuyen.html"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Nguồn Danabus
+                  </a>
+                </p>
+              )}
+              {r.id === "DN-06" && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setRouteId(null);
+                    nav("/simulation");
+                  }}
+                >
+                  <BusFront size={16} />
+                  Xem mô phỏng đoạn tuyến 06
+                </Button>
+              )}
               <section className="detail-section">
                 <h3>Các điểm dừng trên tuyến</h3>
                 {stops.isPending ? (

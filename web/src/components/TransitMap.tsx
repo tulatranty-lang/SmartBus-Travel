@@ -90,6 +90,7 @@ export default function TransitMap({
           "line-color": ["coalesce", ["get", "color"], "#168c7c"],
           "line-width": 4.5,
           "line-opacity": 0.85,
+          "line-dasharray": [2, 2],
         },
         layout: { "line-cap": "round", "line-join": "round" },
       });

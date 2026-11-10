@@ -1,4 +1,5 @@
 import type { AuthData, Envelope, User } from "./types";
+import { isPublicSnapshot, publicData, PublicDataError } from "./public-data";
 declare global {
   interface Window {
     SMARTBUS_API_BASE?: string;
@@ -120,6 +121,15 @@ export async function api<T>(
   path: string,
   o: Options = {},
 ): Promise<Envelope<T>> {
+  if (isPublicSnapshot()) {
+    try {
+      return await publicData<T>(path, o);
+    } catch (e) {
+      if (e instanceof PublicDataError)
+        throw new ApiError(e.message, e.status, "PUBLIC_SNAPSHOT");
+      throw e;
+    }
+  }
   const controller = new AbortController(),
     abort = () => controller.abort();
   if (o.signal?.aborted) abort();
@@ -161,11 +171,9 @@ export async function api<T>(
       if (o.signal?.aborted) throw new DOMException("Đã hủy", "AbortError");
       return api<T>(path, { ...o, refresh: false });
     }
-    const d = await r
-      .json()
-      .catch(() => ({
-        message: `Máy chủ trả về lỗi ${r.status}. Vui lòng thử lại.`,
-      }));
+    const d = await r.json().catch(() => ({
+      message: `Máy chủ trả về lỗi ${r.status}. Vui lòng thử lại.`,
+    }));
     if (o.signal?.aborted) throw new DOMException("Đã hủy", "AbortError");
     if (
       r.ok &&

@@ -42,6 +42,8 @@ export interface Route {
   fare?: string;
   color?: string;
   path?: number[][];
+  sourceNote?: string;
+  sourceUrl?: string;
 }
 export interface Stop {
   id: string;

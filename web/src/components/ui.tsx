@@ -1,4 +1,9 @@
-import { useId, type ReactNode, type ButtonHTMLAttributes } from "react";
+import {
+  useId,
+  useRef,
+  type ReactNode,
+  type ButtonHTMLAttributes,
+} from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   AlertCircle,
@@ -69,6 +74,7 @@ export function Modal({
   className?: string;
 }) {
   const id = useId();
+  const returnFocus = useRef<HTMLElement | null>(null);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -76,6 +82,21 @@ export function Modal({
         <Dialog.Content
           className={`dialog-content ${wide ? "dialog-wide" : ""} ${className}`}
           aria-describedby={description ? id : undefined}
+          onOpenAutoFocus={() => {
+            returnFocus.current =
+              document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
+          }}
+          onCloseAutoFocus={(e) => {
+            if (
+              returnFocus.current?.isConnected &&
+              returnFocus.current !== document.body
+            ) {
+              e.preventDefault();
+              returnFocus.current.focus({ preventScroll: true });
+            }
+          }}
         >
           <div className="dialog-top">
             <div>

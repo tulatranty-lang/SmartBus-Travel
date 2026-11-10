@@ -134,20 +134,20 @@ export function Home() {
         <div className="hero-content">
           <div className="hero-eyebrow">
             <span />
-            <span>CHẠM MỘT ĐIỂM. MỞ MỘT HÀNH TRÌNH.</span>
+            <span>BẢN ĐỒ CHI TIẾT. NHÌN GẦN TỪNG CHUYẾN XE.</span>
           </div>
           <h1>
-            Đi gần hơn.
+            Nhìn rõ đường.
             <br />
-            Khám phá <em>nhiều hơn.</em>
+            Hiểu từng <em>chuyến xe.</em>
           </h1>
           <p>
-            Từ một chuyến xe quen đến những miền đất mới.
+            Theo xe qua nút giao, phóng gần từng khúc cua.
             <br className="desktop-only" />
-            Miền Trung của bạn, theo cách của bạn.
+            Khám phá miền Trung từ một chuyến xe.
           </p>
-          <Button onClick={() => nav("/explore")}>
-            Bắt đầu khám phá
+          <Button onClick={() => nav("/simulation")}>
+            Xem chuyến xe mô phỏng
             <ArrowUpRight size={18} />
           </Button>
         </div>
@@ -580,6 +580,7 @@ export function PlacesPage() {
   );
 }
 export function ExplorePage() {
+  const nav = useNavigate();
   const {
     region,
     setPlaceId,
@@ -862,6 +863,13 @@ export function ExplorePage() {
         </div>
       </section>
       <section className="explore-map">
+        <button
+          className="map-simulation-link"
+          onClick={() => nav("/simulation")}
+        >
+          <BusFront size={17} />
+          Xem xe di chuyển <ArrowRight size={15} />
+        </button>
         <Suspense fallback={<Skeleton className="map-skeleton" />}>
           <TransitMap
             region={region}
@@ -877,7 +885,7 @@ export function ExplorePage() {
         </Suspense>
         <div className="map-bottom-caption">
           <span className="legend-line" />
-          Tuyến xe
+          Điểm tuyến gốc · chưa khớp làn
           <span className="legend-pin" />
           Điểm đến
           <span className="legend-stop" />

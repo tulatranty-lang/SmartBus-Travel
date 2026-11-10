@@ -8,6 +8,8 @@ Giao diện mới nằm trong `web/src`, được dựng vào `frontend/app` và
 
 Dữ liệu tuyến và tọa độ được nhập từ bộ tài liệu sẵn có trong repository. Đây là dữ liệu tham khảo, chưa phải feed vị trí xe/giờ đến trực tiếp từ đơn vị vận hành. Tên khu vực có Quảng Nam cũ và tuyến liên vùng; không dùng số khu vực như số đơn vị hành chính hiện hành. Bài review mẫu cũ được đánh dấu `is_seed`/“Bài mẫu”.
 
+**Mô phỏng đường phố:** mở `/#/simulation` để xem đoạn Cầu Rồng → Võ Văn Kiệt → Võ Nguyên Giáp trên nền hình học OSM, với xe điện Kim Long 40 người tham chiếu tuyến 06. Có ba tình huống, bám xe IDM, giới hạn tăng tốc/độ êm, phanh theo độ cong, theo dõi hai trục khi cua, chờ đèn và mở cửa theo số khách. Bảng “Nguồn & độ chính xác” ghi từng nguồn Danabus, Báo Đà Nẵng, hãng xe và mạng xã hội chính thức; thông số ước tính được đánh dấu. Đây là mô phỏng, chưa có GPS xe trực tiếp và chưa nghiệm thu mép đường. Xem [cấu hình và kết quả kiểm tra](docs/current/SIMULATION_RELEASE.md).
+
 ## Chạy trên Windows
 
 Cần Node.js 24 LTS (tối thiểu 22.12), SQL Server Developer/Express 2022 trở lên và TCP/IP của SQL Server được bật. SSMS chỉ là công cụ quản trị; cài SSMS không đồng nghĩa đã cài SQL Server. Không cần Apache hoặc XAMPP.
@@ -136,7 +138,9 @@ Kiểm tra trình duyệt với cùng cấu hình database thử ở trên: `npm
 
 Khuyến nghị chạy **cùng origin**: `npm start` phục vụ frontend và API; `/runtime-config.js` tự nhận API prefix. Không cần sửa JavaScript khi đổi domain chung.
 
-GitHub Pages chỉ phục vụ frontend, không chạy Node.js/SQL Server. Sau sửa giao diện, chạy `npm run build`; CI kiểm tra bản dựng và tài nguyên trong `docs` giống nhau. Đường dẫn tương đối và HashRouter hỗ trợ `/SmartBus-Travel/`. Khi dùng Pages riêng, chủ dự án đặt URL API HTTPS vào `web/public/runtime-config.js` rồi dựng lại; backend cần `CORS_ORIGIN=https://tulatranty-lang.github.io`. Cấu hình mới mặc định cùng origin, không tự dùng endpoint Render cũ chưa được xác nhận. Khi chưa có backend online, Pages sẽ báo lỗi kết nối; bản chạy chung server trên máy dùng được đầy đủ.
+GitHub Pages phục vụ bản công khai tại [SmartBus Travel](https://tulatranty-lang.github.io/SmartBus-Travel/#/simulation), không chạy Node.js/SQL Server. Bản này xem được mô phỏng, 39 tuyến, 243 điểm nguồn riêng biệt và 60 điểm du lịch từ dữ liệu đã có trong Git, không xuất tài khoản hoặc nội dung SQL cá nhân. 298 vị trí theo thứ tự các tuyến được giữ nguyên. Chạy `npm run data:public` khi chủ động cập nhật bộ dữ liệu công khai; CI kiểm tra tính nhất quán. Các đường nối điểm nguồn ở trang Khám phá được vẽ nét đứt, không được nhận là đường hoặc làn đã xác thực.
+
+Sau sửa giao diện, chạy `npm run build`; CI kiểm tra bản dựng và tài nguyên trong `docs` giống nhau. Đường dẫn tương đối và HashRouter hỗ trợ `/SmartBus-Travel/`. Tài khoản, lưu hành trình và gửi nội dung cần backend. Để dùng backend HTTPS trên Pages, đặt URL API vào `web/public/runtime-config.js` rồi dựng lại; backend cần `CORS_ORIGIN=https://tulatranty-lang.github.io`. Có thể đặt `window.SMARTBUS_PUBLIC_SNAPSHOT=false` để tắt chế độ dữ liệu công khai khi dùng cấu hình riêng. Bản Express cùng origin dùng SQL như trước, không tự chuyển sang dữ liệu công khai khi máy chủ gặp lỗi.
 
 Dockerfile tại **thư mục gốc** đóng gói cả API, frontend và migration; kết nối tới SQL Server riêng. Trước khi public đặt `NODE_ENV=production`, hai JWT secret khác nhau đủ dài, DB account riêng, TLS và CORS origin đúng. Không đóng gói `.env`, token hoặc dữ liệu phiên. Docker image chưa được chạy trong môi trường kiểm thử hiện tại. Không có cam kết dịch vụ miễn phí lâu dài trong bản này.
 
