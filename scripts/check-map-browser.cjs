@@ -140,6 +140,43 @@ const server = http.createServer((request, response) => {
       await page.evaluate(() =>
         window.scrollTo({ top: 0, behavior: "instant" }),
       );
+      await page
+        .waitForFunction(
+          () => document.documentElement.scrollWidth <= innerWidth + 1,
+          null,
+          { timeout: 5000 },
+        )
+        .catch(async () => {
+          const details = await page.evaluate(() => ({
+            viewport: innerWidth,
+            scroll: document.documentElement.scrollWidth,
+            out: [...document.querySelectorAll("body *")]
+              .flatMap((e) => {
+                const r = e.getBoundingClientRect();
+                return r.right > innerWidth + 1 &&
+                  getComputedStyle(e).visibility !== "hidden"
+                  ? [
+                      {
+                        tag: e.tagName,
+                        cls: typeof e.className === "string" ? e.className : "",
+                        right: r.right,
+                        width: r.width,
+                        overflow: getComputedStyle(e).overflow,
+                      },
+                    ]
+                  : [];
+              })
+              .slice(0, 35),
+          }));
+          fs.writeFileSync(
+            path.join(out, "map-overflow-" + width + ".json"),
+            JSON.stringify(details, null, 2),
+          );
+          await page.screenshot({
+            path: path.join(out, "map-overflow-" + width + ".png"),
+            fullPage: true,
+          });
+        });
       const sizes = await page.evaluate(() => ({
         width: innerWidth,
         scroll: document.documentElement.scrollWidth,

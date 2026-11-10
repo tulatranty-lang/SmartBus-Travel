@@ -1,6 +1,26 @@
 .explore-operational-map .map-label {
   display: none;
 }
+.explore-operational-map {
+  overflow: hidden;
+  min-width: 0;
+  isolation: isolate;
+}
+.explore-operational-map .map-canvas {
+  max-width: 100%;
+  overflow: hidden;
+}
+.operations-title > div {
+  min-width: 0;
+  flex: 1;
+}
+.operations-clock {
+  flex-shrink: 0;
+}
+.operations-controls label,
+.operations-controls input {
+  min-width: 0;
+}
 .map-active .chat-launcher {
   display: none;
 }
