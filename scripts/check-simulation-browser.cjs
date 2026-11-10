@@ -157,6 +157,26 @@ const server = http.createServer((request, response) => {
         "horizontal overflow at " + width + " px: " + JSON.stringify(size),
       );
       await screenshot("mobile-" + width + ".png");
+      const playOnMap = page.getByRole("button", {
+        name: "Phát ngay trên bản đồ",
+        exact: true,
+      });
+      const bounds = await playOnMap.boundingBox();
+      assert.ok(
+        bounds && bounds.y >= 0 && bounds.y + bounds.height <= 844,
+        "mobile playback must be visible beside the map",
+      );
+      const previousTime = await page.getByTestId("sim-clock").textContent();
+      await playOnMap.click();
+      await page.waitForFunction(
+        (previous) =>
+          document.querySelector('[data-testid="sim-clock"]')?.textContent !==
+          previous,
+        previousTime,
+      );
+      await page
+        .getByRole("button", { name: "Tạm dừng xe trên bản đồ", exact: true })
+        .click();
     }
     await page.setViewportSize({ width: 1440, height: 1050 });
     await page.goto(base + "#/routes");
@@ -219,6 +239,7 @@ const server = http.createServer((request, response) => {
         "public routes and homepage",
         "no backend calls in public mode",
         "network error and retry",
+        "mobile playback without leaving the map",
       ],
       pageErrors: errors,
       missingAssets: missing,

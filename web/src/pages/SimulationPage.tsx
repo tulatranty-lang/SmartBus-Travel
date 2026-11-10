@@ -275,6 +275,10 @@ export default function SimulationPage() {
     afterBoarding =
       view.time >= (R.events.boarding ?? Infinity) + R.passengers.dwellSeconds;
   const passengers = afterBoarding ? R.passengers.after : R.passengers.before;
+  function togglePlayback() {
+    if (view.time >= R.duration) setView((v) => ({ ...v, time: 0 }));
+    setPlaying(!playing);
+  }
   function camera(value: CameraMode) {
     setView((v) => ({ ...v, camera: value, zoom: 1, pan: [0, 0] }));
   }
@@ -399,6 +403,18 @@ export default function SimulationPage() {
               <strong>06 · Kim Long điện</strong>
               <small>{status}</small>
             </div>
+          </div>
+          <div className="sim-map-player">
+            <button
+              aria-label={
+                playing ? "Tạm dừng xe trên bản đồ" : "Phát ngay trên bản đồ"
+              }
+              onClick={togglePlayback}
+            >
+              {playing ? <Pause size={16} /> : <Play size={16} />}
+              {playing ? "Tạm dừng" : "Phát xe"}
+            </button>
+            <output>{clock(view.time)}</output>
           </div>
           <div className="sim-zoom">
             <button
@@ -585,10 +601,7 @@ export default function SimulationPage() {
         <button
           className="sim-play"
           aria-label={playing ? "Tạm dừng mô phỏng" : "Phát mô phỏng"}
-          onClick={() => {
-            if (view.time >= R.duration) setView((v) => ({ ...v, time: 0 }));
-            setPlaying(!playing);
-          }}
+          onClick={togglePlayback}
         >
           {playing ? <Pause size={17} /> : <Play size={17} />}
           {playing ? "Tạm dừng" : "Phát chuyến xe"}
